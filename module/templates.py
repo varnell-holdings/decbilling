@@ -51,3 +51,25 @@ Procedure performed by Dr. %s<br>
 
 # terminal_html is appended on bottom of html code
 terminal_html = '</table>\n</body>\n</html>'
+
+# three snippets for batch headers
+
+batch_header_html = '''<html moznomarginboxes mozdisallowselectionprint>
+<head>
+<style>
+th {text-align: left;}
+</style>
+</head>
+<body>
+<h2 style="text-align:center">Batch Header</h2><br>
+<h3>FUND</h3>
+<h3>%s</h3>
+<br>
+<h3>Number</h3>
+<h3>%d</h3>
+<br>
+<h3>Value</h3>
+<h3>$%.2f</h3>
+</body>
+</html>'''
+

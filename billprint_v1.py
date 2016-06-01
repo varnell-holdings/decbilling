@@ -13,7 +13,7 @@ from dateutil.parser import *
 from module.fundfees import fund_fees, pe_code, col_code, age_code, sick_code
 
 # these html codes for the account
-from module.templates import base_html, table_html, terminal_html
+from module.templates import base_html, table_html, terminal_html, batch_header_html
 
 try:
     csvfile = open('/Users/jtair/Dropbox/DEC/new_billing_program/month_patients.csv', 'r')
@@ -26,6 +26,7 @@ newpatlist = [_ for _ in patlist]
 
 for health_fund in ['HCF', 'BUPA', 'MPL', 'NIB', 'AHSA', 'AHM', 'AMA']:
     number_to_print = 0         # output the number of accounts printed as a check
+    batch_claim = 0.0
     for row in newpatlist:
         if row[13] == health_fund:
             # extract data from csv file into variables - these are strings
@@ -53,7 +54,6 @@ for health_fund in ['HCF', 'BUPA', 'MPL', 'NIB', 'AHSA', 'AHM', 'AMA']:
             else:
                 age = 'No'
 
-            number_to_print += 1
 
             # get fees from module depending on fund
             fee_package = fund_fees[health_fund]
@@ -107,16 +107,35 @@ for health_fund in ['HCF', 'BUPA', 'MPL', 'NIB', 'AHSA', 'AHM', 'AMA']:
                       + row[0] + '.html', 'w') as ep_file:
                 ep_file.write(output_html)
 
-    # final print out of number of accounts - done as a check
+            number_to_print += 1
+            batch_claim += total_fee
+            if number_to_print == 2:
+                print('You\'ve reached 20 accounts for %s' % health_fund)
+                print('Claim amount for these accounts is  $%.2f' % batch_claim)
+                header_file = batch_header_html % (health_fund, number_to_print, batch_claim)
+                with open('/Users/jtair/Documents/Invoices/'
+                      + health_fund +'_header' + '.html', 'w') as head_file:
+                    head_file.write(header_file)
 
-    if number_to_print == 0:
-        print('***There seems to be no %s patients that month.***' % health_fund)
-        print('     ***********')
-    else:
-        print('Number of {} accounts created is {}'.format(health_fund, number_to_print))
-        # print('Destination --> ~/Documents/Invoices')
-        print('Hit fn-f2 to print out.')
-        print('      **********')
+                print('Print them out with fn-f2')
+
+                number_to_print = 0
+                batch_claim = 0.0
+                pauser = input('Hit Enter when ready to print next fund batch.')
+                if pauser == '':
+                    continue
+
+
+    # final print out of number of accounts
+
+    print('Number of {} accounts created is {}'.format(health_fund, number_to_print))
+    print('Value of {} accounts created is ${}'.format(health_fund, batch_claim))
+    if number_to_print != 0:
+        header_file = batch_header_html % (health_fund, number_to_print, batch_claim)
+        with open('/Users/jtair/Documents/Invoices/'
+              + health_fund +'_header' + '.html', 'w') as head_file:
+            head_file.write(header_file)
+    print('Hit fn-f2 to print out.')
     pauser = input('Hit Enter when ready to print next fund batch.')
     if pauser == '':
         continue

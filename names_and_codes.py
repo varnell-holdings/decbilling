@@ -36,6 +36,13 @@ ANAESTHETISTS = {'tt': 'Dr T Thompson',
                  'locum': 'locum',
                  '1545': 'Dr J Tillett'}
 
+REGULAR_ANAESTHETISTS = {'Dr J Tillett', "Dr G O'Sullivan", 'Dr T Thompson',
+                         'Dr S Vuong','Dr C Brown', 'Dr J Riley',
+                         'Dr J Stevens', 'Dr D Bowring', 'Dr J Tester'}
+
+VMOS = {'DR M Danta', 'DR R Gett', 'Prof R Lord', 'Dr G Owen', 'Dr A Meagher'}
+
+
 DOC_LIST = ['Dr C Bariol', 'DR M Danta', 'Dr R Feller', 'DR R Gett',
             'Dr S Ghaly', 'Prof R Lord', 'Dr A Meagher',
             'Dr A Stoita', 'Dr C Vickers', 'Dr S Vivekanandarajah',
@@ -128,3 +135,4 @@ AHSA_DIC = {'te': 'Teachers Federation Health',
             'na': 'Naval Health Benefits',
             're': 'Reserve Bank',
             'o': 'other'}
+

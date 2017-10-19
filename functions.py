@@ -44,9 +44,9 @@ class BlueChipError(Exception):
 
 def consult_check(consult, doctor, upper, lower):
     doc_test = doctor in {'Dr A Wettstein', 'Dr S Ghaly',
-                          'Dr S Vivekanandarajah'}
+                          'Dr S Vivekanandarajah'} and consult == '0'
     path = upper in {'pb', 'pp'} or lower in {'cb', 'cp', 'sb', 'sp'}
-    cv_test = (doctor == 'Dr C Vickers') and path
+    cv_test = (doctor == 'Dr C Vickers') and path and consult == '0'
     return doc_test or cv_test
 
 

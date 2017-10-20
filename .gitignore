@@ -1,5 +1,1 @@
 .DS_Store
-module/__init__.py
-module/__pycache__/
-new_billing/
-month_patients.csv

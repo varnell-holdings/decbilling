@@ -240,7 +240,7 @@ def inputer(anaesthetist, doctor):
         message_add = input('Message:  ')
         if message_add == 'q':
             loop_flag = True
-        elif message_add == '0':
+        elif message_add.isdigit():
             pass
         elif message_add == '':
             pass

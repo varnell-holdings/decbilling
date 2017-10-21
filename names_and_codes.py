@@ -1,8 +1,5 @@
 # names_and_codes.py
 
-NURSES = {'jacqueline smith', 'Jacinta Goldenberg', 'be', 'ro',
-          'yi', 'we', 'ja', 'la', 'ma', 'no', 'su', 'pa', 'ch'}
-
 NURSES_DIC = {'no': 'Nobue Chashin',
               'ja': 'Jacqueline James',
               'jg': 'Jacinta Goldenberg',
@@ -14,7 +11,7 @@ NURSES_DIC = {'no': 'Nobue Chashin',
               'su': 'Subeia Aziz Silva',
               'be': 'Belinda Plunkett',
               'ch': 'Cheryl Guise',
-              'ka': 'Katherine Turner',}
+              'ka': 'Katherine Turner', }
 
 ANAESTHETISTS = {'tt': 'Dr T Thompson',
                  'sv': 'Dr S Vuong',
@@ -34,10 +31,10 @@ ANAESTHETISTS = {'tt': 'Dr T Thompson',
                  'bm': 'Dr B Manasiev',
                  'eoh': "Dr E O'Hare",
                  'locum': 'locum',
-                 '1545': 'Dr J Tillett'}
+                 'jrt': 'Dr J Tillett'}
 
 REGULAR_ANAESTHETISTS = {'Dr J Tillett', "Dr G O'Sullivan", 'Dr T Thompson',
-                         'Dr S Vuong','Dr C Brown', 'Dr J Riley',
+                         'Dr S Vuong', 'Dr C Brown', 'Dr J Riley',
                          'Dr J Stevens', 'Dr D Bowring', 'Dr J Tester'}
 
 VMOS = {'DR M Danta', 'DR R Gett', 'Prof R Lord', 'Dr G Owen', 'Dr A Meagher'}
@@ -69,6 +66,24 @@ DOC_DIC = {'cb': 'Dr C Bariol',
            'ak': 'Dr A Kim',
            'ndl': 'Dr N De Luca'}
 
+LOCUMS = {'Dr W Bye',
+          'Dr V Nguyen',
+          'Dr J Mill',
+          'Dr Yang Wu',
+          'Dr A Kim'}
+
+PARTNERS = {'Dr C Bariol',
+            'Dr R Feller',
+            'Dr S Ghaly',
+            'Dr A Stoita',
+            'Dr C Vickers',
+            'Dr S Vivekanandarajah',
+            'Dr A Wettstein',
+            'Dr D Williams'}
+
+BANDERS = {'DR R Gett', 'Dr A Meagher', 'Dr A Wettstein', 'Dr G Owen'}
+
+CONSULTERS = {'Dr S Ghaly', 'Dr S Vivekanandarajah', 'Dr A Wettstein'}
 
 ASA_DIC = {'1': '92515-19',
            '2': '92515-29',
@@ -87,8 +102,10 @@ UPPER_DIC = {'0': 'none',
 
 COLON_DIC = {'0': 'none',
              'co': '32090-00',
+             'cs': '32090-00',
              'cb': '32090-01',
              'cp': '32093-00',
+             'csp': '32093-00',
              'sc': '32084-00',
              'sb': '32084-01',
              'sp': '32087-00'}
@@ -110,15 +127,15 @@ FUND_ABREVIATION = {'h': 'hcf',
                     'g': 'ga'}
 
 FUND_DIC = {'hcf': 'HCF',
-                 'mpl': 'Medibank Private',
-                 'bup': 'BUPA',
-                 'nib': 'NIB',
-                 'ama': "The Doctor's Fund",
-                 'ahm': 'Australian Health Management',
-                 'bb': 'Bulk Bill',
-                 'va': 'Veterans Affairs',
-                 'os': 'Overseas',
-                 'ga': 'Garrison Health'}
+            'mpl': 'Medibank Private',
+            'bup': 'BUPA',
+            'nib': 'NIB',
+            'ama': "The Doctor's Fund",
+            'ahm': 'Australian Health Management',
+            'bb': 'Bulk Bill',
+            'va': 'Veterans Affairs',
+            'os': 'Overseas',
+            'ga': 'Garrison Health'}
 
 AHSA_DIC = {'te': 'Teachers Federation Health',
             'we': 'Westfund',

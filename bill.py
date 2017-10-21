@@ -9,47 +9,48 @@ from functions import (time_calculater, make_index, to_database,
                        episode_scrape, episode_opener, offsite,
                        episode_theatre, episode_procedures, episode_discharge,
                        analysis, update_web, bill_process, BlueChipError,
-                       to_csv, update_number_this_week)
+                       to_csv, update_number_this_week, make_episode_string)
 
 
 def intro(anaesthetist, doctor, nurse):
     colorama.init(autoreset=True)
     print('\033[2J')  # clear screen
-    print('Current team is Endoscopist: {1} Anaesthetist:'
-          ' {0} Nurse: {2}'.format(anaesthetist, doctor, nurse))
+    print('Current team is:\nEndoscopist: {1}\nAnaesthetist:'
+          ' {0}\nNurse: {2}'.format(anaesthetist, doctor, nurse))
     print()
     while True:
-        choice = input('To Accept press Enter, to change press c'
-                       ', to quit program press q.')
-        if choice in {'', 'c', 'q', 'a', 'u'}:
+        print('To accept press enter\nTo change team press c\n'
+              'To redo a patient press r\nTo send a message to receptionists'
+              ' press m\nTo quit program press q')
+        choice = input()
+        if choice in {'', 'c', 'q', 'a', 'u', 'r', 'm'}:
             break
     if choice == 'q':
         print('Thanks. Bye!')
         sys.exit(0)
-    if choice == 'c':
-        return 'c'
-    if choice == 'a':
-        return 'a'
-    if choice == 'u':
-        return 'u'
-    if choice == '':
+    elif choice == '':
         return
+    else:
+        return choice
 
 
-def bill(anaesthetist, doctor, nurse):
+def bill(anaesthetist, doctor, consultant, nurse):
     choice = intro(anaesthetist, doctor, nurse)
     if choice == 'c':
-        return 1
-    elif choice == 'a':
+        return 'change team'
+    if choice == 'r':
+        return 'redo'
+    if choice == 'm':
+        return 'message'
+    if choice == 'a':
         analysis()
         input('Hit Enter to continue.')
         return
-    elif choice == 'u':
+    if choice == 'u':
         update_web()
         input('Hit Enter to continue.')
         return
-    data_entry = inputer(anaesthetist, doctor)
-    
+    data_entry = inputer(consultant, anaesthetist)
 
     (asa, upper, colon, banding, consult, message, time_in_theatre,
      ref, full_fund, insur_code, fund_number, clips,
@@ -87,13 +88,16 @@ def bill(anaesthetist, doctor, nurse):
         'nurse': nurse, 'upper': upper, 'lower': colon,
         'banding': banding, 'asa': asa, 'today': today_for_db,
         'name': print_name, 'consult': consult, 'message': message,
-        'doctor': doctor, 'anaesthetic_time': time_in_theatre}
+        'doctor': doctor, 'anaesthetic_time': time_in_theatre,
+        'consultant': consultant}
 
     to_database(episode_data_for_db)
 
-    stored_index, first_patient = make_index(out_formatted, doctor, print_name,
-                                             consult, upper, colon, banding,
-                                             message, anaesthetist)
+    episode_string = make_episode_string(
+        out_formatted, doctor, print_name, consult,
+        upper, colon, banding, message, anaesthetist)
+
+    stored_index = make_index(episode_string)
 
     offsite(stored_index)
 

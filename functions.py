@@ -27,6 +27,8 @@ import glob
 import os
 import os.path
 import pickle
+import pprint
+import re
 import shutil
 import sys
 import time
@@ -36,43 +38,175 @@ import dataset
 import pyautogui
 import pyperclip
 
-import names_and_codes as np
+import names_and_codes as nc
+
 
 class BlueChipError(Exception):
         pass
 
 
-def consult_check(consult, doctor, upper, lower):
-    doc_test = doctor in {'Dr A Wettstein', 'Dr S Ghaly',
-                          'Dr S Vivekanandarajah'} and consult == 'none'
-    path = upper in {'pb', 'pp'} or lower in {'cb', 'cp', 'sb', 'sp'}
-    cv_test = (doctor == 'Dr C Vickers') and path and consult == 'none'
-    return doc_test or cv_test
-
-
-def get_consult(doctor, upper, lower, loop_flag):
+def get_anaesthetist():
     while True:
-        consult = input('Consult: ')
-        if consult == '0':
-            consult = 'none'
-        if consult == 'q':
-            loop_flag = True
-            break
-        if consult in {'110', '116', 'none'}:
-            break
-        print('TRY AGAIN!')
+        initials = input('Anaesthetist:  ').lower()
+        if initials == 'h':
+            pprint.pprint(nc.ANAESTHETISTS)
+            continue
 
-    if consult_check(consult, doctor, upper, lower) and loop_flag is False:
-        print('Confirm with {} that he/she'
-              ' does not want a consult'.format(doctor))
+        if initials in nc.ANAESTHETISTS:
+            anaesthetist = nc.ANAESTHETISTS[initials]
+            break
+    return anaesthetist
+
+
+def get_endoscopist():
+    while True:
+        initials = input('Endoscopist:  ').lower()
+        if initials in nc.DOC_DIC:
+            doctor = nc.DOC_DIC[initials]
+            break
+    if doctor in nc.LOCUMS:
         while True:
-            consult = input('Consult either 0,110,116: ')
-            if consult == '0':
-                consult = 'none'
-            if consult in {'110', '116', 'none'}:
+            initials = input('Who is Dr {} covering? '.format(
+                doctor.split()[-1]))
+            if nc.DOC_DIC[initials] in nc.PARTNERS:
+                consultant = nc.DOC_DIC[initials]
                 break
+    else:
+        consultant = doctor
 
-    return consult, loop_flag
+    return doctor, consultant
+
+
+def get_nurse():
+    while True:
+        print()
+        initials = input('Nurse (h)elp:  ')
+        if initials == 'h':
+            pprint.pprint(nc.NURSES_DIC)
+            continue
+
+        if initials in nc.NURSES_DIC:
+            nurse = nc.NURSES_DIC[initials]
+            break
+    return nurse
+
+
+def episode_update(consultant, doctor, anaesthetist, data_entry):
+
+    (asa, upper, colon, banding, consult, message, time_in_theatre,
+     ref, full_fund, insur_code, fund_number, clips,
+     varix_flag, varix_lot) = data_entry
+
+    (in_formatted, out_formatted,
+     anaesthetic_time, today_for_db) = time_calculater(time_in_theatre)
+    message = episode_opener(message)
+    episode_procedures(upper, colon, banding, asa)
+    mrn, print_name, address, dob, mcn = episode_scrape()
+
+    message += 'Updated this patient. Check Blue Chip is correct.'
+
+    stored_index, first_patient = make_index(
+        out_formatted, doctor, print_name, consult,
+        upper, colon, banding, message, anaesthetist)
+
+    offsite(stored_index)
+
+    time.sleep(1)
+
+    pyautogui.click(x=780, y=90)
+
+
+def send_message(anaesthetist):
+    base = '<b>Message from {}</b> - '.format(anaesthetist)
+    print('Type your message. Your name is automatically included.')
+    new = input()
+    message = base + new + '\n'
+    stored_index = make_index(message)
+    offsite(stored_index)
+
+
+def get_consult(consultant, upper, lower, time_in_theatre, loop_flag):
+    consult = 'none'
+
+    if consultant == 'Dr A Stoita' or consultant not in nc.PARTNERS:
+        return (consult, loop_flag)
+
+    if consultant in nc.CONSULTERS:
+        while True:
+            print()
+            consult = input('Consult 110 or 116: ')
+            if consult == 'q':
+                loop_flag = True
+                break
+            if consult in {'110', '116'}:
+                break
+            print('\033[31;1m' + 'TRY AGAIN!')
+        return (consult, loop_flag)
+
+    if consultant == 'Dr R Feller':
+        print("Dr Feller does 110's on new patients only")
+        while True:
+            print()
+            consult = input('CONSULT 110 or 0: ')
+            if consult == 'q':
+                loop_flag = True
+                break
+            if consult in {'110', '0'}:
+                break
+            print('\033[31;1m' + 'TRY AGAIN!')
+        return (consult, loop_flag)
+
+    if consultant == 'Dr C Bariol':
+        while True:
+            print()
+            consult = input('CONSULT 110, 116, 0: ')
+            if consult == 'q':
+                loop_flag = True
+                break
+            if consult in {'110', '116', '0'}:
+                break
+            print('\033[31;1m' + 'TRY AGAIN!')
+        return (consult, loop_flag)
+
+    if consultant == 'Dr D Williams':
+        if int(time_in_theatre) > 30 and lower != '0':
+            print()
+            print('\033[31;1m' + 'Dr Williams will bill a 110.')
+            while True:
+                response = input('Confirm (y/n) ')
+                if response.lower() in {'y', 'n'}:
+                    break
+            if response == 'y':
+                consult = '110'
+        return (consult, loop_flag)
+
+    if consultant == 'Dr C Vickers':
+        pu = upper in {'pb', 'pp', 'od'}
+        pl = lower in {'cb', 'cp', 'sb', 'sp', 'csp'}
+        if pu or pl:
+            consult = '116'
+        return (consult, loop_flag)
+
+
+def get_banding(consultant, lower, message, loop_flag):
+    if consultant not in nc.BANDERS or lower == '0':
+        banding = '0'
+        return banding, message, loop_flag
+    while True:
+        banding = input('Anal:   ')
+        b_match = re.match(r'^[abq0]$', banding)
+        if b_match:
+            if banding == 'b':
+                message += ' - Banding haemorrhoids'
+            elif banding == 'a':
+                message += '-Anal dilatation'
+            elif banding == 'q':
+                loop_flag = True
+            if banding in {'a', 'b'} and consultant == 'Dr A Wettstein':
+                message += ' - Bill bilateral pudendal blocks'
+            break
+        print('\033[31;1m' + 'TRY AGAIN!')
+    return banding, message, loop_flag
 
 
 def bill_process(bc_dob, upper, lower, asa, mcn, insur_code):
@@ -103,17 +237,19 @@ def bill_process(bc_dob, upper, lower, asa, mcn, insur_code):
         asa_three = 'No'
     if insur_code == 'os':
         mcn = ''
-    with open('d:\\JOHN TILLET\\episode_data\\jtdata\\invoice_store.py', 'rb') as handle:
+    with open('d:\\JOHN TILLET\\episode_data\\'
+              'jtdata\\invoice_store.py', 'rb') as handle:
         invoice = pickle.load(handle)
         invoice += 1
-    with open('d:\\JOHN TILLET\\episode_data\\jtdata\\invoice_store.py', 'wb') as handle:
+    with open('d:\\JOHN TILLET\\episode_data\\'
+              'jtdata\\invoice_store.py', 'wb') as handle:
         pickle.dump(invoice, handle)
     return today, upper_done, lower_done, age_seventy, asa_three, invoice, mcn
 
 
 def time_calculater(time_in_theatre):
     nowtime = datetime.datetime.now()
-    today_str = nowtime.strftime('%Y' + '-' + '%m' + '-'  + '%d')
+    today_str = nowtime.strftime('%Y' + '-' + '%m' + '-' + '%d')
 
     time_in_theatre = int(time_in_theatre)
     outtime = nowtime + relativedelta(minutes=+3)
@@ -138,40 +274,35 @@ def time_calculater(time_in_theatre):
     return (in_formatted, out_formatted, anaesthetic_time, today_str)
 
 
-def make_index(out_formatted, doctor, print_name, consult,
-               upper, colon, banding, message,anaesthetist):
-    def movehtml():
-        base = 'd:\\JOHN TILLET\\episode_data\\'
-        dest = 'd:\\JOHN TILLET\\episode_data\\html-backup'
+def make_episode_string(outtime, doctor, print_name, consult,
+                        upper, colon, banding, message, anaesthetist):
 
-        for src in glob.glob(base + '*.html'):
-            shutil.move(src, dest)
-
-    first_patient = False
     doc_surname = doctor.split()[-1]
-    if doc_surname =='Vivekanandarajah':
-        doc_surname = 'Suhirdan'
-    anaes_surname = anaesthetist.split()[-1]
-    docs = doc_surname + '/' + anaes_surname
-    upper = np.UPPER_DIC[upper]
-    colon = np.COLON_DIC[colon]
-    banding = np.BANDING_DIC[banding]
+    if doc_surname == 'Vivekanandarajah':
+        doc_surname = 'Suhir'
+    anaesthetist_surname = anaesthetist.split()[-1]
+    docs_for_web = doc_surname + '/' + anaesthetist_surname
+
+    web_upper = nc.UPPER_DIC['upper']
+    web_lower = nc.COLON_DIC['lower']
+
+    html_string = '<b>{0}</b> - {1} - - {2} - CONSULT:<b>{3}</b>'
+    '- UPPER: {4} - LOWER: {5}<b>{6}</b> <br><br>\n'
+    out_string = html_string.format(
+        outtime, docs_for_web, print_name, consult,
+        web_upper, web_lower, message)
+    return out_string
+
+
+def make_index(out_str):
+
     today = datetime.datetime.now()
     today_str = today.strftime('%A' + '  ' + '%d' + ':' + '%m' + ':' + '%Y')
-    head_string = "%s <br><br>\n" % (today_str)
+    head_string = "DEC procedures for {}<br><br>\n".format(today_str)
     date_file_str = today.strftime('%Y' + '-' + '%m' + '-' + '%d')
     date_filename = date_file_str + '.html'
     stored_index = os.path.join('d:\\JOHN TILLET\\'
                                 'episode_data\\' + date_filename)
-
-    if consult in {'110', '116'}:
-        out_str = ('<b>%s</b> - %s - - %s - CONSULT:<b> %s </b>- UPPER: %s - LOWER: %s'
-                   '<b>%s</b> <br><br>\n') % (out_formatted, docs, print_name, consult, upper,
-                                              colon, message)
-    else:
-        out_str = ('<b>%s</b>- %s - - %s - CONSULT: %s - UPPER: %s - LOWER: %s'
-                   '<b> %s </b> <br><br>\n') % (out_formatted, docs, print_name, consult, upper,
-                                                colon, message)
 
     if os.path.isfile(stored_index):
         with open(stored_index, 'r') as original:
@@ -184,11 +315,54 @@ def make_index(out_formatted, doctor, print_name, consult,
         dest = 'd:\\JOHN TILLET\\episode_data\\html-backup'
         for src in glob.glob(base + '*.html'):
             shutil.move(src, dest)
-
         with open(stored_index, 'w') as new_index:
             new_index.write(head_string + out_str)
-            first_patient = True
-    return stored_index, first_patient
+    return stored_index
+
+
+# def make_index(out_formatted, doctor, print_name, consult,
+#                upper, colon, banding, message, anaesthetist):
+
+#     doc_surname = doctor.split()[-1]
+#     if doc_surname == 'Vivekanandarajah':
+#         doc_surname = 'Suhirdan'
+#     anaes_surname = anaesthetist.split()[-1]
+#     docs = doc_surname + '/' + anaes_surname
+#     upper = nc.UPPER_DIC[upper]
+#     colon = nc.COLON_DIC[colon]
+#     banding = nc.BANDING_DIC[banding]
+#     today = datetime.datetime.now()
+#     today_str = today.strftime('%A' + '  ' + '%d' + ':' + '%m' + ':' + '%Y')
+#     head_string = "%s <br><br>\n" % (today_str)
+#     date_file_str = today.strftime('%Y' + '-' + '%m' + '-' + '%d')
+#     date_filename = date_file_str + '.html'
+#     stored_index = os.path.join('d:\\JOHN TILLET\\'
+#                                 'episode_data\\' + date_filename)
+
+#     if consult in {'110', '116'}:
+#         out_str = ('<b>%s</b> - %s - - %s - CONSULT:<b> %s </b>- UPPER:'
+#                    ' %s - LOWER: %s<b>%s</b> <br><br>\n') % (
+#             out_formatted, docs, print_name, consult, upper, colon, message)
+#     else:
+#         out_str = ('<b>%s</b>- %s - - %s - CONSULT: %s - UPPER: %s - LOWER: %s'
+#                    '<b> %s </b> <br><br>\n') % (
+#             out_formatted, docs, print_name, consult, upper, colon, message)
+
+#     if os.path.isfile(stored_index):
+#         with open(stored_index, 'r') as original:
+#             original.readline()
+#             data = original.read()
+#         with open(stored_index, 'w') as modified:
+#             modified.write(head_string + out_str + data)
+#     else:
+#         base = 'd:\\JOHN TILLET\\episode_data\\'
+#         dest = 'd:\\JOHN TILLET\\episode_data\\html-backup'
+#         for src in glob.glob(base + '*.html'):
+#             shutil.move(src, dest)
+
+#         with open(stored_index, 'w') as new_index:
+#             new_index.write(head_string + out_str)
+#     return stored_index
 
 
 def episode_opener(message):
@@ -241,8 +415,9 @@ def episode_discharge(intime, outtime, anaesthetist, doctor):
     pyautogui.hotkey('ctrl', 'c')
     test = pyperclip.paste()
     if test != 'empty':
-        pyautogui.alert(text='There is data here already! Try Again', title='', button='OK')
-        time.sleep(1)        
+        pyautogui.alert(
+            text='Data here already! Try Again', title='', button='OK')
+        time.sleep(1)
         pyautogui.hotkey('alt', 'f4')
         raise BlueChipError
     pyautogui.typewrite(intime)
@@ -268,14 +443,14 @@ def episode_procedures(upper, colon, banding, asa):
     def gastro_chooser(in_str):
         if in_str == '0':
             return False
-        up_str = np.UPPER_DIC[in_str]
+        up_str = nc.UPPER_DIC[in_str]
         pyautogui.typewrite(up_str + '\n')
         pyautogui.press('enter')
 
     def asa_chooser(asa):
         if asa == '0':
             return True
-        a_str = np.ASA_DIC[asa]
+        a_str = nc.ASA_DIC[asa]
         pyautogui.typewrite(a_str + '\n')
         pyautogui.press('enter')
         return True
@@ -284,7 +459,7 @@ def episode_procedures(upper, colon, banding, asa):
     if colon == '0':
         pe_flag = gastro_chooser(upper)
     else:
-        col_str = np.COLON_DIC[colon]
+        col_str = nc.COLON_DIC[colon]
         pyautogui.typewrite(col_str + '\n')
         pyautogui.press('enter')
 
@@ -448,7 +623,8 @@ def analysis():
     """Work out numbers of patients done this year and whether on target"""
     def report_number_this_week():
         try:
-            with open('d:\\JOHN TILLET\\episode_data\\jtdata\\weekly_data.py', 'rb') as pf:
+            with open('d:\\JOHN TILLET\\episode_data\\'
+                      'jtdata\\weekly_data.py', 'rb') as pf:
                 weekly = pickle.load(pf)
                 print('Number this week: {}'.format(str(weekly['number'])))
         except IOError:
@@ -470,7 +646,8 @@ def analysis():
         reader = csv.reader(file_handle)
         first_bill = next(reader)
         first_bill_invoice = int(first_bill[15])
-    with open('d:\\JOHN TILLET\\episode_data\\jtdata\\invoice_store.py', 'rb') as handle:
+    with open('d:\\JOHN TILLET\\episode_data\\'
+              'jtdata\\invoice_store.py', 'rb') as handle:
         last_invoice = pickle.load(handle)
     invoice_diff = int(last_invoice - first_invoice)
     desired_number = int(days_diff * desired_weekly / 7)

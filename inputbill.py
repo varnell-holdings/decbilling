@@ -3,18 +3,18 @@
 By John Tillett
 """
 
-import os
 import re
-import time
+import sys
 
 import colorama
+import pyautogui
 
 import names_and_codes as nc
 
-from functions import (get_consult)
+from functions import (get_consult, get_banding)
 
 
-def inputer(anaesthetist, doctor):
+def inputer(consultant, anaesthetist):
     colorama.init(autoreset=True)
 
     while True:
@@ -24,9 +24,7 @@ def inputer(anaesthetist, doctor):
         varix_flag = False
         varix_lot = ''
 
-        os.system('cls')
-
-        print()
+        print('\033[2J')  # clear screen
         while True:
             asa = input('ASA:    ')
             if asa == '0':
@@ -49,8 +47,7 @@ def inputer(anaesthetist, doctor):
         if asa != '0' and anaesthetist == 'Dr J Tillett':
             while True:
                 fund_input = input('Fund:   ')
-                if fund_input not in {'h', 'b', 'm', 'n', 'a', 'd',
-                                      't', 'bb', 'g', 'o', 'v'}:
+                if fund_input not in nc.FUND_ABREVIATION:
                     print('\033[31;1m' + 'TRY AGAIN!')
                     continue
                 print()
@@ -121,7 +118,7 @@ def inputer(anaesthetist, doctor):
                             break
                         print('\033[31;1m' + 'TRY AGAIN!')
                     break
-    
+
         if loop_flag:
             continue
         print('\033[2J')  # clear screen
@@ -142,7 +139,7 @@ def inputer(anaesthetist, doctor):
                 loop_flag = True
                 break
             print('\033[31;1m' + 'TRY AGAIN!')
-        
+
         if upper == 'br':
             message += ' - BRAVO'
             upper = 'bravo'
@@ -162,7 +159,7 @@ def inputer(anaesthetist, doctor):
         print()
         while True:
             colon = input('Lower:  ')
-            if colon in ('0', 'co', 'cb', 'cp', 'cs', 'csp', 'sc', 'sb', 'sp'):
+            if colon in nc.COLON_DIC:
                 break
             if colon == 'q':
                 loop_flag = True
@@ -170,47 +167,19 @@ def inputer(anaesthetist, doctor):
             print('\033[31;1m' + 'TRY AGAIN!')
 
         if upper == '0' and colon == '0':
-            print(colorama.Fore.RED + 'This program can only deal \
-                                       with uppers and lowers!!')
-            time.sleep(3)
+            pyautogui.alert(text='You must enter a procedure!!',
+                            title='', button='OK')
             continue
-        if colon == 'cs':
-            colon = 'co'
+        if colon == 'cs':       # blue chip does not accept these codes
             message += ' - Bill 32088-00'
         if colon == 'csp':
-            colon = 'cp'
             message += ' - Bill 32089-00'
 
         if loop_flag:
             continue
 
-        print()
-        while True:
-            banding = input('Anal:   ')
-            b_match = re.match(r'^[abq0]$', banding)
-            if b_match:
-                if banding == 'b':
-                    message += ' - Banding of haemorrhoids'
-                elif banding == 'a':
-                    message += '-Anal dilatation'
-                elif banding == 'q':
-                    loop_flag = True
-                if banding == 'a' or banding == 'b':
-                    while True:
-                        pud = input('Bilateral pudendal blocks? (y/n):  ')
-                        if pud == 'y':
-                            message += ' - Bill bilateral pudendal blocks'
-                            break
-                        if pud == 'n':
-                            break
-                break
-            print('\033[31;1m' + 'TRY AGAIN!')
-
-        if loop_flag:
-            continue
-
-        print()
-        consult, loop_flag = get_consult(doctor, upper, colon, loop_flag)
+        banding, message, loop_flag = get_banding(
+            consultant, colon, message, loop_flag)
 
         if loop_flag:
             continue
@@ -234,24 +203,6 @@ def inputer(anaesthetist, doctor):
             continue
 
         print()
-       
-
-        print()
-        message_add = input('Message:  ')
-        if message_add == 'q':
-            loop_flag = True
-        elif message_add.isdigit():
-            pass
-        elif message_add == '':
-            pass
-        else:
-            message = message + ' - '
-            message += message_add
-
-        if loop_flag:
-            continue
-
-        print()
         while True:
             time_in_theatre = input('Time:   ')
             if time_in_theatre == 'q':
@@ -264,10 +215,16 @@ def inputer(anaesthetist, doctor):
         if loop_flag:
             continue
 
+        consult, loop_flag = get_consult(
+            consultant, upper, colon, time_in_theatre, loop_flag)
+
+        if loop_flag:
+            continue
         return (asa, upper, colon, banding, consult, message, time_in_theatre,
                 ref, full_fund, insur_code, fund_number,
                 clips, varix_flag, varix_lot)
 
 
 if __name__ == '__main__':
-    print(inputer())
+    consultant = sys.argv[1]
+    print(inputer(consultant, anaesthetist='Dr J Riley'))

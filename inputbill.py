@@ -24,8 +24,7 @@ def inputer(consultant, anaesthetist):
         varix_flag = False
         varix_lot = ''
 
-        # print('\033[2J')  # clear screen
-        print()
+        print('\033[2J')  # clear screen
         while True:
             asa = input('ASA:    ')
             if asa == '0':
@@ -216,7 +215,6 @@ def inputer(consultant, anaesthetist):
         if loop_flag:
             continue
 
-        print()
         consult, loop_flag = get_consult(
             consultant, upper, colon, time_in_theatre, loop_flag)
 

@@ -1,22 +1,4 @@
 # -*- coding: utf-8 -*-
-"""contains the following functions
-log_input
-bill_process
-time_calculater
-make_index
-make_index_alt
-episode_open
-episode_dumper
-episode_scrape
-offsite
-to_json
-to_csv
-to_database_room2
-analysis
-update_number_this_week
-Created on Fri Nov 18 15:22:26 2016
-@author: John
-"""
 
 import csv
 import datetime
@@ -120,9 +102,13 @@ def send_message(anaesthetist):
     base = '<b>Message from {}</b> - '.format(anaesthetist)
     print('Type your message. Your name is automatically included.')
     new = input()
-    message = base + new + '\n'
+    message = base + new + '<br>\n'
     stored_index = make_index(message)
     offsite(stored_index)
+
+
+def bold(s):
+    return '<b>' + s + '</b>'
 
 
 def get_consult(consultant, upper, lower, time_in_theatre, loop_flag):
@@ -147,7 +133,7 @@ def get_consult(consultant, upper, lower, time_in_theatre, loop_flag):
         print("Dr Feller does 110's on new patients only")
         while True:
             print()
-            consult = input('CONSULT 110 or 0: ')
+            consult = input('Consult 110 or 0: ')
             if consult == 'q':
                 loop_flag = True
                 break
@@ -159,13 +145,15 @@ def get_consult(consultant, upper, lower, time_in_theatre, loop_flag):
     if consultant == 'Dr C Bariol':
         while True:
             print()
-            consult = input('CONSULT 110, 116, 0: ')
+            consult = input('Consult: ')
             if consult == 'q':
                 loop_flag = True
                 break
             if consult in {'110', '116', '0'}:
                 break
             print('\033[31;1m' + 'TRY AGAIN!')
+        if consult == '0':
+            consult = 'none'
         return (consult, loop_flag)
 
     if consultant == 'Dr D Williams':
@@ -282,13 +270,13 @@ def make_episode_string(outtime, doctor, print_name, consult,
         doc_surname = 'Suhir'
     anaesthetist_surname = anaesthetist.split()[-1]
     docs_for_web = doc_surname + '/' + anaesthetist_surname
+    if consult != 'none':
+        consult = bold(consult)
+    web_upper = nc.UPPER_DIC[upper]
+    web_lower = nc.COLON_DIC[colon]
 
-    web_upper = nc.UPPER_DIC['upper']
-    web_lower = nc.COLON_DIC['lower']
-
-    html_string = '<b>{0}</b> - {1} - - {2} - CONSULT:<b>{3}</b>'
-    '- UPPER: {4} - LOWER: {5}<b>{6}</b> <br><br>\n'
-    out_string = html_string.format(
+    html = '<b>{0}</b> - {1} - {2} - CONSULT: {3} - UPPER: {4} - LOWER: {5} <b>{6}</b><br>\n'
+    out_string = html.format(
         outtime, docs_for_web, print_name, consult,
         web_upper, web_lower, message)
     return out_string
@@ -318,51 +306,6 @@ def make_index(out_str):
         with open(stored_index, 'w') as new_index:
             new_index.write(head_string + out_str)
     return stored_index
-
-
-# def make_index(out_formatted, doctor, print_name, consult,
-#                upper, colon, banding, message, anaesthetist):
-
-#     doc_surname = doctor.split()[-1]
-#     if doc_surname == 'Vivekanandarajah':
-#         doc_surname = 'Suhirdan'
-#     anaes_surname = anaesthetist.split()[-1]
-#     docs = doc_surname + '/' + anaes_surname
-#     upper = nc.UPPER_DIC[upper]
-#     colon = nc.COLON_DIC[colon]
-#     banding = nc.BANDING_DIC[banding]
-#     today = datetime.datetime.now()
-#     today_str = today.strftime('%A' + '  ' + '%d' + ':' + '%m' + ':' + '%Y')
-#     head_string = "%s <br><br>\n" % (today_str)
-#     date_file_str = today.strftime('%Y' + '-' + '%m' + '-' + '%d')
-#     date_filename = date_file_str + '.html'
-#     stored_index = os.path.join('d:\\JOHN TILLET\\'
-#                                 'episode_data\\' + date_filename)
-
-#     if consult in {'110', '116'}:
-#         out_str = ('<b>%s</b> - %s - - %s - CONSULT:<b> %s </b>- UPPER:'
-#                    ' %s - LOWER: %s<b>%s</b> <br><br>\n') % (
-#             out_formatted, docs, print_name, consult, upper, colon, message)
-#     else:
-#         out_str = ('<b>%s</b>- %s - - %s - CONSULT: %s - UPPER: %s - LOWER: %s'
-#                    '<b> %s </b> <br><br>\n') % (
-#             out_formatted, docs, print_name, consult, upper, colon, message)
-
-#     if os.path.isfile(stored_index):
-#         with open(stored_index, 'r') as original:
-#             original.readline()
-#             data = original.read()
-#         with open(stored_index, 'w') as modified:
-#             modified.write(head_string + out_str + data)
-#     else:
-#         base = 'd:\\JOHN TILLET\\episode_data\\'
-#         dest = 'd:\\JOHN TILLET\\episode_data\\html-backup'
-#         for src in glob.glob(base + '*.html'):
-#             shutil.move(src, dest)
-
-#         with open(stored_index, 'w') as new_index:
-#             new_index.write(head_string + out_str)
-#     return stored_index
 
 
 def episode_opener(message):

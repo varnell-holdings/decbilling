@@ -11,8 +11,8 @@ def login_and_run():
         print('To see if you are in the system type h')
         print('Login as locum otherwise')
         anaesthetist = get_anaesthetist()
-
-        print ('Welcome Dr {}!\n'.format(
+        
+        print ('\nWelcome Dr {}!\n'.format(
             anaesthetist.split()[-1]))
 
         if anaesthetist in nc.REGULAR_ANAESTHETISTS:

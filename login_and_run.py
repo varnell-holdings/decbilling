@@ -1,12 +1,16 @@
+import colorama
+
 import names_and_codes as nc
 from bill import bill
 from inputbill import inputer
 from functions import (get_anaesthetist, get_endoscopist,
                        get_nurse, episode_update, send_message)
+colorama.init(autoreset=True)
 
-
-def login_and_run():
+def login_and_run(s):
+    room = s
     while True:
+        print('\033[2J')  # clear screen
         print('To login type your initials')
         print('To see if you are in the system type h')
         print('Login as locum otherwise')
@@ -23,7 +27,7 @@ def login_and_run():
         nurse = get_nurse()
 
         while True:
-            choice = bill(anaesthetist, doctor, consultant, nurse)
+            choice = bill(anaesthetist, doctor, consultant, nurse, room)
             if choice == 'change team':
                 break
             if choice == 'redo':

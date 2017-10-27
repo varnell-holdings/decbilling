@@ -34,7 +34,7 @@ def intro(anaesthetist, doctor, nurse):
         return choice
 
 
-def bill(anaesthetist, doctor, consultant, nurse):
+def bill(anaesthetist, doctor, consultant, nurse, room):
     choice = intro(anaesthetist, doctor, nurse)
     if choice == 'c':
         return 'change team'
@@ -95,7 +95,7 @@ def bill(anaesthetist, doctor, consultant, nurse):
 
     episode_string = make_episode_string(
         out_formatted, doctor, print_name, consult,
-        upper, colon, banding, message, anaesthetist)
+        upper, colon, banding, message, anaesthetist, room)
 
     stored_index = make_index(episode_string)
 

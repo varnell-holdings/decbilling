@@ -3,6 +3,7 @@
 By John Tillett
 """
 
+import pprint
 import re
 import sys
 
@@ -54,8 +55,10 @@ def inputer(consultant, anaesthetist):
                 insur_code = nc.FUND_ABREVIATION[fund_input]
                 if insur_code == 'ahsa':
                     while True:
-                        ahsa_fund = input('Fund first two letters or o:  ')
-                        if ahsa_fund not in nc.AHSA_DIC.keys():
+                        ahsa_fund = input('Fund first two letters or o or h:  ')
+                        if ahsa_fund ==  'h':
+                           pprint.pprint(nc.AHSA_DIC) 
+                        elif ahsa_fund not in nc.AHSA_DIC.keys():
                             print('\033[31;1m' + 'TRY AGAIN!')
                             continue
                         elif ahsa_fund == 'o':
@@ -204,11 +207,11 @@ def inputer(consultant, anaesthetist):
 
         print()
         while True:
-            time_in_theatre = input('Time:   ')
-            if time_in_theatre == 'q':
+            theatre_time = input('Time:   ')
+            if theatre_time == 'q':
                 loop_flag = 'q'
                 break
-            if time_in_theatre.isdigit():
+            if theatre_time.isdigit() and theatre_time != '0':
                 break
             print('\033[31;1m' + 'TRY AGAIN!')
 
@@ -216,11 +219,11 @@ def inputer(consultant, anaesthetist):
             continue
 
         consult, loop_flag = get_consult(
-            consultant, upper, colon, time_in_theatre, loop_flag)
+            consultant, upper, colon, theatre_time, loop_flag)
 
         if loop_flag:
             continue
-        return (asa, upper, colon, banding, consult, message, time_in_theatre,
+        return (asa, upper, colon, banding, consult, message, theatre_time,
                 ref, full_fund, insur_code, fund_number,
                 clips, varix_flag, varix_lot)
 

@@ -149,6 +149,7 @@ AHSA_DIC = {'te': 'Teachers Federation Health',
             'rt': 'Railway & Transport Health',
             'gu': 'Grand United Corporate Health',
             'he': 'health.com.au',
+            'hi': 'Health Insurance Fund',
             'na': 'Naval Health Benefits',
             're': 'Reserve Bank',
             'o': 'other'}

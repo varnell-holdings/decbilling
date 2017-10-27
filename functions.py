@@ -107,10 +107,6 @@ def send_message(anaesthetist):
     offsite(stored_index)
 
 
-def bold(s):
-    return '<b>' + s + '</b>'
-
-
 def get_consult(consultant, upper, lower, time_in_theatre, loop_flag):
     consult = 'none'
 
@@ -139,7 +135,10 @@ def get_consult(consultant, upper, lower, time_in_theatre, loop_flag):
                 break
             if consult in {'110', '0'}:
                 break
+            if consult == '0':
+                consult = 'none'
             print('\033[31;1m' + 'TRY AGAIN!')
+            
         return (consult, loop_flag)
 
     if consultant == 'Dr C Bariol':
@@ -263,7 +262,7 @@ def time_calculater(time_in_theatre):
 
 
 def make_episode_string(outtime, doctor, print_name, consult,
-                        upper, colon, banding, message, anaesthetist):
+                        upper, colon, banding, message, anaesthetist, room):
 
     doc_surname = doctor.split()[-1]
     if doc_surname == 'Vivekanandarajah':
@@ -271,14 +270,14 @@ def make_episode_string(outtime, doctor, print_name, consult,
     anaesthetist_surname = anaesthetist.split()[-1]
     docs_for_web = doc_surname + '/' + anaesthetist_surname
     if consult != 'none':
-        consult = bold(consult)
+        consult = '<b>' + consult + '</b>'
     web_upper = nc.UPPER_DIC[upper]
     web_lower = nc.COLON_DIC[colon]
 
-    html = '<b>{0}</b> - {1} - {2} - CONSULT: {3} - UPPER: {4} - LOWER: {5} <b>{6}</b><br>\n'
+    html = '<b>{0}</b> - {7} - {1} - {2} - CONSULT: {3} - UPPER: {4} - LOWER: {5} <b>{6}</b><br>\n'
     out_string = html.format(
         outtime, docs_for_web, print_name, consult,
-        web_upper, web_lower, message)
+        web_upper, web_lower, message, room)
     return out_string
 
 

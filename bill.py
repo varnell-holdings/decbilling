@@ -5,37 +5,41 @@ import colorama
 import pyautogui
 
 from inputbill import inputer
-from functions import (time_calculater, make_index, to_database,
+from functions import (make_index, to_database,
                        episode_scrape, episode_opener, offsite,
                        episode_theatre, episode_procedures, episode_discharge,
-                       analysis, update_web, bill_process, BlueChipError,
-                       to_csv, update_number_this_week, make_episode_string)
+                       analysis, update_web, bill_process,
+                       to_csv, make_episode_string)
 
 
-def intro(anaesthetist, doctor, nurse):
+class QuitInputError(Exception):
+        pass
+
+
+def intro(anaesthetist, endoscopist, nurse):
     colorama.init(autoreset=True)
     print('\033[2J')  # clear screen
     print('Current team is:\nEndoscopist: {1}\nAnaesthetist:'
-          ' {0}\nNurse: {2}'.format(anaesthetist, doctor, nurse))
+          ' {0}\nNurse: {2}'.format(anaesthetist, endoscopist, nurse))
     print()
     while True:
         print('To accept press enter\nTo change team press c\n'
               'To redo a patient press r\nTo send a message to receptionists'
               ' press m\nTo quit program press q')
         choice = input()
-        if choice in {'', 'c', 'q', 'a', 'u', 'r', 'm'}:
+        if choice in {'q', '', 'c', 'r', 'm', 'a', 'u'}:
             break
     if choice == 'q':
         print('Thanks. Bye!')
         sys.exit(0)
-    elif choice == '':
-        return
     else:
         return choice
 
 
-def bill(anaesthetist, doctor, consultant, nurse, room):
-    choice = intro(anaesthetist, doctor, nurse)
+def bill(anaesthetist, endoscopist, consultant, nurse, room):
+    choice = intro(anaesthetist, endoscopist, nurse)
+    if choice == '':
+        pass
     if choice == 'c':
         return 'change team'
     if choice == 'r':
@@ -48,39 +52,31 @@ def bill(anaesthetist, doctor, consultant, nurse, room):
         return
     if choice == 'u':
         update_web()
-        input('Hit Enter to continue.')
         return
+
     data_entry = inputer(consultant, anaesthetist)
+    if data_entry == 'loop':
+        return
 
-    (asa, upper, colon, banding, consult, message, time_in_theatre,
-     ref, full_fund, insur_code, fund_number, clips,
-     varix_flag, varix_lot) = data_entry
-
-    (in_formatted, out_formatted,
-     anaesthetic_time, today_for_db) = time_calculater(time_in_theatre)
+    (asa, upper, colon, banding, consult, message, op_time,
+     ref, full_fund, insur_code, fund_number, clips, varix_flag, varix_lot,
+     in_formatted, out_formatted, today_for_db) = data_entry
 
     message = episode_opener(message)
-    try:
-        episode_discharge(in_formatted, out_formatted, anaesthetist, doctor)
-    except BlueChipError:
+    ret = episode_discharge(
+        in_formatted, out_formatted, anaesthetist, endoscopist)
+    if ret == 'ep full':
         return
-    episode_theatre(doctor, nurse, clips, varix_flag, varix_lot)
+    episode_theatre(endoscopist, nurse, clips, varix_flag, varix_lot)
     episode_procedures(upper, colon, banding, asa)
     mrn, print_name, address, dob, mcn = episode_scrape()
 
-    if asa != '0' and anaesthetist == 'Dr J Tillett':
-        (proc_date, upper_done,
-         lower_done, age_seventy,
-         asa_three, invoice, mcn) = bill_process(dob, upper, colon, asa,
-                                                 mcn, insur_code)
+    if asa and anaesthetist == 'Dr J Tillett':
+        anaesthetic_data_for_csv = bill_process(
+            dob, upper, colon, asa, mcn, insur_code, op_time,
+            print_name, address, ref, full_fund, fund_number, endoscopist)
 
-        jt_ep_data = [proc_date, print_name, address, dob, mcn, ref, full_fund,
-                      fund_number, insur_code, doctor, upper_done, lower_done,
-                      age_seventy, asa_three, anaesthetic_time, invoice]
-
-        to_csv(jt_ep_data)
-
-        update_number_this_week()
+        to_csv(anaesthetic_data_for_csv)
 
     episode_data_for_db = {
         'mrn': mrn, 'in_time': in_formatted,
@@ -88,13 +84,13 @@ def bill(anaesthetist, doctor, consultant, nurse, room):
         'nurse': nurse, 'upper': upper, 'lower': colon,
         'banding': banding, 'asa': asa, 'today': today_for_db,
         'name': print_name, 'consult': consult, 'message': message,
-        'doctor': doctor, 'anaesthetic_time': time_in_theatre,
+        'endoscopist': endoscopist, 'anaesthetic_time': op_time,
         'consultant': consultant}
 
     to_database(episode_data_for_db)
 
     episode_string = make_episode_string(
-        out_formatted, doctor, print_name, consult,
+        out_formatted, endoscopist, print_name, consult,
         upper, colon, banding, message, anaesthetist, room)
 
     stored_index = make_index(episode_string)

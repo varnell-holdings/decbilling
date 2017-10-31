@@ -61,10 +61,11 @@ def get_invoice_number():
         handle.seek(0)
         pickle.dump(invoice, handle)
         handle.truncate()
-    return invoice_number
+    return invoice
 
 
 def get_time_code(op_time):
+    op_time = int(op_time)
     time_base = '230'
     time_last = '10'
     second_last_digit = 1 + op_time // 15
@@ -88,6 +89,7 @@ def bill_process(bc_dob, upper, lower, asa, mcn, insur_code, op_time,
 
     Generates and stores an incremented invoice number.
     """
+    today_raw = datetime.datetime.today()
     today_for_invoice = today_raw.strftime('%d' + '-' + '%m' + '-' + '%Y')
     age_diff = get_age_difference(bc_dob)
     age_seventy = upper_done = lower_done = asa_three = 'No'
@@ -107,7 +109,7 @@ def bill_process(bc_dob, upper, lower, asa, mcn, insur_code, op_time,
 
     invoice = get_invoice_number()
 
-    return [today_for_invoice, print_name, address, dob, mcn, ref,
+    return [today_for_invoice, print_name, address, bc_dob, mcn, ref,
             full_fund, fund_number, insur_code, endoscopist, upper_done,
             lower_done, age_seventy, asa_three, time_code, invoice]
 
@@ -199,6 +201,7 @@ def episode_opener(message):
 
 def episode_discharge(intime, outtime, anaesthetist, endoscopist):
     hotkey('alt', 'i')
+    time.sleep(1)
     typewrite(['enter'] * 4, interval=0.1)
     test = pyperclip.copy('empty')
     hotkey('ctrl', 'c')
@@ -337,6 +340,7 @@ def episode_scrape():
     hotkey('ctrl', 'c')
     dob = pyperclip.paste()
     typewrite(['tab'] * 6, interval=0.1)
+    mcn = pyperclip.copy('')  # in case no mcn present otherwise dob repeated
     hotkey('ctrl', 'c')
     mcn = pyperclip.paste()
     hotkey('alt', 'f4')
@@ -392,9 +396,12 @@ def analysis():
         last_invoice = pickle.load(handle)
     print('Number on this print run - {}'.format(
         last_invoice - first_bill_invoice))
-
+    first_date = datetime.datetime(2017, 7, 1)
+    today = datetime.datetime.today()
+    days_diff = (today - first_date).days
     desired_weekly = int(input('Weekly target: '))
     first_invoice = 5057
     invoice_diff = last_invoice - first_invoice
+    desired_number = int(days_diff * desired_weekly / 7)
     excess = invoice_diff - desired_number
     print('{} excess to average {} per week.'.format(excess, desired_weekly))

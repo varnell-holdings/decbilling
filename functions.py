@@ -13,7 +13,7 @@ import shutil
 import time
 
 import dataset
-from pyautogui import *
+import pyautogui as pya
 import pyperclip
 
 
@@ -35,7 +35,7 @@ def episode_update(room, endoscopist, anaesthetist, data_entry):
     html_path = make_index(out_string)
     offsite(html_path)
     time.sleep(1)
-    click(x=780, y=90)
+    pya.click(x=780, y=90)
 
 
 def make_message_string(anaesthetist):
@@ -169,181 +169,181 @@ def make_index(ep_string):
 
 def episode_opener(message):
     while True:
-        if not pixelMatchesColor(150, 630, (255, 0, 0)):
+        if not pya.pixelMatchesColor(150, 630, (255, 0, 0)):
             print('Open the patient file.')
             input('Hit Enter when ready.')
         else:
             break
-    moveTo(150, 50)
-    click()
-    press('f8')
-    while not pixelMatchesColor(534, 330, (102, 203, 234), tolerance=10):
+    pya.moveto(150, 50)
+    pya.click()
+    pya.press('f8')
+    while not pya.pixelMatchesColor(534, 330, (102, 203, 234), tolerance=10):
         time.sleep(1)
-    press('n')
-    while not pixelMatchesColor(820, 130, (195, 90, 80), tolerance=10):
+    pya.press('n')
+    while not pya.pixelMatchesColor(820, 130, (195, 90, 80), tolerance=10):
         time.sleep(1)
-    typewrite(['down'] * 11, interval=0.1)
-    press('enter')
-    hotkey('alt', 'f')
+    pya.typewrite(['down'] * 11, interval=0.1)
+    pya.press('enter')
+    pya.hotkey('alt', 'f')
     time.sleep(1)
-    if pixelMatchesColor(520, 380, (25, 121, 202), tolerance=10):
+    if pya.pixelMatchesColor(520, 380, (25, 121, 202), tolerance=10):
         time.sleep(1)
-        press('enter')
-        press('c')
-        hotkey('alt', 'f4')
+        pya.press('enter')
+        pya.press('c')
+        pya.hotkey('alt', 'f4')
         time.sleep(1)
-        press('f8')
+        pya.press('f8')
         time.sleep(1)
-        typewrite(['enter'] * 3, interval=1.0)
+        pya.typewrite(['enter'] * 3, interval=1.0)
         message += ' New episode made'
     return message
 
 
 def episode_discharge(intime, outtime, anaesthetist, endoscopist):
-    hotkey('alt', 'i')
+    pya.hotkey('alt', 'i')
     time.sleep(1)
-    typewrite(['enter'] * 4, interval=0.1)
+    pya.typewrite(['enter'] * 4, interval=0.1)
     test = pyperclip.copy('empty')
-    hotkey('ctrl', 'c')
+    pya.hotkey('ctrl', 'c')
     test = pyperclip.paste()
     if test != 'empty':
-        alert(text='Data here already! Try Again', title='', button='OK')
+        pya.alert(text='Data here already! Try Again', title='', button='OK')
         time.sleep(1)
-        hotkey('alt', 'f4')
+        pya.hotkey('alt', 'f4')
         return 'ep full'
-    typewrite(intime)
-    typewrite(['enter'] * 2, interval=0.1)
-    typewrite(outtime)
-    typewrite(['enter'] * 3, interval=0.1)
+    pya.typewrite(intime)
+    pya.typewrite(['enter'] * 2, interval=0.1)
+    pya.typewrite(outtime)
+    pya.typewrite(['enter'] * 3, interval=0.1)
     if anaesthetist != 'locum':
-        typewrite(['tab'] * 6, interval=0.1)
-        typewrite(anaesthetist)
-        typewrite('\n')
+        pya.typewrite(['tab'] * 6, interval=0.1)
+        pya.typewrite(anaesthetist)
+        pya.typewrite('\n')
     else:
-        typewrite(['tab'] * 7, interval=0.1)
-    typewrite(endoscopist)
+        pya.typewrite(['tab'] * 7, interval=0.1)
+    pya.typewrite(endoscopist)
 
 
 def episode_procedures(upper, lower, anal, asa):
-    hotkey('alt', 'p')
+    pya.hotkey('alt', 'p')
     if lower:  # first line - either upper or lower is always true
-        typewrite(lower + '\n')
-        press('enter')
+        pya.typewrite(lower + '\n')
+        pya.press('enter')
     else:
-        typewrite(upper + '\n')
-        press('enter')
-    typewrite(['tab'] * 6, interval=0.1)
+        pya.typewrite(upper + '\n')
+        pya.press('enter')
+    pya.typewrite(['tab'] * 6, interval=0.1)
     if upper and lower:  # second line
-        typewrite(upper + '\n')
-        press('enter')
+        pya.typewrite(upper + '\n')
+        pya.press('enter')
     elif anal:
-        typewrite(anal + '\n')
-        press('enter')
+        pya.typewrite(anal + '\n')
+        pya.press('enter')
     else:
         if asa:
-            typewrite(asa + '\n')
-            press('enter')
+            pya.typewrite(asa + '\n')
+            pya.press('enter')
         return
-    typewrite(['tab'] * 2, interval=0.1)
+    pya.typewrite(['tab'] * 2, interval=0.1)
     if anal:  # third line
-        typewrite(anal + '\n')
-        press('enter')
+        pya.typewrite(anal + '\n')
+        pya.press('enter')
     else:
         if asa:
-            typewrite(asa + '\n')
-            press('enter')
+            pya.typewrite(asa + '\n')
+            pya.press('enter')
         return
-    typewrite(['tab'] * 2, interval=0.1)
+    pya.typewrite(['tab'] * 2, interval=0.1)
     if asa:  # fourth line
-        typewrite(asa + '\n')
-        press('enter')
+        pya.typewrite(asa + '\n')
+        pya.press('enter')
     return
 
 
 def episode_theatre(endoscopist, nurse, clips, varix_flag, varix_lot):
-    hotkey('alt', 'n')
-    typewrite(['left'] * 2, interval=0.1)
-    moveTo(50, 155)
-    click()
-    press('tab')
+    pya.hotkey('alt', 'n')
+    pya.typewrite(['left'] * 2, interval=0.1)
+    pya.moveto(50, 155)
+    pya.click()
+    pya.press('tab')
     doc_test = pyperclip.copy('empty')
-    hotkey('ctrl', 'c')
+    pya.hotkey('ctrl', 'c')
     doc_test = pyperclip.paste()
     if doc_test == 'Endoscopist':
-        press('tab')
-        typewrite(['enter'] * 2, interval=0.1)
-        moveTo(450, 155)
-        click()
-        typewrite(['tab'] * 2, interval=0.1)
-        typewrite(['enter'] * 2, interval=0.1)
+        pya.press('tab')
+        pya.typewrite(['enter'] * 2, interval=0.1)
+        pya.moveto(450, 155)
+        pya.click()
+        pya.typewrite(['tab'] * 2, interval=0.1)
+        pya.typewrite(['enter'] * 2, interval=0.1)
 
-    moveTo(50, 155)
-    click()
-    typewrite(endoscopist)
-    typewrite(['enter', 'e', 'enter'], interval=0.1)
-    moveTo(450, 155)
-    click()
-    typewrite(nurse)
-    typewrite(['enter', 'e', 'enter'], interval=0.1)
+    pya.moveto(50, 155)
+    pya.click()
+    pya.typewrite(endoscopist)
+    pya.typewrite(['enter', 'e', 'enter'], interval=0.1)
+    pya.moveto(450, 155)
+    pya.click()
+    pya.typewrite(nurse)
+    pya.typewrite(['enter', 'e', 'enter'], interval=0.1)
     if clips != 0 or varix_flag is True:
-        moveTo(50, 350)
-        click()
+        pya.moveto(50, 350)
+        pya.click()
         if varix_flag is True:
             pyperclip.copy('Boston Scientific Speedband Superview Super 7')
-            hotkey('ctrl', 'v')
-            press('enter')
+            pya.hotkey('ctrl', 'v')
+            pya.press('enter')
             time.sleep(0.5)
             pyperclip.copy(varix_lot)
-            hotkey('ctrl', 'v')
-            press('enter')
-            typewrite(['tab'] * 2, interval=0.1)
+            pya.hotkey('ctrl', 'v')
+            pya.press('enter')
+            pya.typewrite(['tab'] * 2, interval=0.1)
         if clips != 0:
             pyperclip.copy('M00521230')
             for i in range(clips):
-                typewrite(['b', 'enter'], interval=0.2)
+                pya.typewrite(['b', 'enter'], interval=0.2)
                 time.sleep(0.5)
-                hotkey('ctrl', 'v')
-                press('enter')
-                typewrite(['tab'] * 2, interval=0.1)
+                pya.hotkey('ctrl', 'v')
+                pya.press('enter')
+                pya.typewrite(['tab'] * 2, interval=0.1)
 
 
 def episode_scrape():
-    hotkey('alt', 'd')
-    hotkey('ctrl', 'c')
+    pya.hotkey('alt', 'd')
+    pya.hotkey('ctrl', 'c')
     mrn = pyperclip.paste()
-    press('tab')
-    hotkey('ctrl', 'c')
+    pya.press('tab')
+    pya.hotkey('ctrl', 'c')
     title = pyperclip.paste()
-    press('tab')
-    hotkey('ctrl', 'c')
+    pya.press('tab')
+    pya.hotkey('ctrl', 'c')
     first_name = pyperclip.paste()
-    typewrite(['tab'] * 2, interval=0.1)
-    hotkey('ctrl', 'c')
+    pya.typewrite(['tab'] * 2, interval=0.1)
+    pya.hotkey('ctrl', 'c')
     last_name = pyperclip.paste()
     print_name = title + ' ' + first_name + ' ' + last_name
-    press('tab')
-    hotkey('ctrl', 'c')
+    pya.press('tab')
+    pya.hotkey('ctrl', 'c')
     street_number = pyperclip.paste()
-    press('tab')
-    hotkey('ctrl', 'c')
+    pya.press('tab')
+    pya.hotkey('ctrl', 'c')
     street_name = pyperclip.paste()
-    press('tab')
-    hotkey('ctrl', 'c')
+    pya.press('tab')
+    pya.hotkey('ctrl', 'c')
     suburb = pyperclip.paste()
     suburb = suburb.lower()
     suburb = suburb.title()
-    press('tab')
-    hotkey('ctrl', 'c')
+    pya.press('tab')
+    pya.hotkey('ctrl', 'c')
     postcode = pyperclip.paste()
     address = street_number + ' ' + street_name + ' ' + suburb + ' ' + postcode
-    press('tab')
-    hotkey('ctrl', 'c')
+    pya.press('tab')
+    pya.hotkey('ctrl', 'c')
     dob = pyperclip.paste()
-    typewrite(['tab'] * 6, interval=0.1)
+    pya.typewrite(['tab'] * 6, interval=0.1)
     mcn = pyperclip.copy('')  # in case no mcn present otherwise dob repeated
-    hotkey('ctrl', 'c')
+    pya.hotkey('ctrl', 'c')
     mcn = pyperclip.paste()
-    hotkey('alt', 'f4')
+    pya.hotkey('alt', 'f4')
     return (mrn, print_name, address, dob, mcn)
 
 

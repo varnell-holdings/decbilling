@@ -9,535 +9,347 @@ import glob
 import os
 import os.path
 import pickle
-import pprint
-import re
 import shutil
-import sys
 import time
-import webbrowser
 
 import dataset
-import pyautogui
+from pyautogui import *
 import pyperclip
 
-import names_and_codes as nc
 
+def episode_update(room, endoscopist, anaesthetist, data_entry):
+    # data_enry is a tuple -> unpack it
+    (asa, upper, colon, banding, consult, message, op_time,
+     ref, full_fund, insur_code, fund_number, clips, varix_flag,
+     varix_lot, in_formatted, out_formatted, today_for_db) = data_entry
 
-class BlueChipError(Exception):
-        pass
-
-
-def get_anaesthetist():
-    while True:
-        initials = input('Anaesthetist:  ').lower()
-        if initials == 'h':
-            pprint.pprint(nc.ANAESTHETISTS)
-            continue
-
-        if initials in nc.ANAESTHETISTS:
-            anaesthetist = nc.ANAESTHETISTS[initials]
-            break
-    return anaesthetist
-
-
-def get_endoscopist():
-    while True:
-        initials = input('Endoscopist:  ').lower()
-        if initials in nc.DOC_DIC:
-            doctor = nc.DOC_DIC[initials]
-            break
-    if doctor in nc.LOCUMS:
-        while True:
-            initials = input('Who is Dr {} covering? '.format(
-                doctor.split()[-1]))
-            if nc.DOC_DIC[initials] in nc.PARTNERS:
-                consultant = nc.DOC_DIC[initials]
-                break
-    else:
-        consultant = doctor
-
-    return doctor, consultant
-
-
-def get_nurse():
-    while True:
-        print()
-        initials = input('Nurse (h)elp:  ')
-        if initials == 'h':
-            pprint.pprint(nc.NURSES_DIC)
-            continue
-
-        if initials in nc.NURSES_DIC:
-            nurse = nc.NURSES_DIC[initials]
-            break
-    return nurse
-
-
-def episode_update(consultant, doctor, anaesthetist, data_entry):
-
-    (asa, upper, colon, banding, consult, message, time_in_theatre,
-     ref, full_fund, insur_code, fund_number, clips,
-     varix_flag, varix_lot) = data_entry
-
-    (in_formatted, out_formatted,
-     anaesthetic_time, today_for_db) = time_calculater(time_in_theatre)
     message = episode_opener(message)
     episode_procedures(upper, colon, banding, asa)
     mrn, print_name, address, dob, mcn = episode_scrape()
 
-    message += 'Updated this patient. Check Blue Chip is correct.'
+    message += ' Updated this patient. Check Blue Chip is correct.'
 
-    stored_index, first_patient = make_index(
-        out_formatted, doctor, print_name, consult,
-        upper, colon, banding, message, anaesthetist)
-
-    offsite(stored_index)
-
+    out_string = make_episode_string(
+        out_formatted, endoscopist, print_name, consult,
+        upper, colon, message, anaesthetist, room)
+    html_path = make_index(out_string)
+    offsite(html_path)
     time.sleep(1)
-
-    pyautogui.click(x=780, y=90)
-
-
-def send_message(anaesthetist):
-    base = '<b>Message from {}</b> - '.format(anaesthetist)
-    print('Type your message. Your name is automatically included.')
-    new = input()
-    message = base + new + '<br>\n'
-    stored_index = make_index(message)
-    offsite(stored_index)
+    click(x=780, y=90)
 
 
-def get_consult(consultant, upper, lower, time_in_theatre, loop_flag):
-    consult = 'none'
-
-    if consultant == 'Dr A Stoita' or consultant not in nc.PARTNERS:
-        return (consult, loop_flag)
-
-    if consultant in nc.CONSULTERS:
-        while True:
-            print()
-            consult = input('Consult 110 or 116: ')
-            if consult == 'q':
-                loop_flag = True
-                break
-            if consult in {'110', '116'}:
-                break
-            print('\033[31;1m' + 'TRY AGAIN!')
-        return (consult, loop_flag)
-
-    if consultant == 'Dr R Feller':
-        print("Dr Feller does 110's on new patients only")
-        while True:
-            print()
-            consult = input('Consult 110 or 0: ')
-            if consult == 'q':
-                loop_flag = True
-                break
-            if consult in {'110', '0'}:
-                break
-            if consult == '0':
-                consult = 'none'
-            print('\033[31;1m' + 'TRY AGAIN!')
-            
-        return (consult, loop_flag)
-
-    if consultant == 'Dr C Bariol':
-        while True:
-            print()
-            consult = input('Consult: ')
-            if consult == 'q':
-                loop_flag = True
-                break
-            if consult in {'110', '116', '0'}:
-                break
-            print('\033[31;1m' + 'TRY AGAIN!')
-        if consult == '0':
-            consult = 'none'
-        return (consult, loop_flag)
-
-    if consultant == 'Dr D Williams':
-        if int(time_in_theatre) > 30 and lower != '0':
-            print()
-            print('\033[31;1m' + 'Dr Williams will bill a 110.')
-            while True:
-                response = input('Confirm (y/n) ')
-                if response.lower() in {'y', 'n'}:
-                    break
-            if response == 'y':
-                consult = '110'
-        return (consult, loop_flag)
-
-    if consultant == 'Dr C Vickers':
-        pu = upper in {'pb', 'pp', 'od'}
-        pl = lower in {'cb', 'cp', 'sb', 'sp', 'csp'}
-        if pu or pl:
-            consult = '116'
-        return (consult, loop_flag)
+def make_message_string(anaesthetist):
+    message = input('Type your message. Your name is automatically included.')
+    html = "<tr><td></td><td></td><td>Message from</td><td>{0}</td>\
+            <td></td><td></td><td></td><td>{1}</td></tr>\n"
+    message_string = html.format(anaesthetist, message)
+    return message_string
 
 
-def get_banding(consultant, lower, message, loop_flag):
-    if consultant not in nc.BANDERS or lower == '0':
-        banding = '0'
-        return banding, message, loop_flag
-    while True:
-        banding = input('Anal:   ')
-        b_match = re.match(r'^[abq0]$', banding)
-        if b_match:
-            if banding == 'b':
-                message += ' - Banding haemorrhoids'
-            elif banding == 'a':
-                message += '-Anal dilatation'
-            elif banding == 'q':
-                loop_flag = True
-            if banding in {'a', 'b'} and consultant == 'Dr A Wettstein':
-                message += ' - Bill bilateral pudendal blocks'
-            break
-        print('\033[31;1m' + 'TRY AGAIN!')
-    return banding, message, loop_flag
-
-
-def bill_process(bc_dob, upper, lower, asa, mcn, insur_code):
-    """
-    Turn rawdata into stuff ready to go into my account.
-
-    Generates and stores an incremented invoice number.
-    """
+def get_age_difference(bc_dob):
     today_raw = datetime.datetime.today()
-    today = today_raw.strftime('%d' + '//' + '%m' + '//' + '%Y')
     dob = parse(bc_dob, dayfirst=True)
     age_sep = relativedelta(today_raw, dob)
-    if age_sep.years >= 70:
-        age_seventy = 'Yes'
-    else:
-        age_seventy = 'No'
-    if upper != '0':
-        upper_done = 'Yes'
-    else:
-        upper_done = 'No'
-    if lower != '0':
-        lower_done = 'Yes'
-    else:
-        lower_done = 'No'
-    if asa == '3' or asa == '4':
-        asa_three = 'Yes'
-    else:
-        asa_three = 'No'
-    if insur_code == 'os':
-        mcn = ''
-    with open('d:\\JOHN TILLET\\episode_data\\'
-              'jtdata\\invoice_store.py', 'rb') as handle:
+    return age_sep.years
+
+
+def get_invoice_number():
+    s = 'd:\\JOHN TILLET\\episode_data\\jtdata\\invoice_store.py'
+    with open(s, 'r+b') as handle:
         invoice = pickle.load(handle)
         invoice += 1
-    with open('d:\\JOHN TILLET\\episode_data\\'
-              'jtdata\\invoice_store.py', 'wb') as handle:
+        handle.seek(0)
         pickle.dump(invoice, handle)
-    return today, upper_done, lower_done, age_seventy, asa_three, invoice, mcn
+        handle.truncate()
+    return invoice
 
 
-def time_calculater(time_in_theatre):
-    nowtime = datetime.datetime.now()
-    today_str = nowtime.strftime('%Y' + '-' + '%m' + '-' + '%d')
-
-    time_in_theatre = int(time_in_theatre)
-    outtime = nowtime + relativedelta(minutes=+3)
-    intime = nowtime + relativedelta(minutes=-time_in_theatre)
-    out_formatted = outtime.strftime('%H' + ':' + '%M')
-    in_formatted = intime.strftime('%H' + ':' + '%M')
-
+def get_time_code(op_time):
+    op_time = int(op_time)
     time_base = '230'
     time_last = '10'
-    second_last_digit = 1 + time_in_theatre // 15
-    remainder = time_in_theatre % 15
+    second_last_digit = 1 + op_time // 15
+    remainder = op_time % 15
     if remainder < 6:
         last_digit = 1
     elif remainder < 11:
         last_digit = 2
     else:
         last_digit = 3
-    if time_in_theatre > 15:
-        time_last = '%d%d' % (second_last_digit, last_digit)
-    anaesthetic_time = time_base + time_last
+    if op_time > 15:
+        time_last = '{}{}'.format(second_last_digit, last_digit)
+    time_code = time_base + time_last
+    return time_code
 
-    return (in_formatted, out_formatted, anaesthetic_time, today_str)
+
+def bill_process(bc_dob, upper, lower, asa, mcn, insur_code, op_time,
+                 print_name, address, ref, full_fund,
+                 fund_number, endoscopist):
+    """Turn rawdata into stuff ready to go into my account.
+
+    Generates and stores an incremented invoice number.
+    """
+    today_raw = datetime.datetime.today()
+    today_for_invoice = today_raw.strftime('%d' + '-' + '%m' + '-' + '%Y')
+    age_diff = get_age_difference(bc_dob)
+    age_seventy = upper_done = lower_done = asa_three = 'No'
+
+    if age_diff >= 70:
+        age_seventy = 'Yes'
+    if upper:
+        upper_done = 'Yes'
+    if lower:
+        lower_done = 'Yes'
+    if asa[-2] == '3' or asa[-2] == '4':
+        asa_three = 'Yes'
+    if insur_code == 'os':
+        mcn = ''
+
+    time_code = get_time_code(op_time)
+
+    invoice = get_invoice_number()
+
+    return [today_for_invoice, print_name, address, bc_dob, mcn, ref,
+            full_fund, fund_number, insur_code, endoscopist, upper_done,
+            lower_done, age_seventy, asa_three, time_code, invoice]
 
 
-def make_episode_string(outtime, doctor, print_name, consult,
-                        upper, colon, banding, message, anaesthetist, room):
-
-    doc_surname = doctor.split()[-1]
+def make_episode_string(outtime, endoscopist, print_name, consult,
+                        upper, colon, message, anaesthetist, room):
+    doc_surname = endoscopist.split()[-1]
     if doc_surname == 'Vivekanandarajah':
         doc_surname = 'Suhir'
     anaesthetist_surname = anaesthetist.split()[-1]
-    docs_for_web = doc_surname + '/' + anaesthetist_surname
-    if consult != 'none':
-        consult = '<b>' + consult + '</b>'
-    web_upper = nc.UPPER_DIC[upper]
-    web_lower = nc.COLON_DIC[colon]
+    docs = doc_surname + '/' + anaesthetist_surname
 
-    html = '<b>{0}</b> - {7} - {1} - {2} - CONSULT: {3} - UPPER: {4} - LOWER: {5} <b>{6}</b><br>\n'
-    out_string = html.format(
-        outtime, docs_for_web, print_name, consult,
-        web_upper, web_lower, message, room)
-    return out_string
+    if not consult:
+        consult = ''
+    if not upper:
+        upper = ''
+    if not colon:
+        colon = ''
+
+    html = "<tr><td>{0}</td><td>{1}</td><td>{2}</td><td>{3}</td>\
+            <td>{4}</td><td>{5}</td><td>{6}</td><td>{7}</td></tr>\n"
+    ep_string = html.format(
+        outtime, room, docs, print_name, consult, upper, colon, message)
+    return ep_string
 
 
-def make_index(out_str):
-
+def make_index(ep_string):
     today = datetime.datetime.now()
     today_str = today.strftime('%A' + '  ' + '%d' + ':' + '%m' + ':' + '%Y')
-    head_string = "DEC procedures for {}<br><br>\n".format(today_str)
+
+    head_string = '<html><body><H4>DEC procedures for {}</H4>\
+    <table cellspacing="10"><tr><th>Time</th><th>Room</th>\
+    <th>Doctors</th><th>Patient</th><th>Consult</th><th>Upper</th>\
+    <th>Lower</th><th>Message</th></tr>\n'.format(today_str)
+    base_string = "</table></body></html>"
+
     date_file_str = today.strftime('%Y' + '-' + '%m' + '-' + '%d')
     date_filename = date_file_str + '.html'
-    stored_index = os.path.join('d:\\JOHN TILLET\\'
-                                'episode_data\\' + date_filename)
+    today_path = os.path.join(
+        'd:\\JOHN TILLET\\episode_data\\' + date_filename)
 
-    if os.path.isfile(stored_index):
-        with open(stored_index, 'r') as original:
+    if os.path.isfile(today_path):
+        with open(today_path, 'r') as original:
             original.readline()
-            data = original.read()
-        with open(stored_index, 'w') as modified:
-            modified.write(head_string + out_str + data)
+            new_base_string = original.read()
+        with open(today_path, 'w') as modified:
+            modified.write(head_string + ep_string + new_base_string)
     else:
         base = 'd:\\JOHN TILLET\\episode_data\\'
         dest = 'd:\\JOHN TILLET\\episode_data\\html-backup'
         for src in glob.glob(base + '*.html'):
             shutil.move(src, dest)
-        with open(stored_index, 'w') as new_index:
-            new_index.write(head_string + out_str)
-    return stored_index
+        with open(today_path, 'w') as new_index:
+            new_index.write(head_string + ep_string + base_string)
+    return today_path
 
 
 def episode_opener(message):
     while True:
-        if not pyautogui.pixelMatchesColor(150, 630, (255, 0, 0)):
+        if not pixelMatchesColor(150, 630, (255, 0, 0)):
             print('Open the patient file.')
             input('Hit Enter when ready.')
         else:
             break
-    pyautogui.moveTo(150, 50)
-    pyautogui.click()
-    pyautogui.press('f8')
-    while not pyautogui.pixelMatchesColor(
-            534, 330, (102, 203, 234), tolerance=10):
+    moveTo(150, 50)
+    click()
+    press('f8')
+    while not pixelMatchesColor(534, 330, (102, 203, 234), tolerance=10):
         time.sleep(1)
-    pyautogui.press('n')
-    while not pyautogui.pixelMatchesColor(
-            820, 130, (195, 90, 80), tolerance=10):
+    press('n')
+    while not pixelMatchesColor(820, 130, (195, 90, 80), tolerance=10):
         time.sleep(1)
-    pyautogui.typewrite(['down'] * 11, interval=0.1)
-    pyautogui.press('enter')
-    pyautogui.hotkey('alt', 'f')
+    typewrite(['down'] * 11, interval=0.1)
+    press('enter')
+    hotkey('alt', 'f')
     time.sleep(1)
-    if pyautogui.pixelMatchesColor(520, 380, (25, 121, 202),
-                                   tolerance=10):
+    if pixelMatchesColor(520, 380, (25, 121, 202), tolerance=10):
         time.sleep(1)
-        pyautogui.press('enter')
-        pyautogui.press('c')
-        pyautogui.hotkey('alt', 'f4')
+        press('enter')
+        press('c')
+        hotkey('alt', 'f4')
         time.sleep(1)
-        pyautogui.press('f8')
+        press('f8')
         time.sleep(1)
-        pyautogui.press('enter')
-        time.sleep(1)
-        pyautogui.press('enter')
-        time.sleep(1)
-        pyautogui.press('enter')
-        message += 'New episode made -'
-
+        typewrite(['enter'] * 3, interval=1.0)
+        message += ' New episode made'
     return message
 
 
-def episode_discharge(intime, outtime, anaesthetist, doctor):
-    pyautogui.hotkey('alt', 'i')
+def episode_discharge(intime, outtime, anaesthetist, endoscopist):
+    hotkey('alt', 'i')
     time.sleep(1)
-    pyautogui.PAUSE = 0.1
-    pyautogui.typewrite(['enter'] * 4, interval=0.1)
-
+    typewrite(['enter'] * 4, interval=0.1)
     test = pyperclip.copy('empty')
-    pyautogui.hotkey('ctrl', 'c')
+    hotkey('ctrl', 'c')
     test = pyperclip.paste()
     if test != 'empty':
-        pyautogui.alert(
-            text='Data here already! Try Again', title='', button='OK')
+        alert(text='Data here already! Try Again', title='', button='OK')
         time.sleep(1)
-        pyautogui.hotkey('alt', 'f4')
-        raise BlueChipError
-    pyautogui.typewrite(intime)
-    pyautogui.typewrite(['enter'] * 2, interval=0.1)
-    pyautogui.typewrite(outtime)
-    pyautogui.typewrite(['enter'] * 3, interval=0.1)
+        hotkey('alt', 'f4')
+        return 'ep full'
+    typewrite(intime)
+    typewrite(['enter'] * 2, interval=0.1)
+    typewrite(outtime)
+    typewrite(['enter'] * 3, interval=0.1)
     if anaesthetist != 'locum':
-        pyautogui.typewrite(['tab'] * 6, interval=0.1)
-        pyautogui.typewrite(anaesthetist)
-        pyautogui.typewrite('\n')
-        pyperclip.copy('fail')
+        typewrite(['tab'] * 6, interval=0.1)
+        typewrite(anaesthetist)
+        typewrite('\n')
     else:
-        pyautogui.typewrite(['tab'] * 7, interval=0.1)
+        typewrite(['tab'] * 7, interval=0.1)
+    typewrite(endoscopist)
 
-    pyautogui.typewrite(doctor)
 
-
-def episode_procedures(upper, colon, banding, asa):
-    pe_flag = False         # use these to keep state when entering lower lines
-    banding_flag = False
-    asa_flag = False
-
-    def gastro_chooser(in_str):
-        if in_str == '0':
-            return False
-        up_str = nc.UPPER_DIC[in_str]
-        pyautogui.typewrite(up_str + '\n')
-        pyautogui.press('enter')
-
-    def asa_chooser(asa):
-        if asa == '0':
-            return True
-        a_str = nc.ASA_DIC[asa]
-        pyautogui.typewrite(a_str + '\n')
-        pyautogui.press('enter')
-        return True
-
-    pyautogui.hotkey('alt', 'p')
-    if colon == '0':
-        pe_flag = gastro_chooser(upper)
+def episode_procedures(upper, lower, anal, asa):
+    hotkey('alt', 'p')
+    if lower:  # first line - either upper or lower is always true
+        typewrite(lower + '\n')
+        press('enter')
     else:
-        col_str = nc.COLON_DIC[colon]
-        pyautogui.typewrite(col_str + '\n')
-        pyautogui.press('enter')
-
-    pyautogui.typewrite(['tab'] * 6, interval=0.1)
-
-    if upper != '0' and pe_flag is False:
-        gastro_chooser(upper)
-    elif banding == 'b':
-        banding_flag = True
-        pyautogui.typewrite('32135-00\n')
-        pyautogui.press('enter')
-    elif banding == 'a':
-        banding_flag = True
-        pyautogui.typewrite('32153-00\n')
-        pyautogui.press('enter')
+        typewrite(upper + '\n')
+        press('enter')
+    typewrite(['tab'] * 6, interval=0.1)
+    if upper and lower:  # second line
+        typewrite(upper + '\n')
+        press('enter')
+    elif anal:
+        typewrite(anal + '\n')
+        press('enter')
     else:
-        asa_flag = asa_chooser(asa)
-
-    if asa_flag:
+        if asa:
+            typewrite(asa + '\n')
+            press('enter')
         return
+    typewrite(['tab'] * 2, interval=0.1)
+    if anal:  # third line
+        typewrite(anal + '\n')
+        press('enter')
     else:
-        pyautogui.typewrite(['tab'] * 2, interval=0.1)
-
-    if banding == 'b'and banding_flag is False:
-        banding_flag = True
-        pyautogui.typewrite('32135-00\n')
-        pyautogui.press('enter')
-    elif banding == 'a':
-        banding_flag = True
-        pyautogui.typewrite('32153-00\n')
-        pyautogui.press('enter')
-    else:
-        asa_flag = asa_chooser(asa)
-
-    if asa_flag:
+        if asa:
+            typewrite(asa + '\n')
+            press('enter')
         return
-    else:
-        pyautogui.typewrite(['tab'] * 2, interval=0.1)
-
-    asa_flag = asa_chooser(asa)
-
-    if asa_flag:
-        return
+    typewrite(['tab'] * 2, interval=0.1)
+    if asa:  # fourth line
+        typewrite(asa + '\n')
+        press('enter')
+    return
 
 
-def episode_theatre(doctor, nurse, clips, varix_flag, varix_lot):
-    pyautogui.hotkey('alt', 'n')
-    pyautogui.typewrite(['left'] * 2, interval=0.1)
-    pyautogui.moveTo(50, 155)
-    pyautogui.click()
-    pyautogui.press('tab')
+def episode_theatre(endoscopist, nurse, clips, varix_flag, varix_lot):
+    hotkey('alt', 'n')
+    typewrite(['left'] * 2, interval=0.1)
+    moveTo(50, 155)
+    click()
+    press('tab')
     doc_test = pyperclip.copy('empty')
-    pyautogui.hotkey('ctrl', 'c')
+    hotkey('ctrl', 'c')
     doc_test = pyperclip.paste()
     if doc_test == 'Endoscopist':
-        pyautogui.press('tab')
-        pyautogui.typewrite(['enter'] * 2, interval=0.1)
-        pyautogui.moveTo(450, 155)
-        pyautogui.click()
-        pyautogui.typewrite(['tab'] * 2, interval=0.1)
-        pyautogui.typewrite(['enter'] * 2, interval=0.1)
+        press('tab')
+        typewrite(['enter'] * 2, interval=0.1)
+        moveTo(450, 155)
+        click()
+        typewrite(['tab'] * 2, interval=0.1)
+        typewrite(['enter'] * 2, interval=0.1)
 
-    pyautogui.moveTo(50, 155)
-    pyautogui.click()
-    pyautogui.typewrite(doctor)
-    pyautogui.typewrite(['enter', 'e', 'enter'], interval=0.1)
-    pyautogui.moveTo(450, 155)
-    pyautogui.click()
-    pyautogui.typewrite(nurse)
-    pyautogui.typewrite(['enter', 'e', 'enter'], interval=0.1)
+    moveTo(50, 155)
+    click()
+    typewrite(endoscopist)
+    typewrite(['enter', 'e', 'enter'], interval=0.1)
+    moveTo(450, 155)
+    click()
+    typewrite(nurse)
+    typewrite(['enter', 'e', 'enter'], interval=0.1)
     if clips != 0 or varix_flag is True:
-        pyautogui.moveTo(50, 350)
-        pyautogui.click()
+        moveTo(50, 350)
+        click()
         if varix_flag is True:
             pyperclip.copy('Boston Scientific Speedband Superview Super 7')
-            pyautogui.hotkey('ctrl', 'v')
-            pyautogui.press('enter')
+            hotkey('ctrl', 'v')
+            press('enter')
             time.sleep(0.5)
             pyperclip.copy(varix_lot)
-            pyautogui.hotkey('ctrl', 'v')
-            pyautogui.press('enter')
-            pyautogui.typewrite(['tab'] * 2, interval=0.1)
+            hotkey('ctrl', 'v')
+            press('enter')
+            typewrite(['tab'] * 2, interval=0.1)
         if clips != 0:
             pyperclip.copy('M00521230')
             for i in range(clips):
-                pyautogui.typewrite(['b', 'enter'], interval=0.2)
+                typewrite(['b', 'enter'], interval=0.2)
                 time.sleep(0.5)
-                pyautogui.hotkey('ctrl', 'v')
-                pyautogui.press('enter')
-                pyautogui.typewrite(['tab'] * 2, interval=0.1)
-    return None
+                hotkey('ctrl', 'v')
+                press('enter')
+                typewrite(['tab'] * 2, interval=0.1)
 
 
 def episode_scrape():
-    pyautogui.hotkey('alt', 'd')
-    pyautogui.hotkey('ctrl', 'c')
+    hotkey('alt', 'd')
+    hotkey('ctrl', 'c')
     mrn = pyperclip.paste()
-    pyautogui.press('tab')
-    pyautogui.hotkey('ctrl', 'c')
+    press('tab')
+    hotkey('ctrl', 'c')
     title = pyperclip.paste()
-    pyautogui.press('tab')
-    pyautogui.hotkey('ctrl', 'c')
+    press('tab')
+    hotkey('ctrl', 'c')
     first_name = pyperclip.paste()
-    pyautogui.typewrite(['tab'] * 2, interval=0.1)
-    pyautogui.hotkey('ctrl', 'c')
+    typewrite(['tab'] * 2, interval=0.1)
+    hotkey('ctrl', 'c')
     last_name = pyperclip.paste()
-    output_name = last_name + '   ' + first_name
     print_name = title + ' ' + first_name + ' ' + last_name
-    pyautogui.press('tab')
-    pyautogui.hotkey('ctrl', 'c')
+    press('tab')
+    hotkey('ctrl', 'c')
     street_number = pyperclip.paste()
-    pyautogui.press('tab')
-    pyautogui.hotkey('ctrl', 'c')
+    press('tab')
+    hotkey('ctrl', 'c')
     street_name = pyperclip.paste()
-    pyautogui.press('tab')
-    pyautogui.hotkey('ctrl', 'c')
+    press('tab')
+    hotkey('ctrl', 'c')
     suburb = pyperclip.paste()
     suburb = suburb.lower()
     suburb = suburb.title()
-    pyautogui.press('tab')
-    pyautogui.hotkey('ctrl', 'c')
+    press('tab')
+    hotkey('ctrl', 'c')
     postcode = pyperclip.paste()
     address = street_number + ' ' + street_name + ' ' + suburb + ' ' + postcode
-    pyautogui.press('tab')
-    pyautogui.hotkey('ctrl', 'c')
+    press('tab')
+    hotkey('ctrl', 'c')
     dob = pyperclip.paste()
-    pyautogui.typewrite(['tab'] * 6, interval=0.1)
-    pyautogui.hotkey('ctrl', 'c')
+    typewrite(['tab'] * 6, interval=0.1)
+    mcn = pyperclip.copy('')  # in case no mcn present otherwise dob repeated
+    hotkey('ctrl', 'c')
     mcn = pyperclip.paste()
-    pyperclip.copy(output_name)
-    pyautogui.hotkey('alt', 'f4')
+    hotkey('alt', 'f4')
     return (mrn, print_name, address, dob, mcn)
 
 
 def offsite(stored_index):
-    session = ftplib.FTP('www.home.aone.net.au', 'ca121480@a1.com.au',
+    session = ftplib.FTP('www.home.aone.net.au',
+                         'ca121480@a1.com.au',
                          'Andromeda1957gd5mbunm')
     session.cwd('./dec/')
     with open(stored_index, 'rb') as file_handle:
@@ -561,50 +373,6 @@ def to_database(episode_data):
     table.insert(episode_data)
 
 
-def analysis():
-    """Work out numbers of patients done this year and whether on target"""
-    def report_number_this_week():
-        try:
-            with open('d:\\JOHN TILLET\\episode_data\\'
-                      'jtdata\\weekly_data.py', 'rb') as pf:
-                weekly = pickle.load(pf)
-                print('Number this week: {}'.format(str(weekly['number'])))
-        except IOError:
-            print('Cant find weekly_data file')
-            sys.exit(1)
-
-    print()
-    desired_weekly = int(input('Weekly target: '))
-
-    print('      **********')
-    print('This period starts 1-7-2017')
-    first_date = datetime.datetime(2017, 7, 1)
-    today = datetime.datetime.today()
-    days_diff = (today - first_date).days
-    print('Days this period %d' % days_diff)
-    first_invoice = 5057
-    csvfile = 'd:\\JOHN TILLET\\episode_data\\jtdata\\patients.csv'
-    with open(csvfile, 'r') as file_handle:
-        reader = csv.reader(file_handle)
-        first_bill = next(reader)
-        first_bill_invoice = int(first_bill[15])
-    with open('d:\\JOHN TILLET\\episode_data\\'
-              'jtdata\\invoice_store.py', 'rb') as handle:
-        last_invoice = pickle.load(handle)
-    invoice_diff = int(last_invoice - first_invoice)
-    desired_number = int(days_diff * desired_weekly / 7)
-    weekly_number = int((7 * invoice_diff / days_diff))
-    number_to_give_away = invoice_diff - desired_number
-    print('Weekly target %d' % desired_weekly)
-    print('Number done this period  %d' % invoice_diff)
-    report_number_this_week()
-    print('Number done this print run  %d' % (int(last_invoice) - first_bill_invoice))
-    print('Weekly no. patients %d' % weekly_number)
-    print('Number available to give away %d to avereage %d per week.'
-          % (number_to_give_away, desired_weekly))
-    print('      **********')
-
-
 def update_web():
     """Update the webpage. After index has been changed."""
     today = datetime.datetime.now()
@@ -613,43 +381,27 @@ def update_web():
     base = 'd:\\JOHN TILLET\\episode_data\\'
     stored_index = os.path.join(base + date_filename)
     offsite(stored_index)
-    offsite_page = 'www.home.aone.net.au/~tillett/dec/today.html'
-    webbrowser.open_new_tab(offsite_page)
-    pyautogui.click(x=80, y=745)
-    time.sleep(2)
-    pyautogui.click(x=200, y=200)
-    pyautogui.hotkey('ctrl', 'pageup')
-    pyautogui.hotkey('ctrl', 'f4')
-    print('Update succesful!')
 
 
-def update_number_this_week():
-    try:
-        with open('d:\\JOHN TILLET\\episode_data\\jtdata\\weekly_data.py', 'rb') as pf:
-            weekly = pickle.load(pf)
-    except IOError:
-        print('Cant find weekly_data file')
-        sys.exit(1)
+def analysis():
+    """Print number of accounts ready to print and whether on weekly target."""
 
-    if datetime.date.today() == weekly['last_procedure_date']:
-        weekly['number'] += 1
-        with open('d:\\JOHN TILLET\\episode_data\\jtdata\\weekly_data.py', 'wb') as pf:
-            pickle.dump(weekly, pf)
-    else:
-        today = datetime.date.today()
-        # if we are in the same week increment weekly['number']
-
-        if weekly['last_procedure_date'] + datetime.timedelta(days=today.weekday()) >= today:
-            weekly['number'] += 1
-            weekly['last_procedure_date'] = datetime.date.today()
-            with open('d:\\JOHN TILLET\\episode_data\\jtdata\\weekly_data.py', 'wb') as pf:
-                pickle.dump(weekly, pf)
-        else:
-            csvfile = 'd:\\JOHN TILLET\\episode_data\\jtdata\\weekly_numbers.csv'
-            with open(csvfile, 'a') as handle:
-                datawriter = csv.writer(handle, dialect='excel', lineterminator='\n')
-                datawriter.writerow(str(weekly['number']))
-            weekly['number'] = 1
-            weekly['last_procedure_date'] = datetime.date.today()
-            with open('d:\\JOHN TILLET\\episode_data\\jtdata\\weekly_data.py', 'wb') as pf:
-                pickle.dump(weekly, pf)
+    csvfile = 'd:\\JOHN TILLET\\episode_data\\jtdata\\patients.csv'
+    with open(csvfile, 'r') as file_handle:
+        reader = csv.reader(file_handle)
+        first_bill = next(reader)
+        first_bill_invoice = int(first_bill[15])  # invoice from first account
+    with open('d:\\JOHN TILLET\\episode_data\\'
+              'jtdata\\invoice_store.py', 'rb') as handle:
+        last_invoice = pickle.load(handle)
+    print('Number on this print run - {}'.format(
+        last_invoice - first_bill_invoice))
+    first_date = datetime.datetime(2017, 7, 1)
+    today = datetime.datetime.today()
+    days_diff = (today - first_date).days
+    desired_weekly = int(input('Weekly target: '))
+    first_invoice = 5057
+    invoice_diff = last_invoice - first_invoice
+    desired_number = int(days_diff * desired_weekly / 7)
+    excess = invoice_diff - desired_number
+    print('{} excess to average {} per week.'.format(excess, desired_weekly))

@@ -2,6 +2,7 @@
 
 NURSES_DIC = {'no': 'Nobue Chashin',
               'ja': 'Jacqueline James',
+              'jj': 'Jacqueline James',
               'jg': 'Jacinta Goldenberg',
               'js': 'Jacqueline Smith',
               'yi': 'Yi Lu',
@@ -36,6 +37,8 @@ ANAESTHETISTS = {'tt': 'Dr T Thompson',
 REGULAR_ANAESTHETISTS = {'Dr J Tillett', "Dr G O'Sullivan", 'Dr T Thompson',
                          'Dr S Vuong', 'Dr C Brown', 'Dr J Riley',
                          'Dr J Stevens', 'Dr D Bowring', 'Dr J Tester'}
+
+BILLING_ANAESTHETISTS = {'Dr J Tillett'}
 
 VMOS = {'DR M Danta', 'DR R Gett', 'Prof R Lord', 'Dr G Owen', 'Dr A Meagher'}
 
@@ -85,22 +88,35 @@ BANDERS = {'DR R Gett', 'Dr A Meagher', 'Dr A Wettstein', 'Dr G Owen'}
 
 CONSULTERS = {'Dr S Ghaly', 'Dr S Vivekanandarajah', 'Dr A Wettstein'}
 
-ASA_DIC = {'1': '92515-19',
+ASA_DIC = {'0': None,
+           '1': '92515-19',
            '2': '92515-29',
            '3': '92515-39',
            '4': '92515-49'}
 
-UPPER_DIC = {'0': 'none',
+UPPER_DIC = {'0': None,
+             'c': None,
              'pe': '30473-00',
              'pb': '30473-01',
              'od': '41819-00',
              'pa': '30478-20',
-             'halo': '30478-20',
+             'ha': '30478-20',
              'pp': '30478-04',
              'pv': '30476-02',
-             'bravo': '30490-00'}
+             'br': '30490-00'}
 
-COLON_DIC = {'0': 'none',
+UPPER_HELP = {'0': 'No upper procedure',
+              'c': 'Endoscopy cancelled',
+              'pe': 'Panendoscopy - no biopsy',
+              'pb': 'Panendoscopy with biopsy',
+              'od': 'Panendoscopy with oesophageal diatation',
+              'pa': 'Panendoscopy with APC',
+              'ha': 'Panendoscopy with HALO',
+              'pp': 'Panendoscopy with polypectomy',
+              'pv': 'Panendoscopy with variceal banding',
+              'br': 'Panendoscopy with BRAVO'}
+
+COLON_DIC = {'0': None,
              'co': '32090-00',
              'cs': '32090-00',
              'cb': '32090-01',
@@ -110,7 +126,17 @@ COLON_DIC = {'0': 'none',
              'sb': '32084-01',
              'sp': '32087-00'}
 
-BANDING_DIC = {'0': 'none',
+COLON_HELP = {'0': 'No lower procedure',
+              'co': 'Long Colonoscopy - no biopsy',
+              'cb': 'Long Colonoscopy with biopsy',
+              'cs': 'Colonoscopy - FOB screening',
+              'cp': 'Long Colonoscopy with polypectomy',
+              'csp': 'Long Colonoscopy with polypectomy - FOB screening',
+              'sc': 'Short Colonoscopy no biopsy',
+              'sb': 'Short Colonoscopy with biopsy',
+              'sp': 'Short Colonoscopy with polypectomy'}
+
+BANDING_DIC = {'0': None,
                'b': '32135-00',
                'a': '32153-00'}
 
@@ -135,7 +161,8 @@ FUND_DIC = {'hcf': 'HCF',
             'bb': 'Bulk Bill',
             'va': 'Veterans Affairs',
             'os': 'Overseas',
-            'ga': 'Garrison Health'}
+            'ga': 'Garrison Health',
+            'ahsa': 'AHSA'}
 
 AHSA_DIC = {'te': 'Teachers Federation Health',
             'we': 'Westfund',
@@ -150,7 +177,7 @@ AHSA_DIC = {'te': 'Teachers Federation Health',
             'gu': 'Grand United Corporate Health',
             'he': 'health.com.au',
             'hi': 'Health Insurance Fund',
+            'hb': 'HBF',
             'na': 'Naval Health Benefits',
             're': 'Reserve Bank',
             'o': 'other'}
-

@@ -6,7 +6,7 @@ import names_and_codes as nc
 from bill import bill
 from inputbill import inputer
 from functions import (make_message_string, offsite,
-                       make_index, episode_update)
+                       make_webpage, episode_update)
 
 
 def get_anaesthetist():
@@ -90,8 +90,8 @@ def login_and_run(s):
                 episode_update(room, endoscopist, anaesthetist, data_entry)
             if choice == 'message':
                 message_string = make_message_string(anaesthetist)
-                html_path = make_index(message_string)
-                offsite(html_path)
+                webpage = make_webpage(message_string)
+                offsite(webpage)
 
 
 if __name__ == '__main__':

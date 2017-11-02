@@ -1,7 +1,4 @@
-"""CLI input for jtbill.py.
-
-By John Tillett
-"""
+"""CLI input for docbill.py."""
 from collections import namedtuple
 import datetime
 from dateutil.relativedelta import relativedelta
@@ -9,9 +6,43 @@ import pprint
 import sys
 
 import colorama
-from pyautogui import *
+import pyautogui as pya
 
 import names_and_codes as nc
+
+
+class LoopException(Exception):
+    pass
+
+
+Indata = namedtuple('Indata', 'asa, upper, colon, banding, consult,'
+                    'message, op_time,'
+                    'ref, full_fund, insur_code, fund_number,'
+                    'clips, varix_flag, varix_lot, in_formatted,'
+                    'out_formatted')
+
+
+def get_asa(message):
+    print('\033[2J')  # clear screen
+    while True:
+        asa = input('ASA:    ')
+        if asa == 'q':
+            raise LoopException
+        if asa == '0':
+            sedation_confirm = input('Really no sedation? ([y]/n): ')
+            if sedation_confirm == 'n':
+                continue
+        if asa in {'0', '1', '2', '3', '4'}:
+            asa = nc.ASA_DIC[asa]
+            if asa is None:
+                message += ' No Sedation'
+            break
+        else:
+            print('\033[31;1m' + 'TRY AGAIN!')
+            print('Press 0 for no sedation')
+            print('Use asa 1 - 4 only - no extras.')
+            print('Press q to go back')
+    return asa, message
 
 
 def get_insurance(asa, anaesthetist, message):
@@ -31,21 +62,21 @@ def get_insurance(asa, anaesthetist, message):
     we get medicare number by scraping episode
     """
     ref = full_fund = insur_code = fund_number = 'na'
-    loop_flag = False
     if asa is None or anaesthetist not in nc.BILLING_ANAESTHETISTS:
-        return insur_code, fund_number, ref, full_fund, message, loop_flag
+        return insur_code, fund_number, ref, full_fund, message
     # get full_fund and insur_code
     while True:
+        print()
         fund_input = input('Fund:   ')
         if fund_input == 'q':
-            loop_flag = True
-            return insur_code, fund_number, ref, full_fund, message, loop_flag
-        if fund_input in nc.FUND_ABREVIATION:
+            raise LoopException
+        elif fund_input in nc.FUND_ABREVIATION:
             insur_code = nc.FUND_ABREVIATION[fund_input]
             print('{}'.format(nc.FUND_DIC[insur_code]))
             break
-        print('Your choices are.')
-        pprint.pprint(nc.FUND_ABREVIATION)
+        else:
+            print('Your choices are.')
+            pprint.pprint(nc.FUND_ABREVIATION)
 
     if insur_code == 'ahsa':
         while True:
@@ -74,9 +105,9 @@ def get_insurance(asa, anaesthetist, message):
         full_fund = nc.FUND_DIC[insur_code]
     print()
     # get ref and fund_number
-    if full_fund == 'Overseas':  # overseas patient not in fund
+    if insur_code == 'os' and full_fund == 'Overseas':  # os - not in fund
         ref = fund_number = 'na'
-    elif insur_code == 'os':  # overseas patient in fund
+    elif insur_code == 'os' and full_fund != 'Overseas':  # os - in fund
         ref = 'na'
         fund_number = input('F Num:  ')
         message = ' JT will bill {}.'.format(full_fund)
@@ -107,23 +138,154 @@ def get_insurance(asa, anaesthetist, message):
                 break
             print('\033[31;1m' + 'TRY AGAIN!')
 
-    return insur_code, fund_number, ref, full_fund, message, loop_flag
+    return insur_code, fund_number, ref, full_fund, message
 
 
-def get_consult(consultant, upper, lower, time_in_theatre, message, loop_flag):
-    consult = None
-    loop_flag = False
+def get_upper(message):
+    varix_flag = False
+    varix_lot = ''
+    while True:
+        print('\033[2J')  # clear screen
+        upper = input('Upper:  ')
+        if upper == 'q':
+            raise LoopException
+        elif upper in {'c', '0c'}:
+            message += ' pe cancelled'
+            break
+        elif len(upper) == 3 and upper[-1] == 'a':
+            upper = upper[:2]
+            if upper in nc.UPPER_DIC:
+                print(nc.UPPER_HELP[upper])
+                message += ' pe added on'
+                break
+        elif upper in nc.UPPER_DIC:
+            print(nc.UPPER_HELP[upper])
+            break
+        print('\033[31;1m' + 'TRY AGAIN!')
+        print('Here are your options')
+        pprint.pprint(nc.UPPER_HELP)
+        print('Add "a" on end of code if upper was not on the list')
+        print('Type c or 0c to indicate upper cancelled')
 
+    if upper == 'pv':
+        varix_flag = True
+        message += ' Bill varix bander'
+        varix_lot = input('Bander LOT No: ')
+    if upper == 'ha':
+        while True:
+            halo = input('[90] or [u]ltra?  ')
+            if halo in {'90', 'u'}:
+                if halo == 'u':
+                    halo = 'ultra'
+                break
+            else:
+                print('\033[31;1m' + 'TRY AGAIN!')
+                print("Type either '90' or 'u' for ultra")
+        message += 'HALO {}'.format(halo)
+    upper = nc.UPPER_DIC[upper]
+    return upper, varix_flag, varix_lot, message
+
+
+def get_colon(upper, message):
+    while True:
+        print()
+        colon = input('Lower:  ')
+        if colon == 'q':
+            raise LoopException
+        elif colon in nc.COLON_DIC:
+            print(nc.COLON_HELP[colon])
+            if colon == 'cs':       # blue chip does not accept these codes
+                message += ' Bill 32088-00'
+            if colon == 'csp':
+                message += ' Bill 32089-00'
+            colon = nc.COLON_DIC[colon]
+            break
+        else:
+            print('\033[31;1m' + 'TRY AGAIN!')
+            print('Here are your options')
+            pprint.pprint(nc.COLON_HELP)
+    if not upper and not colon:
+            pya.alert(text='Must enter pe or colon!!', title='', button='OK')
+            raise LoopException
+    return colon, message
+
+
+def get_banding(consultant, lower, message):
+    if consultant not in nc.BANDERS or lower is None:
+        banding = None
+        return banding, message
+    while True:
+        print()
+        banding = input('Anal:   ')
+        if banding == 'q':
+            raise LoopException
+        elif banding == '0':
+            banding = None
+            break
+        elif banding == 'b':
+            banding = nc.BANDING_DIC[banding]
+            message += ' Banding haemorrhoids'
+            if consultant == 'Dr A Wettstein':
+                message += ' Bill bilateral pudendal blocks'
+            break
+        elif banding == 'a':
+            banding = nc.BANDING_DIC[banding]
+            message += ' Anal dilatation'
+            if consultant == 'Dr A Wettstein':
+                message += ' Bill bilateral pudendal blocks'
+            break
+        else:
+            print('\033[31;1m' + 'TRY AGAIN!')
+            print('Select 0 for no anal procedure')
+            print('Select a for anal dilatation')
+            print('Select b for banding of haemorrhoids')
+            print('Select q for quit')
+    return banding, message
+
+
+def get_clips(message):
+    while True:
+        print()
+        clips = input('Clips: ')
+        if clips == 'q':
+            raise LoopException
+        if clips.isdigit():
+            clips = int(clips)
+            if clips != 0:
+                message += ' clips * {}'.format(clips)
+            break
+        else:
+            print('\033[31;1m' + 'TRY AGAIN!')
+            print('Type 0 or number of clips')
+            print('No need for stickers or lot numbers')
+            print('Type q to restart')
+    return clips, message
+
+
+def get_op_time():
+    while True:
+        op_time = input('Time in theatre:   ')
+        if op_time == 'q':
+            raise LoopException
+        elif op_time.isdigit() and op_time not in {'0', '110', '116'}:
+            op_time = int(op_time)
+            break
+        else:
+            print('\033[31;1m' + 'TRY AGAIN!')
+            print('Enter minutes in theatre other than 0, 116, or 110')
+    return op_time
+
+
+def get_consult(consultant, upper, lower, time_in_theatre, message):
+    print()
     if consultant == 'Dr A Stoita' or consultant not in nc.PARTNERS:
-        pass
+        consult = None
 
     elif consultant in nc.CONSULTERS:
         while True:
-            print()
             consult = input('Consult: ')
             if consult == 'q':
-                loop_flag = True
-                break
+                raise LoopException
             elif consult in {'110', '116'}:
                 break
             elif consult == '0%':
@@ -145,8 +307,7 @@ def get_consult(consultant, upper, lower, time_in_theatre, message, loop_flag):
         while True:
             consult = input('Consult: ')
             if consult == 'q':
-                loop_flag = True
-                break
+                raise LoopException
             elif consult in {'110', '0', '116'}:
                 if consult == '0':
                     consult = None
@@ -159,11 +320,9 @@ def get_consult(consultant, upper, lower, time_in_theatre, message, loop_flag):
 
     elif consultant == 'Dr C Bariol':
         while True:
-            print()
             consult = input('Consult: ')
             if consult == 'q':
-                loop_flag = True
-                break
+                raise LoopException
             elif consult in {'110', '116', '0'}:
                 if consult == '0':
                     consult = None
@@ -174,8 +333,7 @@ def get_consult(consultant, upper, lower, time_in_theatre, message, loop_flag):
 
     elif consultant == 'Dr D Williams':
         if int(time_in_theatre) > 30 and lower:
-            print()
-            print('\033[31;1m' + 'Dr Williams may bill a 110.')
+            print('Dr Williams may bill a 110.')
             while True:
                 response = input('Confirm ([y]/n) ')
                 if response.lower() in {'y', 'n', ''}:
@@ -190,201 +348,57 @@ def get_consult(consultant, upper, lower, time_in_theatre, message, loop_flag):
         pl = lower in {'32090-01', '32093-00', '32084-01', '32087-00'}
         if pu or pl:
             consult = '116'
-    return (consult, message, loop_flag)
+        else:
+            consult = None
+    return (consult, message)
 
 
-def get_banding(consultant, lower, message, loop_flag):
-    if consultant not in nc.BANDERS or lower is None:
-        banding = None
-        return banding, message, loop_flag
-    while True:
-        banding = input('Anal:   ')
-        if banding in {'h', ''}:
-            print('Select 0 for no anal procedure')
-            print('Select a for anal dilatation')
-            print('Select b for banding of haemorrhoids')
-            print('Select q for quit')
-            continue
-        if banding not in {'0', 'q', 'a', 'b', ''}:
-            print('\033[31;1m' + 'TRY AGAIN! Press enter for help')
-            continue
-        break
-    if banding == 'q':
-        loop_flag = True
-        return banding, message, loop_flag
-    if banding == 'b':
-        message += ' Banding haemorrhoids'
-    elif banding == 'a':
-        message += ' Anal dilatation'
-    if banding in {'a', 'b'} and consultant == 'Dr A Wettstein':
-        message += ' Bill bilateral pudendal blocks'
-    banding = nc.BANDING_DIC[banding]
-    return banding, message, loop_flag
-
-
-def time_calculater(time_in_theatre):
-    nowtime = datetime.datetime.now()
-    today_str = nowtime.strftime('%Y' + '-' + '%m' + '-' + '%d')
-
+def in_and_out_calculater(time_in_theatre):
     time_in_theatre = int(time_in_theatre)
+    nowtime = datetime.datetime.now()
     outtime = nowtime + relativedelta(minutes=+3)
     intime = nowtime + relativedelta(minutes=-time_in_theatre)
     out_formatted = outtime.strftime('%H' + ':' + '%M')
     in_formatted = intime.strftime('%H' + ':' + '%M')
 
-    return (in_formatted, out_formatted, today_str)
+    return (in_formatted, out_formatted)
 
 
 def inputer(consultant, anaesthetist):
     colorama.init(autoreset=True)
 
-    while True:
-        message = ''
-        loop_flag = False
-        varix_flag = False
-        varix_lot = ''
+    message = ''
 
-        print('\033[2J')  # clear screen
-        while True:  # get_asa()
-            asa = input('ASA:    ')
-            if asa == '0':
-                sedation_confirm = input('Really no sedation? ([y]/n): ')
-                if sedation_confirm == 'n':
-                    continue
-            if asa in {'0', '1', '2', '3', '4'}:
-                asa = nc.ASA_DIC[asa]
-                break
-            if asa == 'q':
-                return 'loop'
-            print('\033[31;1m' + 'TRY AGAIN!')
-            print('Press 0 for no sedation')
-            print('Use asa 1 - 4 only - no extras.')
-            print('Press q to go back')
+    try:
+        asa, message = get_asa(message)
 
-        if asa is None:
-            message += ' No Sedation'
+        insur_code, fund_number, ref, full_fund, message = get_insurance(
+            asa, anaesthetist, message)
 
-        print()
-        (insur_code, fund_number, ref, full_fund,
-         message, loop_flag) = get_insurance(asa, anaesthetist, message)
+        upper, varix_flag, varix_lot, message = get_upper(message)
 
-        if loop_flag:
-            return 'loop'
+        colon, message = get_colon(upper, message)
 
-        print('\033[2J')  # clear screen
-        while True:  # get_upper()
-            addon_message = ''
-            upper = input('Upper:  ')
-            if len(upper) >= 2 and upper[-1] == 'x':
-                addon_message = ' Upper added on'
-                if upper in ('0x', 'cx'):
-                    upper = upper[0]
-                else:
-                    upper = upper[0:2]
-            if upper in nc.UPPER_DIC:
-                print(nc.UPPER_HELP[upper])
-                break
-            elif upper == 'q':
-                return 'loop'
-            else:
-                print('\033[31;1m' + 'TRY AGAIN!')
-                print('Here are your options')
-                pprint.pprint(nc.UPPER_HELP)
-                print('Add an x on end of code if upper was not on the list')
+        banding, message = get_banding(consultant, colon, message)
 
-        if upper == 'pv':
-            varix_flag = True
-            message += ' Bill varix bander'
-            varix_lot = input('Bander LOT No: ')
-        if upper == 'ha':
-            halo = input('90 or ultra?  ')
-            message += 'HALO {}'.format(halo)
-        if upper == 'c':
-            message += ' Upper not done'
-            addon_message = ''
-        message += addon_message
-        upper = nc.UPPER_DIC[upper]
+        clips, message = get_clips(message)
 
-        print()
-        while True:  # get_colon()
-            colon = input('Lower:  ')
-            if colon in nc.COLON_DIC:
-                print(nc.COLON_HELP[colon])
-                break
-            elif colon == 'q':
-                return 'loop'
-            else:
-                print('\033[31;1m' + 'TRY AGAIN!')
-                print('Here are your options')
-                pprint.pprint(nc.COLON_HELP)
+        op_time = get_op_time()
 
-        if colon == 'cs':       # blue chip does not accept these codes
-            message += ' Bill 32088-00'
-        if colon == 'csp':
-            message += ' Bill 32089-00'
-        colon = nc.COLON_DIC[colon]
+        consult, message = get_consult(
+            consultant, upper, colon, op_time, message)
+    except LoopException:
+        raise
 
-        if not upper and not colon:
-            alert(text='You must enter a procedure!!', title='', button='OK')
-            continue
+    (in_theatre, out_theatre) = in_and_out_calculater(op_time)
 
-        banding, message, loop_flag = get_banding(
-            consultant, colon, message, loop_flag)
+    in_data = Indata(asa, upper, colon, banding, consult, message, op_time,
+                     ref, full_fund, insur_code, fund_number,
+                     clips, varix_flag, varix_lot, in_theatre, out_theatre)
 
-        if loop_flag:
-            return 'loop'
-
-        print()
-        while True:  # get_clips()
-            clips = input('Clips: ')
-            if clips == 'q':
-                return 'loop'
-            if clips == '':
-                print('Type 0 or number of clips')
-                print('No need for stickers or lot numbers')
-                continue
-            if not clips.isdigit():
-                print(colorama.Fore.RED + 'TRY AGAIN!')
-                continue
-            clips = int(clips)
-            if clips != 0:
-                message_add = ' clips * {}'.format(clips)
-                message += message_add
-            break
-
-        print()
-        while True:  # get_op_time()
-            op_time = input('Time in theatre:   ')
-            if op_time == 'q':
-                return 'loop'
-            if op_time in {'0', '110', '116'} or not op_time.isdigit():
-                print('\033[31;1m' + 'TRY AGAIN!')
-                print('Enter number of minutes other than 0, 116, or 110')
-                continue
-            break
-
-        consult, message, loop_flag = get_consult(
-            consultant, upper, colon, op_time, message, loop_flag)
-
-        if loop_flag:
-            return 'loop'
-
-        (in_formatted, out_formatted, today_for_db) = time_calculater(op_time)
-
-        Indata = namedtuple('Indata', 'asa, upper, colon, banding, consult,'
-                            'message, op_time,'
-                            'ref, full_fund, insur_code, fund_number,'
-                            'clips, varix_flag, varix_lot, in_formatted,'
-                            'out_formatted, today_for_db')
-
-        in_data = Indata(asa, upper, colon, banding, consult, message, op_time,
-                         ref, full_fund, insur_code, fund_number,
-                         clips, varix_flag, varix_lot, in_formatted,
-                         out_formatted, today_for_db)
-
-        return in_data
+    return in_data
 
 
 if __name__ == '__main__':
     consultant = sys.argv[1]
-    pprint.pprint(inputer(consultant, anaesthetist='Dr J Tillett'), width=20)
+    print(inputer(consultant, anaesthetist='Dr J Tillett'))

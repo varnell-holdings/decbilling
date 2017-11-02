@@ -96,6 +96,7 @@ ASA_DIC = {'0': None,
 
 UPPER_DIC = {'0': None,
              'c': None,
+             '0c': None,
              'pe': '30473-00',
              'pb': '30473-01',
              'od': '41819-00',

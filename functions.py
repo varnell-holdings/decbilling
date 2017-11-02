@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-
+from collections import namedtuple
 import csv
 import datetime
 from dateutil.relativedelta import relativedelta
@@ -17,6 +17,10 @@ import pyautogui as pya
 import pyperclip
 
 
+class EpFullException(Exception):
+    pass
+
+
 def episode_update(room, endoscopist, anaesthetist, data_entry):
     # data_enry is a tuple -> unpack it
     (asa, upper, colon, banding, consult, message, op_time,
@@ -32,8 +36,8 @@ def episode_update(room, endoscopist, anaesthetist, data_entry):
     out_string = make_episode_string(
         out_formatted, endoscopist, print_name, consult,
         upper, colon, message, anaesthetist, room)
-    html_path = make_index(out_string)
-    offsite(html_path)
+    webpage = make_webpage(out_string)
+    offsite(webpage)
     time.sleep(1)
     pya.click(x=780, y=90)
 
@@ -65,7 +69,7 @@ def get_invoice_number():
 
 
 def get_time_code(op_time):
-    op_time = int(op_time)
+    op_time = op_time
     time_base = '230'
     time_last = '10'
     second_last_digit = 1 + op_time // 15
@@ -85,37 +89,74 @@ def get_time_code(op_time):
 def bill_process(bc_dob, upper, lower, asa, mcn, insur_code, op_time,
                  print_name, address, ref, full_fund,
                  fund_number, endoscopist):
-    """Turn rawdata into stuff ready to go into my account.
+    """Turn raw data into stuff ready to go into my account.
 
     Generates and stores an incremented invoice number.
+    First returned tuple is for csv, second is for database
     """
-    today_raw = datetime.datetime.today()
-    today_for_invoice = today_raw.strftime('%d' + '-' + '%m' + '-' + '%Y')
+    now = datetime.datetime.now()
+    today_for_invoice = now.strftime('%d' + '-' + '%m' + '-' + '%Y')
+    now_db = now.isoformat()
     age_diff = get_age_difference(bc_dob)
-    age_seventy = upper_done = lower_done = asa_three = 'No'
+    age_seventy = upper_done = lower_done = asa_three = age_seventy = 'No'
+    asa_code = seventy_code = None
 
-    if age_diff >= 70:
-        age_seventy = 'Yes'
     if upper:
         upper_done = 'Yes'
     if lower:
         lower_done = 'Yes'
-    if asa[-2] == '3' or asa[-2] == '4':
+    if asa[-2] == '3':
         asa_three = 'Yes'
-    if insur_code == 'os':
+        asa_code = '25000'
+    if asa[-2] == '4':
+        asa_three = 'Yes'
+        asa_code = '25005'
+    if age_diff >= 70:
+        age_seventy = 'Yes'
+        seventy_code = '25015'
+    if insur_code == 'os':  # get rid of mcn in reciprocal mc patients
         mcn = ''
+
+    if upper:
+        first_code = '20740'
+    else:
+        first_code = '20810'
+    if upper and lower:
+        second_code = '20810'
+    else:
+        second_code = None
 
     time_code = get_time_code(op_time)
 
     invoice = get_invoice_number()
 
-    return [today_for_invoice, print_name, address, bc_dob, mcn, ref,
-            full_fund, fund_number, insur_code, endoscopist, upper_done,
-            lower_done, age_seventy, asa_three, time_code, invoice]
+    Anaes_ep_db = namedtuple(
+        'Anaes_ep_db', 'now_db, today_for_invoice,print_name, address,'
+        'bc_dob, mcn, ref, full_fund, fund_number, insur_code, endoscopist,'
+        ' first_code, second_code, seventy_code, asa_code, time_code, invoice')
+
+    ae_db = Anaes_ep_db(
+        now_db, today_for_invoice, print_name, address, bc_dob, mcn, ref,
+        full_fund, fund_number, insur_code, endoscopist, first_code,
+        second_code, seventy_code, asa_code, time_code, invoice)
+
+    ae_db_dict = ae_db._asdict()  # dataset will use a dict to put into a db
+
+    Aneas_ep_csv = namedtuple(
+        'Aneas_ep_csv', 'today_for_invoice, print_name, address, bc_dob, mcn,'
+        'ref, full_fund, fund_number, insur_code, endoscopist, upper_done,'
+        'lower_done, age_seventy, asa_three, time_code, invoice')
+
+    ae_csv = Aneas_ep_csv(
+        today_for_invoice, print_name, address, bc_dob, mcn, ref,
+        full_fund, fund_number, insur_code, endoscopist, upper_done,
+        lower_done, age_seventy, asa_three, time_code, invoice)
+
+    return ae_csv, ae_db_dict  # return a tuple for csv and a dict for database
 
 
-def make_episode_string(outtime, endoscopist, print_name, consult,
-                        upper, colon, message, anaesthetist, room):
+def make_episode_string(outtime, room, endoscopist, anaesthetist, print_name,
+                        consult, upper, colon, message):
     doc_surname = endoscopist.split()[-1]
     if doc_surname == 'Vivekanandarajah':
         doc_surname = 'Suhir'
@@ -136,7 +177,7 @@ def make_episode_string(outtime, endoscopist, print_name, consult,
     return ep_string
 
 
-def make_index(ep_string):
+def make_webpage(ep_string):
     today = datetime.datetime.now()
     today_str = today.strftime('%A' + '  ' + '%d' + ':' + '%m' + ':' + '%Y')
 
@@ -178,7 +219,7 @@ def episode_opener(message):
     pya.click()
     pya.press('f8')
     while not pya.pixelMatchesColor(534, 330, (102, 203, 234), tolerance=10):
-        time.sleep(1)
+        time.sleep(0.3)
     pya.press('n')
     while not pya.pixelMatchesColor(820, 130, (195, 90, 80), tolerance=10):
         time.sleep(1)
@@ -187,7 +228,7 @@ def episode_opener(message):
     pya.hotkey('alt', 'f')
     time.sleep(1)
     if pya.pixelMatchesColor(520, 380, (25, 121, 202), tolerance=10):
-        time.sleep(1)
+        time.sleep(0.3)
         pya.press('enter')
         pya.press('c')
         pya.hotkey('alt', 'f4')
@@ -201,7 +242,7 @@ def episode_opener(message):
 
 def episode_discharge(intime, outtime, anaesthetist, endoscopist):
     pya.hotkey('alt', 'i')
-    time.sleep(1)
+    time.sleep(0.3)
     pya.typewrite(['enter'] * 4, interval=0.1)
     test = pyperclip.copy('empty')
     pya.hotkey('ctrl', 'c')
@@ -210,7 +251,7 @@ def episode_discharge(intime, outtime, anaesthetist, endoscopist):
         pya.alert(text='Data here already! Try Again', title='', button='OK')
         time.sleep(1)
         pya.hotkey('alt', 'f4')
-        return 'ep full'
+        raise EpFullException
     pya.typewrite(intime)
     pya.typewrite(['enter'] * 2, interval=0.1)
     pya.typewrite(outtime)
@@ -309,38 +350,47 @@ def episode_theatre(endoscopist, nurse, clips, varix_flag, varix_lot):
 
 def episode_scrape():
     pya.hotkey('alt', 'd')
+    mcn = pyperclip.copy('')  # put '' on clipboard before each copy
     pya.hotkey('ctrl', 'c')
     mrn = pyperclip.paste()
     pya.press('tab')
+    mcn = pyperclip.copy('')
     pya.hotkey('ctrl', 'c')
     title = pyperclip.paste()
     pya.press('tab')
+    mcn = pyperclip.copy('')
     pya.hotkey('ctrl', 'c')
     first_name = pyperclip.paste()
     pya.typewrite(['tab'] * 2, interval=0.1)
+    mcn = pyperclip.copy('')
     pya.hotkey('ctrl', 'c')
     last_name = pyperclip.paste()
     print_name = title + ' ' + first_name + ' ' + last_name
     pya.press('tab')
+    mcn = pyperclip.copy('')
     pya.hotkey('ctrl', 'c')
     street_number = pyperclip.paste()
     pya.press('tab')
+    mcn = pyperclip.copy('')
     pya.hotkey('ctrl', 'c')
     street_name = pyperclip.paste()
     pya.press('tab')
+    mcn = pyperclip.copy('')
     pya.hotkey('ctrl', 'c')
     suburb = pyperclip.paste()
     suburb = suburb.lower()
     suburb = suburb.title()
     pya.press('tab')
+    mcn = pyperclip.copy('')
     pya.hotkey('ctrl', 'c')
     postcode = pyperclip.paste()
     address = street_number + ' ' + street_name + ' ' + suburb + ' ' + postcode
     pya.press('tab')
+    mcn = pyperclip.copy('')
     pya.hotkey('ctrl', 'c')
     dob = pyperclip.paste()
     pya.typewrite(['tab'] * 6, interval=0.1)
-    mcn = pyperclip.copy('')  # in case no mcn present otherwise dob repeated
+    mcn = pyperclip.copy('')
     pya.hotkey('ctrl', 'c')
     mcn = pyperclip.paste()
     pya.hotkey('alt', 'f4')

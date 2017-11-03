@@ -7,10 +7,9 @@ from inputbill import inputer, LoopException
 from functions import (make_webpage, episode_scrape, episode_opener, offsite,
                        episode_theatre, episode_procedures, episode_discharge,
                        analysis, update_web, bill_process,
-                       to_csv, make_episode_string, EpFullExce
+                       to_csv, make_episode_string, EpFullException)
 
 colorama.init(autoreset=True)
-
 
 
 def intro(anaesthetist, endoscopist, nurse):
@@ -78,8 +77,6 @@ def bill(anaesthetist, endoscopist, consultant, nurse, room):
         webpage = make_webpage(episode_string)
 
         offsite(webpage)
-                       
-        time.sleep(1)
 
         pyautogui.click(x=780, y=90)
     except (LoopException, EpFullException):

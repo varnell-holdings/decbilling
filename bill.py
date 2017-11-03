@@ -3,18 +3,17 @@ import sys
 import colorama
 import pyautogui
 
-from inputbill import inputer
-from functions import (make_index, episode_scrape, episode_opener, offsite,
+from inputbill import inputer, LoopException
+from functions import (make_webpage, episode_scrape, episode_opener, offsite,
                        episode_theatre, episode_procedures, episode_discharge,
                        analysis, update_web, bill_process,
-                       to_csv, make_episode_string)
+                       to_csv, make_episode_string, EpFullExce
 
-class QuitInputError(Exception):
-        pass
+colorama.init(autoreset=True)
+
 
 
 def intro(anaesthetist, endoscopist, nurse):
-    colorama.init(autoreset=True)
     print('\033[2J')  # clear screen
     print('Current team is:\nEndoscopist: {1}\nAnaesthetist:'
           ' {0}\nNurse: {2}'.format(anaesthetist, endoscopist, nurse))
@@ -51,49 +50,37 @@ def bill(anaesthetist, endoscopist, consultant, nurse, room):
         update_web()
         return
 
-    data_entry = inputer(consultant, anaesthetist)
-    if data_entry == 'loop':
+    try:
+        data_entry = inputer(consultant, anaesthetist)
+
+        (asa, upper, colon, banding, consult, message, op_time,
+         ref, full_fund, insur_code, fund_number, clips, varix_flag, varix_lot,
+         in_theatre, out_theatre) = data_entry
+
+        message = episode_opener(message)
+        episode_discharge(in_theatre, out_theatre, anaesthetist, endoscopist)
+
+        episode_theatre(endoscopist, nurse, clips, varix_flag, varix_lot)
+        episode_procedures(upper, colon, banding, asa)
+        mrn, print_name, address, dob, mcn = episode_scrape()
+
+        if asa and anaesthetist == 'Dr J Tillett':
+            ae_csv, ae_db_dict = bill_process(
+                dob, upper, colon, asa, mcn, insur_code, op_time,
+                print_name, address, ref, full_fund, fund_number, endoscopist)
+
+            to_csv(ae_csv)
+
+        episode_string = make_episode_string(
+            out_theatre, room, endoscopist, anaesthetist, print_name, consult,
+            upper, colon, message)
+
+        webpage = make_webpage(episode_string)
+
+        offsite(webpage)
+                       
+        time.sleep(1)
+
+        pyautogui.click(x=780, y=90)
+    except (LoopException, EpFullException):
         return
-
-    (asa, upper, colon, banding, consult, message, op_time,
-     ref, full_fund, insur_code, fund_number, clips, varix_flag, varix_lot,
-     in_formatted, out_formatted, today_for_db) = data_entry
-
-    message = episode_opener(message)
-    ret = episode_discharge(
-        in_formatted, out_formatted, anaesthetist, endoscopist)
-    if ret == 'ep full':
-        return
-    episode_theatre(endoscopist, nurse, clips, varix_flag, varix_lot)
-    episode_procedures(upper, colon, banding, asa)
-    mrn, print_name, address, dob, mcn = episode_scrape()
-
-    if asa and anaesthetist == 'Dr J Tillett':
-        anaesthetic_data_for_csv = bill_process(
-            dob, upper, colon, asa, mcn, insur_code, op_time,
-            print_name, address, ref, full_fund, fund_number, endoscopist)
-
-        to_csv(anaesthetic_data_for_csv)
-
-#    episode_data_for_db = {
-#        'mrn': mrn, 'in_time': in_formatted,
-#        'out_time': out_formatted, 'anaesthetist': anaesthetist,
-#        'nurse': nurse, 'upper': upper, 'lower': colon,
-#        'banding': banding, 'asa': asa, 'today': today_for_db,
-#        'name': print_name, 'consult': consult, 'message': message,
-#        'endoscopist': endoscopist, 'anaesthetic_time': op_time,
-#        'consultant': consultant}
-#
-#    to_database(episode_data_for_db)
-
-    episode_string = make_episode_string(
-        out_formatted, endoscopist, print_name, consult,
-        upper, colon, message, anaesthetist, room)
-
-    stored_index = make_index(episode_string)
-
-    offsite(stored_index)
-
-#    time.sleep(1)
-
-    pyautogui.click(x=780, y=90)

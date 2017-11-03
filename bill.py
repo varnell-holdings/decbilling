@@ -1,16 +1,13 @@
 import sys
-import time
 
 import colorama
 import pyautogui
 
 from inputbill import inputer
-from functions import (make_index, to_database,
-                       episode_scrape, episode_opener, offsite,
+from functions import (make_index, episode_scrape, episode_opener, offsite,
                        episode_theatre, episode_procedures, episode_discharge,
                        analysis, update_web, bill_process,
                        to_csv, make_episode_string)
-
 
 class QuitInputError(Exception):
         pass
@@ -78,25 +75,25 @@ def bill(anaesthetist, endoscopist, consultant, nurse, room):
 
         to_csv(anaesthetic_data_for_csv)
 
-    episode_data_for_db = {
-        'mrn': mrn, 'in_time': in_formatted,
-        'out_time': out_formatted, 'anaesthetist': anaesthetist,
-        'nurse': nurse, 'upper': upper, 'lower': colon,
-        'banding': banding, 'asa': asa, 'today': today_for_db,
-        'name': print_name, 'consult': consult, 'message': message,
-        'endoscopist': endoscopist, 'anaesthetic_time': op_time,
-        'consultant': consultant}
-
-    to_database(episode_data_for_db)
+#    episode_data_for_db = {
+#        'mrn': mrn, 'in_time': in_formatted,
+#        'out_time': out_formatted, 'anaesthetist': anaesthetist,
+#        'nurse': nurse, 'upper': upper, 'lower': colon,
+#        'banding': banding, 'asa': asa, 'today': today_for_db,
+#        'name': print_name, 'consult': consult, 'message': message,
+#        'endoscopist': endoscopist, 'anaesthetic_time': op_time,
+#        'consultant': consultant}
+#
+#    to_database(episode_data_for_db)
 
     episode_string = make_episode_string(
         out_formatted, endoscopist, print_name, consult,
-        upper, colon, banding, message, anaesthetist, room)
+        upper, colon, message, anaesthetist, room)
 
     stored_index = make_index(episode_string)
 
     offsite(stored_index)
 
-    time.sleep(1)
+#    time.sleep(1)
 
     pyautogui.click(x=780, y=90)

@@ -263,6 +263,7 @@ def get_clips(message):
 
 
 def get_op_time():
+    print()
     while True:
         op_time = input('Time in theatre:   ')
         if op_time == 'q':

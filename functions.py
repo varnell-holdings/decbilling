@@ -215,7 +215,7 @@ def episode_opener(message):
             input('Hit Enter when ready.')
         else:
             break
-    pya.moveto(150, 50)
+    pya.moveTo(150, 50)
     pya.click()
     pya.press('f8')
     while not pya.pixelMatchesColor(534, 330, (102, 203, 234), tolerance=10):
@@ -304,7 +304,7 @@ def episode_procedures(upper, lower, anal, asa):
 def episode_theatre(endoscopist, nurse, clips, varix_flag, varix_lot):
     pya.hotkey('alt', 'n')
     pya.typewrite(['left'] * 2, interval=0.1)
-    pya.moveto(50, 155)
+    pya.moveTo(50, 155)
     pya.click()
     pya.press('tab')
     doc_test = pyperclip.copy('empty')
@@ -313,21 +313,21 @@ def episode_theatre(endoscopist, nurse, clips, varix_flag, varix_lot):
     if doc_test == 'Endoscopist':
         pya.press('tab')
         pya.typewrite(['enter'] * 2, interval=0.1)
-        pya.moveto(450, 155)
+        pya.moveTo(450, 155)
         pya.click()
         pya.typewrite(['tab'] * 2, interval=0.1)
         pya.typewrite(['enter'] * 2, interval=0.1)
 
-    pya.moveto(50, 155)
+    pya.moveTo(50, 155)
     pya.click()
     pya.typewrite(endoscopist)
     pya.typewrite(['enter', 'e', 'enter'], interval=0.1)
-    pya.moveto(450, 155)
+    pya.moveTo(450, 155)
     pya.click()
     pya.typewrite(nurse)
     pya.typewrite(['enter', 'e', 'enter'], interval=0.1)
     if clips != 0 or varix_flag is True:
-        pya.moveto(50, 350)
+        pya.moveTo(50, 350)
         pya.click()
         if varix_flag is True:
             pyperclip.copy('Boston Scientific Speedband Superview Super 7')

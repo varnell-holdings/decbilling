@@ -86,5 +86,5 @@ def bill(anaesthetist, endoscopist, consultant, nurse, room):
         time.sleep(1)
 
         pyautogui.click(x=780, y=90)
-    except LoopException, EpFullException:
+    except (LoopException, EpFullException):
         return

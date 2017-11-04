@@ -199,14 +199,15 @@ def get_colon(upper, message):
             if colon == 'csp':
                 message += ' Bill 32089-00'
             colon = nc.COLON_DIC[colon]
+            if not upper and not colon:
+                print('You must enter either a pe or colon!')
+                print('If you left out the pe press q to restart')
+                continue
             break
         else:
             print('\033[31;1m' + 'TRY AGAIN!')
             print('Here are your options')
             pprint.pprint(nc.COLON_HELP)
-    if not upper and not colon:
-            pya.alert(text='Must enter pe or colon!!', title='', button='OK')
-            raise LoopException
     return colon, message
 
 

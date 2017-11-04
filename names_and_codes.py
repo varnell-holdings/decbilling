@@ -99,11 +99,11 @@ UPPER_DIC = {'0': None,
              '0c': None,
              'pe': '30473-00',
              'pb': '30473-01',
-             'od': '41819-00',
+             'od': '30475-00',
              'pa': '30478-20',
              'ha': '30478-20',
              'pp': '30478-04',
-             'pv': '30476-02',
+             'pv': '30478-20',
              'br': '30490-00'}
 
 UPPER_HELP = {'0': 'No upper procedure',
@@ -118,6 +118,7 @@ UPPER_HELP = {'0': 'No upper procedure',
               'br': 'Panendoscopy with BRAVO'}
 
 COLON_DIC = {'0': None,
+             'c': None,
              'co': '32090-00',
              'cs': '32090-00',
              'cb': '32090-01',
@@ -128,6 +129,7 @@ COLON_DIC = {'0': None,
              'sp': '32087-00'}
 
 COLON_HELP = {'0': 'No lower procedure',
+              'c': 'Cancel lower procedure',
               'co': 'Long Colonoscopy - no biopsy',
               'cb': 'Long Colonoscopy with biopsy',
               'cs': 'Colonoscopy - FOB screening',

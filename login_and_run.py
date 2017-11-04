@@ -19,7 +19,7 @@ import dataset
 import pyautogui as pya
 import pyperclip
 
-from inputbil import (inputer, LoopException)
+from inputbill import (inputer, LoopException)
 import names_and_codes as nc
 
 

@@ -27,6 +27,21 @@ class EpFullException(Exception):
     pass
 
 
+LOGIN_STRING = """To login type your initials and press enter
+                  To see if you are in the system press enter
+                  Login as "locum" otherwise
+                  Press the enter key in most places to get help
+                  To restart if you make an error press q then enter"""
+
+
+CHOICE_STRING = """To accept press enter
+                   To change team press c
+                   To redo a patient press r
+                   To send a message to receptionists press m
+                   To print a summary of your patients today press ra
+                   To quit program press q"""
+
+
 def get_anaesthetist():
     while True:
         initials = input('Anaesthetist:  ').lower()
@@ -77,43 +92,8 @@ def get_nurse():
     return nurse
 
 
-def intro(anaesthetist, endoscopist, nurse):
-    print('\033[2J')  # clear screen
-    print('Current team is:\nEndoscopist: {1}\nAnaesthetist:'
-          ' {0}\nNurse: {2}'.format(anaesthetist, endoscopist, nurse))
-    print()
-    while True:
-        print('To accept press enter\nTo change team press c\n'
-              'To redo a patient press r\nTo send a message to receptionists'
-              ' press m\nTo quit program press q')
-        choice = input()
-        if choice in {'q', '', 'c', 'r', 'm', 'a', 'u'}:
-            break
-    if choice == 'q':
-        print('Thanks. Bye!')
-        sys.exit(0)
-    else:
-        return choice
-
-
 def bill(anaesthetist, endoscopist, consultant, nurse, room):
-    choice = intro(anaesthetist, endoscopist, nurse)
-    if choice == '':
-        pass
-    if choice == 'c':
-        return 'change team'
-    if choice == 'r':
-        return 'redo'
-    if choice == 'm':
-        return 'message'
-    if choice == 'a':
-        analysis()
-        input('Hit Enter to continue.')
-        return
-    if choice == 'u':
-        update_web()
-        return
-
+    """Workhorse function"""
     try:
         data_entry = inputer(consultant, anaesthetist)
 
@@ -128,11 +108,12 @@ def bill(anaesthetist, endoscopist, consultant, nurse, room):
         episode_procedures(upper, colon, banding, asa)
         mrn, print_name, address, dob, mcn = episode_scrape()
 
-        if asa and anaesthetist == 'Dr J Tillett':
-            ae_csv, ae_db_dict = bill_process(
-                dob, upper, colon, asa, mcn, insur_code, op_time,
-                print_name, address, ref, full_fund, fund_number, endoscopist)
+        ae_csv, ae_db_dict = bill_process(
+            dob, upper, colon, asa, mcn, insur_code, op_time,
+            print_name, address, ref, full_fund, fund_number, endoscopist)
+        to_anaesthetic_database(ae_db_dict)
 
+        if asa and anaesthetist == 'Dr J Tillett':
             to_csv(ae_csv)
 
         episode_string = make_episode_string(
@@ -146,6 +127,14 @@ def bill(anaesthetist, endoscopist, consultant, nurse, room):
         pya.click(x=780, y=90)
     except (LoopException, EpFullException):
         return
+
+
+def make_message_string(anaesthetist):
+    message = input('Type your message. Your name is automatically included.')
+    html = "<tr><td></td><td></td><td>Message from</td><td>{0}</td>\
+            <td></td><td></td><td></td><td>{1}</td></tr>\n"
+    message_string = html.format(anaesthetist, message)
+    return message_string
 
 
 def episode_update(room, endoscopist, anaesthetist, data_entry):
@@ -169,170 +158,43 @@ def episode_update(room, endoscopist, anaesthetist, data_entry):
     pya.click(x=780, y=90)
 
 
-def make_message_string(anaesthetist):
-    message = input('Type your message. Your name is automatically included.')
-    html = "<tr><td></td><td></td><td>Message from</td><td>{0}</td>\
-            <td></td><td></td><td></td><td>{1}</td></tr>\n"
-    message_string = html.format(anaesthetist, message)
-    return message_string
-
-
-def get_age_difference(bc_dob):
-    today_raw = datetime.datetime.today()
-    dob = parse(bc_dob, dayfirst=True)
-    age_sep = relativedelta(today_raw, dob)
-    return age_sep.years
-
-
-def get_invoice_number():
-    s = 'd:\\JOHN TILLET\\episode_data\\jtdata\\invoice_store.py'
-    with open(s, 'r+b') as handle:
-        invoice = pickle.load(handle)
-        invoice += 1
-        handle.seek(0)
-        pickle.dump(invoice, handle)
-        handle.truncate()
-    return invoice
-
-
-def get_time_code(op_time):
-    op_time = op_time
-    time_base = '230'
-    time_last = '10'
-    second_last_digit = 1 + op_time // 15
-    remainder = op_time % 15
-    if remainder < 6:
-        last_digit = 1
-    elif remainder < 11:
-        last_digit = 2
-    else:
-        last_digit = 3
-    if op_time > 15:
-        time_last = '{}{}'.format(second_last_digit, last_digit)
-    time_code = time_base + time_last
-    return time_code
-
-
-def bill_process(bc_dob, upper, lower, asa, mcn, insur_code, op_time,
-                 print_name, address, ref, full_fund,
-                 fund_number, endoscopist):
-    """Turn raw data into stuff ready to go into my account.
-
-    Generates and stores an incremented invoice number.
-    First returned tuple is for csv, second is for database
-    """
-    now = datetime.datetime.now()
-    today_for_invoice = now.strftime('%d' + '-' + '%m' + '-' + '%Y')
-    now_db = now.isoformat()
-    age_diff = get_age_difference(bc_dob)
-    age_seventy = upper_done = lower_done = asa_three = age_seventy = 'No'
-    asa_code = seventy_code = None
-
-    if upper:
-        upper_done = 'Yes'
-    if lower:
-        lower_done = 'Yes'
-    if asa[-2] == '3':
-        asa_three = 'Yes'
-        asa_code = '25000'
-    if asa[-2] == '4':
-        asa_three = 'Yes'
-        asa_code = '25005'
-    if age_diff >= 70:
-        age_seventy = 'Yes'
-        seventy_code = '25015'
-    if insur_code == 'os':  # get rid of mcn in reciprocal mc patients
-        mcn = ''
-
-    if upper:
-        first_code = '20740'
-    else:
-        first_code = '20810'
-    if upper and lower:
-        second_code = '20810'
-    else:
-        second_code = None
-
-    time_code = get_time_code(op_time)
-
-    invoice = get_invoice_number()
-
-    Anaes_ep_db = namedtuple(
-        'Anaes_ep_db', 'now_db, today_for_invoice,print_name, address,'
-        'bc_dob, mcn, ref, full_fund, fund_number, insur_code, endoscopist,'
-        ' first_code, second_code, seventy_code, asa_code, time_code, invoice')
-
-    ae_db = Anaes_ep_db(
-        now_db, today_for_invoice, print_name, address, bc_dob, mcn, ref,
-        full_fund, fund_number, insur_code, endoscopist, first_code,
-        second_code, seventy_code, asa_code, time_code, invoice)
-
-    ae_db_dict = ae_db._asdict()  # dataset will use a dict to put into a db
-
-    Aneas_ep_csv = namedtuple(
-        'Aneas_ep_csv', 'today_for_invoice, print_name, address, bc_dob, mcn,'
-        'ref, full_fund, fund_number, insur_code, endoscopist, upper_done,'
-        'lower_done, age_seventy, asa_three, time_code, invoice')
-
-    ae_csv = Aneas_ep_csv(
-        today_for_invoice, print_name, address, bc_dob, mcn, ref,
-        full_fund, fund_number, insur_code, endoscopist, upper_done,
-        lower_done, age_seventy, asa_three, time_code, invoice)
-
-    return ae_csv, ae_db_dict  # return a tuple for csv and a dict for database
-
-
-def make_episode_string(outtime, room, endoscopist, anaesthetist, print_name,
-                        consult, upper, colon, message):
-    doc_surname = endoscopist.split()[-1]
-    if doc_surname == 'Vivekanandarajah':
-        doc_surname = 'Suhir'
-    anaesthetist_surname = anaesthetist.split()[-1]
-    docs = doc_surname + '/' + anaesthetist_surname
-
-    if not consult:
-        consult = ''
-    if not upper:
-        upper = ''
-    if not colon:
-        colon = ''
-
-    html = "<tr><td>{0}</td><td>{1}</td><td>{2}</td><td>{3}</td>\
-            <td>{4}</td><td>{5}</td><td>{6}</td><td>{7}</td></tr>\n"
-    ep_string = html.format(
-        outtime, room, docs, print_name, consult, upper, colon, message)
-    return ep_string
-
-
-def make_webpage(ep_string):
+def update_web():
+    """Update the webpage. After index has been changed."""
     today = datetime.datetime.now()
-    today_str = today.strftime('%A' + '  ' + '%d' + ':' + '%m' + ':' + '%Y')
-
-    head_string = '<html><body><H4>DEC procedures for {}</H4>\
-    <table cellspacing="10"><tr><th>Time</th><th>Room</th>\
-    <th>Doctors</th><th>Patient</th><th>Consult</th><th>Upper</th>\
-    <th>Lower</th><th>Message</th></tr>\n'.format(today_str)
-    base_string = "</table></body></html>"
-
     date_file_str = today.strftime('%Y' + '-' + '%m' + '-' + '%d')
     date_filename = date_file_str + '.html'
-    today_path = os.path.join(
-        'd:\\JOHN TILLET\\episode_data\\' + date_filename)
+    base = 'd:\\JOHN TILLET\\episode_data\\'
+    stored_index = os.path.join(base + date_filename)
+    offsite(stored_index)
 
-    if os.path.isfile(today_path):
-        with open(today_path, 'r') as original:
-            original.readline()
-            new_base_string = original.read()
-        with open(today_path, 'w') as modified:
-            modified.write(head_string + ep_string + new_base_string)
-    else:
-        base = 'd:\\JOHN TILLET\\episode_data\\'
-        dest = 'd:\\JOHN TILLET\\episode_data\\html-backup'
-        for src in glob.glob(base + '*.html'):
-            shutil.move(src, dest)
-        with open(today_path, 'w') as new_index:
-            new_index.write(head_string + ep_string + base_string)
-    return today_path
+
+def analysis():
+    """Print number of accounts ready to print and whether on weekly target."""
+
+    csvfile = 'd:\\JOHN TILLET\\episode_data\\jtdata\\patients.csv'
+    picklefile = 'd:\\JOHN TILLET\\episode_data\\jtdata\\invoice_store.py'
+    try:
+        with open(csvfile, 'r') as file_handle:
+            reader = csv.reader(file_handle)
+            first_bill = next(reader)
+            first_bill_invoice = int(first_bill[15])  # invoice from first acc
+    except IOError:
+        print("Can't find patients.csv")
+        return
+    with open(picklefile, 'rb') as handle:
+        last_invoice = pickle.load(handle)
+    print('Number on this print run - {}'.format(
+        last_invoice - first_bill_invoice))
+    first_date = datetime.datetime(2017, 7, 1)
+    today = datetime.datetime.today()
+    days_diff = (today - first_date).days
+    desired_weekly = int(input('Weekly target: '))
+    first_invoice = 5057
+    invoice_diff = last_invoice - first_invoice
+    desired_number = int(days_diff * desired_weekly / 7)
+    excess = invoice_diff - desired_number
+    print('{} excess to average {} per week.'.format(excess, desired_weekly))
+    input('Hit Enter to continue.')
 
 
 def episode_opener(message):
@@ -425,7 +287,6 @@ def episode_procedures(upper, lower, anal, asa):
     if asa:  # fourth line
         pya.typewrite(asa + '\n')
         pya.press('enter')
-    return
 
 
 def episode_theatre(endoscopist, nurse, clips, varix_flag, varix_lot):
@@ -524,6 +385,213 @@ def episode_scrape():
     return (mrn, print_name, address, dob, mcn)
 
 
+def get_age_difference(bc_dob):
+    today_raw = datetime.datetime.today()
+    dob = parse(bc_dob, dayfirst=True)
+    age_sep = relativedelta(today_raw, dob)
+    return age_sep.years
+
+
+def get_invoice_number():
+    s = 'd:\\JOHN TILLET\\episode_data\\jtdata\\invoice_store.py'
+    with open(s, 'r+b') as handle:
+        invoice = pickle.load(handle)
+        invoice += 1
+        handle.seek(0)
+        pickle.dump(invoice, handle)
+        handle.truncate()
+    return invoice
+
+
+def get_time_code(op_time):
+    time_base = '230'
+    time_last = '10'
+    second_last_digit = 1 + op_time // 15
+    remainder = op_time % 15
+    if remainder < 6:
+        last_digit = 1
+    elif remainder < 11:
+        last_digit = 2
+    else:
+        last_digit = 3
+    if op_time > 15:
+        time_last = '{}{}'.format(second_last_digit, last_digit)
+    time_code = time_base + time_last
+    return time_code
+
+
+def bill_process(bc_dob, upper, lower, asa, mcn, insur_code, op_time,
+                 print_name, address, ref, full_fund,
+                 fund_number, endoscopist):
+    """Turn raw data into stuff ready to go into my account.
+
+    Generates and stores an incremented invoice number.
+    First returned tuple is for csv, second is for database
+    """
+    now = datetime.datetime.now()
+    today_for_invoice = now.strftime('%d' + '-' + '%m' + '-' + '%Y')
+    age_diff = get_age_difference(bc_dob)
+    age_seventy = upper_done = lower_done = asa_three = age_seventy = 'No'
+    asa_code = seventy_code = ''
+
+    if upper:
+        upper_done = 'Yes'
+    if lower:
+        lower_done = 'Yes'
+    if asa[-2] == '3':
+        asa_three = 'Yes'
+        asa_code = '25000'
+    if asa[-2] == '4':
+        asa_three = 'Yes'
+        asa_code = '25005'
+    if age_diff >= 70:
+        age_seventy = 'Yes'
+        seventy_code = '25015'
+    if insur_code == 'os':  # get rid of mcn in reciprocal mc patients
+        mcn = ''
+
+    if upper:
+        first_code = '20740'
+    else:
+        first_code = '20810'
+    if upper and lower:
+        second_code = '20810'
+    else:
+        second_code = ''
+
+    time_code = get_time_code(op_time)
+
+    invoice = get_invoice_number()
+
+    # db has direct aneasthetic codes under first and second
+    # now used for anaesthetic day reports
+    Anaes_ep = namedtuple(
+        'Anaes_ep', 'today_for_invoice, print_name, address,'
+        'bc_dob, mcn, ref, full_fund, fund_number, insur_code, endoscopist,'
+        ' first_code, second_code, seventy_code, asa_code, time_code, invoice')
+
+    anaesthetic_data = Anaes_ep(
+        today_for_invoice, print_name, address, bc_dob, mcn, ref,
+        full_fund, fund_number, insur_code, endoscopist, first_code,
+        second_code, seventy_code, asa_code, time_code, invoice)
+
+    anaesthetic_data_dict = anaesthetic_data._asdict()  # for dataset
+
+    # csv has fields with yes and no under upper_done etc
+    # for my account printing program
+    Aneas_ep_csv = namedtuple(
+        'Aneas_ep_csv', 'today_for_invoice, print_name, address, bc_dob, mcn,'
+        'ref, full_fund, fund_number, insur_code, endoscopist, upper_done,'
+        'lower_done, age_seventy, asa_three, time_code, invoice')
+
+    ae_csv = Aneas_ep_csv(
+        today_for_invoice, print_name, address, bc_dob, mcn, ref,
+        full_fund, fund_number, insur_code, endoscopist, upper_done,
+        lower_done, age_seventy, asa_three, time_code, invoice)
+
+    return ae_csv, anaesthetic_data_dict
+
+
+def to_anaesthetic_database(an_ep_dict):
+    """Write anaethetic episode to sqlite using dataset"""
+    db_file = 'sqlite:///d:\\JOHN TILLET\\episode_data\\aneasthetics.db'
+    db = dataset.connect(db_file)
+    table = db['episodes']
+    table.insert(an_ep_dict)
+
+
+def to_csv(episode_data):
+    """Write tuple of billing data to csv."""
+    csvfile = 'd:\\JOHN TILLET\\episode_data\\jtdata\\patients.csv'
+    with open(csvfile, 'a') as handle:
+        datawriter = csv.writer(handle, dialect='excel', lineterminator='\n')
+        datawriter.writerow(episode_data)
+
+
+def get_anaesthetic_eps_today(anaesthetist):
+    """Retrive a dict of all anaesthetics today by anaesthetist logged in"""
+    now = datetime.datetime.now()
+    today = now.strftime('%d' + '-' + '%m' + '-' + '%Y')
+    db_file = 'sqlite:///d:\\JOHN TILLET\\episode_data\\aneasthetics.db'
+    db = dataset.connect(db_file)
+    table = db['episodes']
+    results = table.find(
+        today_for_invoice=today, order_by=['endoscopist', 'id'])
+    return results, today
+
+
+def print_anaesthetic_report(results, today, anaesthetist):
+    """Write & print a txt file of anaesthetics today by anaesthetist"""
+    out_string = 'Patients for Dr {}   {}\n\n\n'.format(
+        anaesthetist.split()[-1], today)
+    endoscopist = ''
+    for row in results:
+        if endoscopist != row['endoscopist']:
+            endoscopist = row['endoscopist']
+            out_string += '{}:\n'.format(endoscopist)
+        patient_string = '{} {} {} {} {} {}\n'.format(
+            row['print_name'], row['first_code'], row['second_code'],
+            row['seventy_code'], row['asa_code'], row['time_code'])
+        out_string += patient_string
+    s = 'd:\\JOHN TILLET\\episode_data\\aneasthetic_report.txt'
+    with open(s, 'w') as f:
+        f.write(out_string)
+    os.startfile(s, 'print')
+
+
+def make_episode_string(outtime, room, endoscopist, anaesthetist, print_name,
+                        consult, upper, colon, message):
+    doc_surname = endoscopist.split()[-1]
+    if doc_surname == 'Vivekanandarajah':
+        doc_surname = 'Suhir'
+    anaesthetist_surname = anaesthetist.split()[-1]
+    docs = doc_surname + '/' + anaesthetist_surname
+
+    if not consult:
+        consult = ''
+    if not upper:
+        upper = ''
+    if not colon:
+        colon = ''
+
+    html = "<tr><td>{0}</td><td>{1}</td><td>{2}</td><td>{3}</td>\
+            <td>{4}</td><td>{5}</td><td>{6}</td><td>{7}</td></tr>\n"
+    ep_string = html.format(
+        outtime, room, docs, print_name, consult, upper, colon, message)
+    return ep_string
+
+
+def make_webpage(ep_string):
+    today = datetime.datetime.now()
+    today_str = today.strftime('%A' + '  ' + '%d' + ':' + '%m' + ':' + '%Y')
+
+    head_string = '<html><body><H4>DEC procedures for {}</H4>\
+    <table cellspacing="10"><tr><th>Time</th><th>Room</th>\
+    <th>Doctors</th><th>Patient</th><th>Consult</th><th>Upper</th>\
+    <th>Lower</th><th>Message</th></tr>\n'.format(today_str)
+    base_string = "</table></body></html>"
+
+    date_file_str = today.strftime('%Y' + '-' + '%m' + '-' + '%d')
+    date_filename = date_file_str + '.html'
+    today_path = os.path.join(
+        'd:\\JOHN TILLET\\episode_data\\' + date_filename)
+
+    if os.path.isfile(today_path):
+        with open(today_path, 'r') as original:
+            original.readline()
+            new_base_string = original.read()
+        with open(today_path, 'w') as modified:
+            modified.write(head_string + ep_string + new_base_string)
+    else:
+        base = 'd:\\JOHN TILLET\\episode_data\\'
+        dest = 'd:\\JOHN TILLET\\episode_data\\html-backup'
+        for src in glob.glob(base + '*.html'):
+            shutil.move(src, dest)
+        with open(today_path, 'w') as new_index:
+            new_index.write(head_string + ep_string + base_string)
+    return today_path
+
+
 def offsite(stored_index):
     session = ftplib.FTP('www.home.aone.net.au',
                          'ca121480@a1.com.au',
@@ -534,93 +602,55 @@ def offsite(stored_index):
     session.quit()
 
 
-def to_csv(ep_data):
-    """Input tuple of billing data and print it to csv."""
-    csvfile = 'd:\\JOHN TILLET\\episode_data\\jtdata\\patients.csv'
-    with open(csvfile, 'a') as handle:
-        datawriter = csv.writer(handle, dialect='excel', lineterminator='\n')
-        datawriter.writerow(ep_data)
-
-
-def to_database(episode_data):
-    """Write episode data to sqlite database"""
-    db_file = 'sqlite:///d:\\JOHN TILLET\\episode_data\\episodes_db.db'
-    db = dataset.connect(db_file)
-    table = db['episodes']
-    table.insert(episode_data)
-
-
-def update_web():
-    """Update the webpage. After index has been changed."""
-    today = datetime.datetime.now()
-    date_file_str = today.strftime('%Y' + '-' + '%m' + '-' + '%d')
-    date_filename = date_file_str + '.html'
-    base = 'd:\\JOHN TILLET\\episode_data\\'
-    stored_index = os.path.join(base + date_filename)
-    offsite(stored_index)
-
-
-def analysis():
-    """Print number of accounts ready to print and whether on weekly target."""
-
-    csvfile = 'd:\\JOHN TILLET\\episode_data\\jtdata\\patients.csv'
-    try:
-        with open(csvfile, 'r') as file_handle:
-            reader = csv.reader(file_handle)
-            first_bill = next(reader)
-            first_bill_invoice = int(first_bill[15])  # invoice from first acc
-    except IOError:
-        print("Can't find patients.csv")
-        return
-    with open('d:\\JOHN TILLET\\episode_data\\'
-              'jtdata\\invoice_store.py', 'rb') as handle:
-        last_invoice = pickle.load(handle)
-    print('Number on this print run - {}'.format(
-        last_invoice - first_bill_invoice))
-    first_date = datetime.datetime(2017, 7, 1)
-    today = datetime.datetime.today()
-    days_diff = (today - first_date).days
-    desired_weekly = int(input('Weekly target: '))
-    first_invoice = 5057
-    invoice_diff = last_invoice - first_invoice
-    desired_number = int(days_diff * desired_weekly / 7)
-    excess = invoice_diff - desired_number
-    print('{} excess to average {} per week.'.format(excess, desired_weekly))
-
-
-def login_and_run(s):
+def login_and_run(room):
     colorama.init(autoreset=True)
-    room = s
     while True:
         print('\033[2J')  # clear screen
-        print('To login type your initials and press enter')
-        print('To see if you are in the system press enter')
-        print('Login as "locum" otherwise')
-        print('Press the enter key in most places to get help')
-        print('To restart if you make an error press q then enter')
+        print(LOGIN_STRING)
         anaesthetist = get_anaesthetist()
 
         print ('\nWelcome Dr {}!\n'.format(
             anaesthetist.split()[-1]))
 
         if anaesthetist in nc.REGULAR_ANAESTHETISTS:
-            input('Please let Kate know if you\nhave any'
-                  ' upcoming change in your roster.\nPress enter to continue')
+            input("""Please let Kate know if you
+                     have any upcoming change in your roster.
+                     Press enter to continue""")
         endoscopist, consultant = get_endoscopist()
 
         nurse = get_nurse()
 
         while True:
-            choice = bill(anaesthetist, endoscopist, consultant, nurse, room)
-            if choice == 'change team':
+            print('\033[2J')  # clear screen
+            print("""Current team is:
+                     Endoscopist: {1}
+                     Anaesthetist: {0}
+                     Nurse: {2}""".format(anaesthetist, endoscopist, nurse))
+            print()
+            print(CHOICE_STRING)
+            choice = input()
+            if choice == '':
+                bill(anaesthetist, endoscopist, consultant, nurse, room)
+            if choice == 'q':
+                print('Thanks. Bye!')
+                time.sleep(2)
+                sys.exit(0)
+            if choice == 'c':
                 break
-            if choice == 'redo':
+            if choice == 'r':
                 data_entry = inputer(consultant, 'locum')
                 episode_update(room, endoscopist, anaesthetist, data_entry)
-            if choice == 'message':
+            if choice == 'm':
                 message_string = make_message_string(anaesthetist)
                 webpage = make_webpage(message_string)
                 offsite(webpage)
+            if choice == 'ar':
+                results, today = get_anaesthetic_eps_today(anaesthetist)
+                print_anaesthetic_report(results, today, anaesthetist)
+            if choice == 'a':
+                analysis()
+            if choice == 'u':
+                update_web()
 
 
 if __name__ == '__main__':

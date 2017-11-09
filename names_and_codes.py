@@ -86,7 +86,8 @@ PARTNERS = {'Dr C Bariol',
 
 BANDERS = {'DR R Gett', 'Dr A Meagher', 'Dr A Wettstein', 'Dr G Owen'}
 
-CONSULTERS = {'Dr S Ghaly', 'Dr S Vivekanandarajah', 'Dr A Wettstein'}
+CONSULTERS = {'Dr S Ghaly', 'Dr S Vivekanandarajah',
+              'Dr A Wettstein', 'Dr C Vickers', 'Dr R Feller'}
 
 ASA_DIC = {'0': None,
            '1': '92515-19',

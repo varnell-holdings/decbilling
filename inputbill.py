@@ -280,47 +280,27 @@ def get_op_time():
 
 def get_consult(consultant, upper, lower, time_in_theatre, message):
     print()
-    if consultant == 'Dr A Stoita' or consultant not in nc.PARTNERS:
+    if consultant not in nc.CONSULTERS:
         consult = None
 
-    elif consultant in nc.CONSULTERS:
+    elif consultant in nc.CONSULTERS and lower is not None:
         while True:
             consult = input('Consult: ')
             if consult == 'q':
                 raise LoopException
-            elif consult in {'110', '116'}:
-                break
-            elif consult == '0%':
-                consult = None
-                message += ' No consult'
-                break
-            else:
-                print('Dr {} usually charges a 110 or 116'.format(
-                    consultant.split()[-1]))
-                print('110 is a long consult. '
-                      'Can usually only charge once in a year')
-                print('116 is a short consult')
-                print('If you want no consult for Dr {} type 0%'.format(
-                      consultant.split()[-1]))
-
-    elif consultant == 'Dr R Feller':
-        print("Dr Feller does 110's on new patients only")
-        print("He rarely does 116's")
-        while True:
-            consult = input('Consult: ')
-            if consult == 'q':
-                raise LoopException
-            elif consult in {'110', '0', '116'}:
+            elif consult in {'110', '0'}:
                 if consult == '0':
                     consult = None
                 break
             else:
-                print('\033[31;1m' + 'TRY AGAIN!')
-                print('110 is a long consult.')
-                print('116 is a short consult')
-                print('0 for no consult')
+                print('Dr {} sometimes charges a 110'.format(
+                    consultant.split()[-1]))
+                print('110 is an initial consult. '
+                      'Can usually only charge once in a year')
+                print('Cannot charge 116 if patient has had a colonoscopy')
+                print('Type 0 for no consult.')
 
-    elif consultant == 'Dr C Bariol':
+    elif consultant in nc.CONSULTERS and lower is None:
         while True:
             consult = input('Consult: ')
             if consult == 'q':
@@ -330,28 +310,12 @@ def get_consult(consultant, upper, lower, time_in_theatre, message):
                     consult = None
                 break
             else:
-                print('\033[31;1m' + 'TRY AGAIN!')
-                print('Enter 0 or 110 or 116')
-
-    elif consultant == 'Dr D Williams':
-        if int(time_in_theatre) > 30 and lower:
-            print('Dr Williams may bill a 110.')
-            while True:
-                response = input('Confirm ([y]/n) ')
-                if response.lower() in {'y', 'n', ''}:
-                    break
-            if response in {'y', ''}:
-                consult = '110'
-            else:
-                consult = None
-
-    elif consultant == 'Dr C Vickers':
-        pu = upper in {'30473-01', '30478-04', '41819-00'}
-        pl = lower in {'32090-01', '32093-00', '32084-01', '32087-00'}
-        if pu or pl:
-            consult = '116'
-        else:
-            consult = None
+                print('Dr {} sometimes charges a 110'.format(
+                    consultant.split()[-1]))
+                print('110 is an initial consult. '
+                      'Can usually only charge once in a year')
+                print('116 is a subsequent consult')
+                print('Type 0 for no consult.')
     return (consult, message)
 
 

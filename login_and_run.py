@@ -18,6 +18,7 @@ import colorama
 import dataset
 import pyautogui as pya
 import pyperclip
+from tabulate import tabulate
 
 from inputbill import (inputer, LoopException)
 import names_and_codes as nc
@@ -28,18 +29,17 @@ class EpFullException(Exception):
 
 
 LOGIN_STRING = """To login type your initials and press enter
-                  To see if you are in the system press enter
-                  Login as "locum" otherwise
-                  Press the enter key in most places to get help
-                  To restart if you make an error press q then enter"""
+To see if you are in the system press enter
+Login as "locum" otherwise
+To restart if you make an error press q"""
 
 
 CHOICE_STRING = """To accept press enter
-                   To change team press c
-                   To redo a patient press r
-                   To send a message to receptionists press m
-                   To print a summary of your patients today press ra
-                   To quit program press q"""
+To change team press c
+To redo a patient press r
+To send a message to receptionists press m
+To print a summary of today press ar
+To quit program press q"""
 
 
 def get_anaesthetist():
@@ -110,7 +110,7 @@ def bill(anaesthetist, endoscopist, consultant, nurse, room):
 
         ae_csv, ae_db_dict = bill_process(
             dob, upper, colon, asa, mcn, insur_code, op_time,
-            print_name, address, ref, full_fund, fund_number, endoscopist)
+            print_name, address, ref, full_fund, fund_number, endoscopist, anaesthetist)
         to_anaesthetic_database(ae_db_dict)
 
         if asa and anaesthetist == 'Dr J Tillett':
@@ -189,7 +189,7 @@ def analysis():
     today = datetime.datetime.today()
     days_diff = (today - first_date).days
     desired_weekly = int(input('Weekly target: '))
-    first_invoice = 5057
+    first_invoice = 5100
     invoice_diff = last_invoice - first_invoice
     desired_number = int(days_diff * desired_weekly / 7)
     excess = invoice_diff - desired_number
@@ -209,9 +209,11 @@ def episode_opener(message):
     pya.press('f8')
     while not pya.pixelMatchesColor(534, 330, (102, 203, 234), tolerance=10):
         time.sleep(0.3)
+
     pya.press('n')
     while not pya.pixelMatchesColor(820, 130, (195, 90, 80), tolerance=10):
         time.sleep(1)
+
     pya.typewrite(['down'] * 11, interval=0.1)
     pya.press('enter')
     pya.hotkey('alt', 'f')
@@ -422,7 +424,7 @@ def get_time_code(op_time):
 
 def bill_process(bc_dob, upper, lower, asa, mcn, insur_code, op_time,
                  print_name, address, ref, full_fund,
-                 fund_number, endoscopist):
+                 fund_number, endoscopist, anaesthetist):
     """Turn raw data into stuff ready to go into my account.
 
     Generates and stores an incremented invoice number.
@@ -460,20 +462,22 @@ def bill_process(bc_dob, upper, lower, asa, mcn, insur_code, op_time,
         second_code = ''
 
     time_code = get_time_code(op_time)
-
-    invoice = get_invoice_number()
-
+    
+    if anaesthetist == 'Dr J Tillett':
+        invoice = get_invoice_number()
+    else:
+        invoice = 'na'
     # db has direct aneasthetic codes under first and second
     # now used for anaesthetic day reports
     Anaes_ep = namedtuple(
-        'Anaes_ep', 'today_for_invoice, print_name, address,'
-        'bc_dob, mcn, ref, full_fund, fund_number, insur_code, endoscopist,'
-        ' first_code, second_code, seventy_code, asa_code, time_code, invoice')
+        'Anaes_ep', 'today_for_invoice, print_name, address, bc_dob,'
+        'mcn, ref, full_fund, fund_number, insur_code, endoscopist, anaesthetist,'
+        'first_code, second_code, seventy_code, asa_code, time_code, invoice')
 
     anaesthetic_data = Anaes_ep(
         today_for_invoice, print_name, address, bc_dob, mcn, ref,
-        full_fund, fund_number, insur_code, endoscopist, first_code,
-        second_code, seventy_code, asa_code, time_code, invoice)
+        full_fund, fund_number, insur_code, endoscopist, anaesthetist,
+        first_code, second_code, seventy_code, asa_code, time_code, invoice)
 
     anaesthetic_data_dict = anaesthetic_data._asdict()  # for dataset
 
@@ -508,15 +512,14 @@ def to_csv(episode_data):
         datawriter.writerow(episode_data)
 
 
-def get_anaesthetic_eps_today(anaesthetist):
+def get_anaesthetic_eps_today(anaes):
     """Retrive a dict of all anaesthetics today by anaesthetist logged in"""
     now = datetime.datetime.now()
     today = now.strftime('%d' + '-' + '%m' + '-' + '%Y')
     db_file = 'sqlite:///d:\\JOHN TILLET\\episode_data\\aneasthetics.db'
     db = dataset.connect(db_file)
     table = db['episodes']
-    results = table.find(
-        today_for_invoice=today, order_by=['endoscopist', 'id'])
+    results = table.find(today_for_invoice=today, anaesthetist=anaes, order_by=['endoscopist', 'id'])
     return results, today
 
 
@@ -533,7 +536,28 @@ def print_anaesthetic_report(results, today, anaesthetist):
             row['print_name'], row['first_code'], row['second_code'],
             row['seventy_code'], row['asa_code'], row['time_code'])
         out_string += patient_string
-    s = 'd:\\JOHN TILLET\\episode_data\\aneasthetic_report.txt'
+    s = 'd:\\JOHN TILLET\\episode_data\\anaesthetic_report.txt'
+    with open(s, 'w') as f:
+        f.write(out_string)
+    os.startfile(s, 'print')
+
+def test_print_anaesthetic_report(results, today, anaesthetist):
+    """Write & print a txt file of anaesthetics today by anaesthetist"""
+    out_string = 'Patients for Dr {}   {}\n\n\n'.format(
+        anaesthetist.split()[-1], today)
+    short_results = []
+    number = 0
+    for row in results:
+        di = {'n':row['print_name'],'f': row['first_code'],
+              's':row['second_code'], '70':row['seventy_code'],
+              'a':row['asa_code'], 't':row['time_code']}
+        short_results.append(di)
+        number += 1
+    patient_string = tabulate(short_results)
+    bottom_string = '\n\nTotal number of patients {}'.format(number)
+    out_string += patient_string
+    out_string += bottom_string
+    s = 'd:\\JOHN TILLET\\episode_data\\anaesthetic_report.txt'
     with open(s, 'w') as f:
         f.write(out_string)
     os.startfile(s, 'print')
@@ -614,8 +638,8 @@ def login_and_run(room):
 
         if anaesthetist in nc.REGULAR_ANAESTHETISTS:
             input("""Please let Kate know if you
-                     have any upcoming change in your roster.
-                     Press enter to continue""")
+have any upcoming change in your roster.
+Press enter to continue""")
         endoscopist, consultant = get_endoscopist()
 
         nurse = get_nurse()
@@ -623,12 +647,17 @@ def login_and_run(room):
         while True:
             print('\033[2J')  # clear screen
             print("""Current team is:
-                     Endoscopist: {1}
-                     Anaesthetist: {0}
-                     Nurse: {2}""".format(anaesthetist, endoscopist, nurse))
+            
+            Endoscopist: {1}
+            Anaesthetist: {0}
+            Nurse: {2}""".format(anaesthetist, endoscopist, nurse))
             print()
-            print(CHOICE_STRING)
-            choice = input()
+            
+            while True:
+                print(CHOICE_STRING)
+                choice = input()
+                if choice in {'', 'ar', 'q', 'c', 'r', 'm', 'a', 'u'}:
+                    break
             if choice == '':
                 bill(anaesthetist, endoscopist, consultant, nurse, room)
             if choice == 'q':
@@ -646,7 +675,7 @@ def login_and_run(room):
                 offsite(webpage)
             if choice == 'ar':
                 results, today = get_anaesthetic_eps_today(anaesthetist)
-                print_anaesthetic_report(results, today, anaesthetist)
+                test_print_anaesthetic_report(results, today, anaesthetist)
             if choice == 'a':
                 analysis()
             if choice == 'u':

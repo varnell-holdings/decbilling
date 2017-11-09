@@ -283,39 +283,39 @@ def get_consult(consultant, upper, lower, time_in_theatre, message):
     if consultant not in nc.CONSULTERS:
         consult = None
 
-    elif consultant in nc.CONSULTERS and lower is not None:
+    elif consultant in nc.CONSULTERS:
         while True:
             consult = input('Consult: ')
             if consult == 'q':
                 raise LoopException
-            elif consult in {'110', '0'}:
+            elif consult in {'110','116', '117', '0'}:
                 if consult == '0':
                     consult = None
                 break
-            else:
-                print('Dr {} sometimes charges a 110'.format(
-                    consultant.split()[-1]))
-                print('110 is an initial consult. '
-                      'Can usually only charge once in a year')
-                print('Cannot charge 116 if patient has had a colonoscopy')
-                print('Type 0 for no consult.')
+#            else:
+#                print('Dr {} sometimes charges a 110'.format(
+#                    consultant.split()[-1]))
+#                print('110 is an initial consult. '
+#                      'Can usually only charge once in a year')
+#                print('Cannot charge 116 if patient has had a colonoscopy')
+#                print('Type 0 for no consult.')
 
-    elif consultant in nc.CONSULTERS and lower is None:
-        while True:
-            consult = input('Consult: ')
-            if consult == 'q':
-                raise LoopException
-            elif consult in {'110', '116', '0'}:
-                if consult == '0':
-                    consult = None
-                break
-            else:
-                print('Dr {} sometimes charges a 110'.format(
-                    consultant.split()[-1]))
-                print('110 is an initial consult. '
-                      'Can usually only charge once in a year')
-                print('116 is a subsequent consult')
-                print('Type 0 for no consult.')
+#    elif consultant in nc.CONSULTERS and lower is None:
+#        while True:
+#            consult = input('Consult: ')
+#            if consult == 'q':
+#                raise LoopException
+#            elif consult in {'110', '116', '0'}:
+#                if consult == '0':
+#                    consult = None
+#                break
+#            else:
+#                print('Dr {} sometimes charges a 110'.format(
+#                    consultant.split()[-1]))
+#                print('110 is an initial consult. '
+#                      'Can usually only charge once in a year')
+#                print('116 is a subsequent consult')
+#                print('Type 0 for no consult.')
     return (consult, message)
 
 

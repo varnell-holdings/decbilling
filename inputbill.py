@@ -144,8 +144,8 @@ def get_insurance(asa, anaesthetist, message):
 def get_upper(message):
     varix_flag = False
     varix_lot = ''
+    print('\033[2J')  # clear screen
     while True:
-        print('\033[2J')  # clear screen
         upper = input('Upper:  ')
         if upper == 'q':
             raise LoopException
@@ -161,11 +161,12 @@ def get_upper(message):
         elif upper in nc.UPPER_DIC:
             print(nc.UPPER_HELP[upper])
             break
-        print('\033[31;1m' + 'TRY AGAIN!')
-        print('Here are your options')
-        pprint.pprint(nc.UPPER_HELP)
-        print('Add "a" on end of code if upper was not on the list')
-        print('Type c or 0c to indicate upper cancelled')
+        else:
+            print('\033[31;1m' + 'TRY AGAIN!')
+            print('Here are your options')
+            pprint.pprint(nc.UPPER_HELP)
+            print('Add "a" on end of code if upper was not on the list')
+            print('Type c or 0c to indicate upper cancelled')
 
     if upper == 'pv':
         varix_flag = True

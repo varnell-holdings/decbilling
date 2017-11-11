@@ -196,6 +196,8 @@ def get_colon(upper, message):
             raise LoopException
         elif colon in nc.COLON_DIC:
             print(nc.COLON_HELP[colon])
+            if colon == 'c':
+                message += ' Colon cancelled'
             if colon == 'cs':       # blue chip does not accept these codes
                 message += ' Bill 32088-00'
             if colon == 'csp':

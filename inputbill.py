@@ -163,10 +163,10 @@ def get_upper(message):
             break
         else:
             print('\033[31;1m' + 'TRY AGAIN!')
-            print('Here are your options')
-            pprint.pprint(nc.UPPER_HELP)
-            print('Add "a" on end of code if upper was not on the list')
-            print('Type c or 0c to indicate upper cancelled')
+            # print('Here are your options')
+            # pprint.pprint(nc.UPPER_HELP)
+            # print('Add "a" on end of code if upper was added on')
+            # print('Type c or 0c to indicate upper cancelled')
 
     if upper == 'pv':
         varix_flag = True
@@ -188,8 +188,8 @@ def get_upper(message):
 
 
 def get_colon(upper, message):
+    print()
     while True:
-        print()
         colon = input('Lower:  ')
         if colon == 'q':
             raise LoopException
@@ -207,8 +207,8 @@ def get_colon(upper, message):
             break
         else:
             print('\033[31;1m' + 'TRY AGAIN!')
-            print('Here are your options')
-            pprint.pprint(nc.COLON_HELP)
+            # print('Here are your options')
+            # pprint.pprint(nc.COLON_HELP)
     return colon, message
 
 
@@ -216,8 +216,8 @@ def get_banding(consultant, lower, message):
     if consultant not in nc.BANDERS or lower is None:
         banding = None
         return banding, message
+    print()
     while True:
-        print()
         banding = input('Anal:   ')
         if banding == 'q':
             raise LoopException
@@ -246,8 +246,8 @@ def get_banding(consultant, lower, message):
 
 
 def get_clips(message):
+    print()
     while True:
-        print()
         clips = input('Clips: ')
         if clips == 'q':
             raise LoopException
@@ -281,19 +281,22 @@ def get_op_time():
 
 def get_consult(consultant, upper, lower, time_in_theatre, message):
     print()
-    if consultant not in nc.CONSULTERS:
+    if consultant in {'Dr A Stoita', 'Dr C Bariol'}:
         consult = None
 
     elif consultant in nc.CONSULTERS:
         while True:
+            print('Ask Dr {} what consult to bill.'.format(
+                consultant.split()[-1]))
             consult = input('Consult: ')
             if consult == 'q':
                 raise LoopException
-            elif consult in {'110','116', '117', '0'}:
+            elif consult in {'110', '116', '117', '0'}:
                 if consult == '0':
                     consult = None
                 break
-#            else:
+            else:
+                print('Choices are 110, 116, 117, 0')
 #                print('Dr {} sometimes charges a 110'.format(
 #                    consultant.split()[-1]))
 #                print('110 is an initial consult. '
@@ -317,6 +320,39 @@ def get_consult(consultant, upper, lower, time_in_theatre, message):
 #                      'Can usually only charge once in a year')
 #                print('116 is a subsequent consult')
 #                print('Type 0 for no consult.')
+    elif consultant == 'Dr D Williams':
+        if int(time_in_theatre) > 30 and lower is not None:
+            print()
+            print('\033[31;1m' + 'Dr Williams may bill a 110.')
+            while True:
+                response = input('Confirm ([y]/n) ')
+                if response.lower() in {'y', 'n', ''}:
+                    break
+            if response in {'y', ''}:
+                consult = '110'
+            else:
+                consult = None
+
+    elif consultant == 'Dr C Vickers':
+        pu = upper in {'30473-01', '30478-04', '41819-00'}
+        pl = lower in {'32090-01', '32093-00', '32084-01', '32087-00'}
+        if pu or pl:
+            consult = '117'
+
+    elif consultant == 'Dr R Feller':
+        print("Dr Feller does 110's on new patients only")
+        while True:
+            consult = input('Consult: ')
+            if consult == 'q':
+                raise LoopException
+            elif consult in {'110', '0'}:
+                if consult == '0':
+                    consult = None
+                break
+            else:
+                print('\033[31;1m' + 'TRY AGAIN!')
+                print('110 for a long consult.')
+                print('0 for no consult')
     return (consult, message)
 
 

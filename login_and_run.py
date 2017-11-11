@@ -110,7 +110,8 @@ def bill(anaesthetist, endoscopist, consultant, nurse, room):
 
         ae_csv, ae_db_dict = bill_process(
             dob, upper, colon, asa, mcn, insur_code, op_time,
-            print_name, address, ref, full_fund, fund_number, endoscopist, anaesthetist)
+            print_name, address, ref, full_fund, fund_number,
+            endoscopist, anaesthetist)
         to_anaesthetic_database(ae_db_dict)
 
         if asa and anaesthetist == 'Dr J Tillett':
@@ -130,7 +131,8 @@ def bill(anaesthetist, endoscopist, consultant, nurse, room):
 
 
 def make_message_string(anaesthetist):
-    message = input('Type your message. Your name is automatically included.')
+    print('Type your message. Your name is automatically included.')
+    message = input('Message: ')
     html = "<tr><td></td><td></td><td>Message from</td><td>{0}</td>\
             <td></td><td></td><td></td><td>{1}</td></tr>\n"
     message_string = html.format(anaesthetist, message)

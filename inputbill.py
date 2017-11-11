@@ -42,6 +42,7 @@ def get_asa(message):
             print('Press 0 for no sedation')
             print('Use asa 1 - 4 only - no extras.')
             print('Press q to go back')
+            print('If not working try pressing numlock key')
     return asa, message
 
 

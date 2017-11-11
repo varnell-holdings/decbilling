@@ -141,7 +141,7 @@ def episode_update(room, endoscopist, anaesthetist, data_entry):
     # data_enry is a tuple -> unpack it
     (asa, upper, colon, banding, consult, message, op_time,
      ref, full_fund, insur_code, fund_number, clips, varix_flag,
-     varix_lot, in_formatted, out_formatted, today_for_db) = data_entry
+     varix_lot, in_formatted, out_formatted) = data_entry
 
     message = episode_opener(message)
     episode_procedures(upper, colon, banding, asa)

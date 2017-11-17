@@ -4,7 +4,6 @@ import csv
 import datetime
 from dateutil.relativedelta import relativedelta
 from dateutil.parser import parse
-import ftplib
 import glob
 import os
 import os.path
@@ -13,6 +12,7 @@ import pprint
 import shutil
 import sys
 import time
+import webbrowser
 
 import colorama
 import dataset
@@ -28,23 +28,18 @@ class EpFullException(Exception):
     pass
 
 
-LOGIN_STRING = """To login type your initials and press enter
-To see if you are in the system press enter
-Login as "locum" otherwise
-To restart if you make an error press q"""
-
-
-CHOICE_STRING = """To accept press enter
-To change team press c
-To redo a patient press r
-To send a message to receptionists press m
-To print a summary of today press ar
-To quit program press q"""
+CHOICE_STRING = """Accept          enter
+Change team      c
+Redo             r
+Send a message   m
+Print a summary  ar
+See webpage      w
+Quit             q"""
 
 
 def get_anaesthetist():
     while True:
-        initials = input('Anaesthetist:  ').lower()
+        initials = input('Anaesthetist initials:  ').lower()
         if initials in nc.ANAESTHETISTS:
             anaesthetist = nc.ANAESTHETISTS[initials]
             break
@@ -56,7 +51,7 @@ def get_anaesthetist():
 def get_endoscopist():
     while True:
         print()
-        initials = input('Endoscopist:  ').lower()
+        initials = input('Endoscopist initials:  ').lower()
         if initials in nc.DOC_DIC:
             endoscopist = nc.DOC_DIC[initials]
             print(endoscopist)
@@ -82,7 +77,7 @@ def get_endoscopist():
 def get_nurse():
     while True:
         print()
-        initials = input('Nurse:  ')
+        initials = input('Nurse initials:  ')
         if initials in nc.NURSES_DIC:
             nurse = nc.NURSES_DIC[initials]
             print(nurse)
@@ -114,18 +109,15 @@ def bill(anaesthetist, endoscopist, consultant, nurse, room):
             endoscopist, anaesthetist)
         to_anaesthetic_database(ae_db_dict)
 
-        if asa and anaesthetist == 'Dr J Tillett':
+        if asa is not None and anaesthetist == 'Dr J Tillett':
             to_csv(ae_csv)
 
         episode_string = make_episode_string(
             out_theatre, room, endoscopist, anaesthetist, print_name, consult,
             upper, colon, message)
 
-        webpage = make_webpage(episode_string)
+        make_webpage(episode_string)
 
-        offsite(webpage)
-
-        pya.click(x=780, y=90)
     except (LoopException, EpFullException):
         return
 
@@ -152,24 +144,17 @@ def episode_update(room, endoscopist, anaesthetist, data_entry):
     message += ' Updated this patient. Check Blue Chip is correct.'
 
     out_string = make_episode_string(
-        out_formatted, endoscopist, print_name, consult,
-        upper, colon, message, anaesthetist, room)
-    webpage = make_webpage(out_string)
-    offsite(webpage)
-    time.sleep(1)
-    pya.click(x=780, y=90)
+        out_formatted, room, endoscopist, anaesthetist, print_name,
+                        consult, upper, colon, message)
+    make_webpage(out_string)
 
 
-def update_web():
-    """Update the webpage. After index has been changed."""
-    today = datetime.datetime.now()
-    date_file_str = today.strftime('%Y' + '-' + '%m' + '-' + '%d')
-    date_filename = date_file_str + '.html'
-    base = 'd:\\JOHN TILLET\\episode_data\\'
-    stored_index = os.path.join(base + date_filename)
-    offsite(stored_index)
+def open_today():
+    b = webbrowser
+    nob_today = 'd:\\Nobue\\today.html'
+    b.open(nob_today)
 
-
+    
 def analysis():
     """Print number of accounts ready to print and whether on weekly target."""
 
@@ -615,24 +600,26 @@ def make_webpage(ep_string):
             shutil.move(src, dest)
         with open(today_path, 'w') as new_index:
             new_index.write(head_string + ep_string + base_string)
-    return today_path
+    nob_today = 'd:\\Nobue\\today.html'
+    shutil.copyfile(today_path, nob_today)
+    time.sleep(1)
+    pya.moveTo(x=780, y=90)
+    pya.click()
 
-
-def offsite(stored_index):
-    session = ftplib.FTP('www.home.aone.net.au',
-                         'ca121480@a1.com.au',
-                         'Andromeda1957gd5mbunm')
-    session.cwd('./dec/')
-    with open(stored_index, 'rb') as file_handle:
-        session.storlines('STOR today.html', file_handle)
-    session.quit()
-
+def update_html():
+    today = datetime.datetime.now()
+    date_file_str = today.strftime('%Y' + '-' + '%m' + '-' + '%d')
+    date_filename = date_file_str + '.html'
+    today_path = os.path.join(
+        'd:\\JOHN TILLET\\episode_data\\' + date_filename)
+    nob_today = 'd:\\Nobue\\today.html'
+    shutil.copyfile(today_path, nob_today)
 
 def login_and_run(room):
     colorama.init(autoreset=True)
     while True:
         print('\033[2J')  # clear screen
-        print(LOGIN_STRING)
+
         anaesthetist = get_anaesthetist()
 
         print ('\nWelcome Dr {}!\n'.format(
@@ -658,7 +645,7 @@ Press enter to continue""")
             while True:
                 print(CHOICE_STRING)
                 choice = input()
-                if choice in {'', 'ar', 'q', 'c', 'r', 'm', 'a', 'u'}:
+                if choice in {'', 'ar', 'q', 'c', 'r', 'm', 'a', 'u', 'w'}:
                     break
             if choice == '':
                 bill(anaesthetist, endoscopist, consultant, nurse, room)
@@ -669,19 +656,23 @@ Press enter to continue""")
             if choice == 'c':
                 break
             if choice == 'r':
-                data_entry = inputer(consultant, 'locum')
+                try:
+                    data_entry = inputer(consultant, 'locum')
+                except LoopException:
+                    continue
                 episode_update(room, endoscopist, anaesthetist, data_entry)
             if choice == 'm':
                 message_string = make_message_string(anaesthetist)
-                webpage = make_webpage(message_string)
-                offsite(webpage)
+                make_webpage(message_string)
             if choice == 'ar':
                 results, today = get_anaesthetic_eps_today(anaesthetist)
                 test_print_anaesthetic_report(results, today, anaesthetist)
+            if choice == 'w':
+                open_today()
             if choice == 'a':
                 analysis()
-            if choice == 'u':
-                update_web()
+            if choice =='u':
+                update_html()
 
 
 if __name__ == '__main__':

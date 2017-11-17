@@ -31,6 +31,7 @@ def get_asa(message):
         if asa == '0':
             sedation_confirm = input('Really no sedation? ([y]/n): ')
             if sedation_confirm == 'n':
+                asa = None
                 continue
         if asa in {'0', '1', '2', '3', '4'}:
             asa = nc.ASA_DIC[asa]
@@ -284,7 +285,7 @@ def get_op_time():
 
 def get_consult(consultant, upper, lower, time_in_theatre, message):
     print()
-    if consultant in {'Dr A Stoita', 'Dr C Bariol'}:
+    if consultant in {'Dr A Stoita', 'Dr C Bariol'} or consultant in nc.VMOS:
         consult = None
 
     elif consultant in nc.CONSULTERS:
@@ -341,6 +342,8 @@ def get_consult(consultant, upper, lower, time_in_theatre, message):
         pl = lower in {'32090-01', '32093-00', '32084-01', '32087-00'}
         if pu or pl:
             consult = '117'
+        else:
+            consult = None
 
     elif consultant == 'Dr R Feller':
         print("Dr Feller does 110's on new patients only")

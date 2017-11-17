@@ -1,3 +1,10 @@
+17-11-2017
+=========
+bug fixes
+new choice open web site
+now serving today.html locally from D:Nobue
+got rid of offsite() and home.aone.net.au
+
 fix crash in episode update
 
 5-11-2017

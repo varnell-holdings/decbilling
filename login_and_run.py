@@ -5,6 +5,7 @@ import datetime
 from dateutil.relativedelta import relativedelta
 from dateutil.parser import parse
 import glob
+import logging
 import os
 import os.path
 import pickle
@@ -20,7 +21,7 @@ import pyautogui as pya
 import pyperclip
 from tabulate import tabulate
 
-from inputbill import (inputer, LoopException)
+from inputbill import (inputer, LoopException, clear)
 import names_and_codes as nc
 
 
@@ -28,7 +29,8 @@ class EpFullException(Exception):
     pass
 
 
-CHOICE_STRING = """Accept          enter
+CHOICE_STRING = """Continue         enter
+User Guide       h
 Change team      c
 Redo             r
 Send a message   m
@@ -39,36 +41,66 @@ Quit             q"""
 
 def get_anaesthetist():
     while True:
+        clear()
         initials = input('Anaesthetist initials:  ').lower()
         if initials in nc.ANAESTHETISTS:
             anaesthetist = nc.ANAESTHETISTS[initials]
             break
         else:
-            pprint.pprint(nc.ANAESTHETISTS)
+            print('\033[31;1m' + 'help')
+            ans = input(
+                'Type h for a list of initials or Enter to try again: ')
+            if ans == 'h':
+                clear()
+                pprint.pprint(nc.ANAESTHETISTS)
+                print()
+                input('Hit Enter to try again: ')
+    clear()
+    print ('Welcome Dr {}.'.format(
+        anaesthetist.split()[-1]))
+    time.sleep(2)
     return anaesthetist
 
 
 def get_endoscopist():
     while True:
-        print()
+        clear()
         initials = input('Endoscopist initials:  ').lower()
         if initials in nc.DOC_DIC:
+            clear()
+            print(nc.DOC_DIC[initials])
+            time.sleep(1)
             endoscopist = nc.DOC_DIC[initials]
-            print(endoscopist)
             break
         else:
-            pprint.pprint(nc.DOC_DIC)
+            print('\033[31;1m' + 'help')
+            ans = input(
+                'Type h for a list of initials or Enter to try again: ')
+            if ans == 'h':
+                clear()
+                pprint.pprint(nc.DOC_DIC)
+                print()
+                input('Hit Enter to try again: ')
 
     if endoscopist in nc.LOCUMS:  # inputer depends on doctor not locum
         while True:
+            clear()
             initials = input('Who is Dr {} covering? '.format(
                 endoscopist.split()[-1])).lower()
-            if nc.DOC_DIC[initials] in nc.PARTNERS:
+            if initials in nc.DOC_DIC:
+                clear()
+                print(nc.DOC_DIC[initials])
+                time.sleep(1)
                 consultant = nc.DOC_DIC[initials]
-                print(consultant)
                 break
             else:
-                pprint.pprint(nc.PARTNERS)
+                print('\033[31;1m' + 'help')
+                ans = input('Type h for  initials or Enter to try again: ')
+                if ans == 'h':
+                    clear()
+                    pprint.pprint(nc.DOC_DIC)
+                    print()
+                    input('Hit Enter to try again: ')
     else:
         consultant = endoscopist
     return endoscopist, consultant
@@ -76,14 +108,22 @@ def get_endoscopist():
 
 def get_nurse():
     while True:
-        print()
+        clear()
         initials = input('Nurse initials:  ')
         if initials in nc.NURSES_DIC:
+            clear()
+            print(nc.NURSES_DIC[initials])
+            time.sleep(1)
             nurse = nc.NURSES_DIC[initials]
-            print(nurse)
             break
         else:
-            pprint.pprint(nc.NURSES_DIC)
+            print('\033[31;1m' + 'help')
+            ans = input('Type h for  initials or Enter to try again')
+            if ans == 'h':
+                clear()
+                pprint.pprint(nc.NURSES_DIC)
+                print()
+                input('Hit Enter to try again: ')
     return nurse
 
 
@@ -103,10 +143,10 @@ def bill(anaesthetist, endoscopist, consultant, nurse, room):
         episode_procedures(upper, colon, banding, asa)
         mrn, print_name, address, dob, mcn = episode_scrape()
 
-        ae_csv, ae_db_dict = bill_process(
+        ae_csv, ae_db_dict, message = bill_process(
             dob, upper, colon, asa, mcn, insur_code, op_time,
             print_name, address, ref, full_fund, fund_number,
-            endoscopist, anaesthetist)
+            endoscopist, anaesthetist, message)
         to_anaesthetic_database(ae_db_dict)
 
         if asa is not None and anaesthetist == 'Dr J Tillett':
@@ -118,11 +158,15 @@ def bill(anaesthetist, endoscopist, consultant, nurse, room):
 
         make_webpage(episode_string)
 
+        close_out()
+
     except (LoopException, EpFullException):
         return
 
 
 def make_message_string(anaesthetist):
+    print('\033[2J')  # clear screen
+    print('\033[1;1H')  # move to top left
     print('Type your message. Your name is automatically included.')
     message = input('Message: ')
     html = "<tr><td></td><td></td><td>Message from</td><td>{0}</td>\
@@ -145,8 +189,9 @@ def episode_update(room, endoscopist, anaesthetist, data_entry):
 
     out_string = make_episode_string(
         out_formatted, room, endoscopist, anaesthetist, print_name,
-                        consult, upper, colon, message)
+        consult, upper, colon, message)
     make_webpage(out_string)
+    close_out()
 
 
 def open_today():
@@ -154,7 +199,7 @@ def open_today():
     nob_today = 'd:\\Nobue\\today.html'
     b.open(nob_today)
 
-    
+
 def analysis():
     """Print number of accounts ready to print and whether on weekly target."""
 
@@ -411,7 +456,7 @@ def get_time_code(op_time):
 
 def bill_process(bc_dob, upper, lower, asa, mcn, insur_code, op_time,
                  print_name, address, ref, full_fund,
-                 fund_number, endoscopist, anaesthetist):
+                 fund_number, endoscopist, anaesthetist, message):
     """Turn raw data into stuff ready to go into my account.
 
     Generates and stores an incremented invoice number.
@@ -438,6 +483,11 @@ def bill_process(bc_dob, upper, lower, asa, mcn, insur_code, op_time,
         seventy_code = '25015'
     if insur_code == 'os':  # get rid of mcn in reciprocal mc patients
         mcn = ''
+    if insur_code == 'u' or insur_code == 'p':
+        insur_code = 'bb'
+        message += ' JT will bulk bill'
+    if insur_code == 'os' and full_fund != 'Overseas':  # os - in fund
+        message += ' JT will bill {}.'.format(full_fund)
 
     if upper:
         first_code = '20740'
@@ -449,7 +499,7 @@ def bill_process(bc_dob, upper, lower, asa, mcn, insur_code, op_time,
         second_code = ''
 
     time_code = get_time_code(op_time)
-    
+
     if anaesthetist == 'Dr J Tillett':
         invoice = get_invoice_number()
     else:
@@ -458,8 +508,9 @@ def bill_process(bc_dob, upper, lower, asa, mcn, insur_code, op_time,
     # now used for anaesthetic day reports
     Anaes_ep = namedtuple(
         'Anaes_ep', 'today_for_invoice, print_name, address, bc_dob,'
-        'mcn, ref, full_fund, fund_number, insur_code, endoscopist, anaesthetist,'
-        'first_code, second_code, seventy_code, asa_code, time_code, invoice')
+        'mcn, ref, full_fund, fund_number, insur_code, endoscopist,'
+        'anaesthetist, first_code, second_code, seventy_code,'
+        'asa_code, time_code, invoice')
 
     anaesthetic_data = Anaes_ep(
         today_for_invoice, print_name, address, bc_dob, mcn, ref,
@@ -480,7 +531,7 @@ def bill_process(bc_dob, upper, lower, asa, mcn, insur_code, op_time,
         full_fund, fund_number, insur_code, endoscopist, upper_done,
         lower_done, age_seventy, asa_three, time_code, invoice)
 
-    return ae_csv, anaesthetic_data_dict
+    return ae_csv, anaesthetic_data_dict, message
 
 
 def to_anaesthetic_database(an_ep_dict):
@@ -506,7 +557,9 @@ def get_anaesthetic_eps_today(anaes):
     db_file = 'sqlite:///d:\\JOHN TILLET\\episode_data\\aneasthetics.db'
     db = dataset.connect(db_file)
     table = db['episodes']
-    results = table.find(today_for_invoice=today, anaesthetist=anaes, order_by=['endoscopist', 'id'])
+    results = table.find(today_for_invoice=today,
+                         anaesthetist=anaes,
+                         order_by=['endoscopist', 'id'])
     return results, today
 
 
@@ -514,30 +567,12 @@ def print_anaesthetic_report(results, today, anaesthetist):
     """Write & print a txt file of anaesthetics today by anaesthetist"""
     out_string = 'Patients for Dr {}   {}\n\n\n'.format(
         anaesthetist.split()[-1], today)
-    endoscopist = ''
-    for row in results:
-        if endoscopist != row['endoscopist']:
-            endoscopist = row['endoscopist']
-            out_string += '{}:\n'.format(endoscopist)
-        patient_string = '{} {} {} {} {} {}\n'.format(
-            row['print_name'], row['first_code'], row['second_code'],
-            row['seventy_code'], row['asa_code'], row['time_code'])
-        out_string += patient_string
-    s = 'd:\\JOHN TILLET\\episode_data\\anaesthetic_report.txt'
-    with open(s, 'w') as f:
-        f.write(out_string)
-    os.startfile(s, 'print')
-
-def test_print_anaesthetic_report(results, today, anaesthetist):
-    """Write & print a txt file of anaesthetics today by anaesthetist"""
-    out_string = 'Patients for Dr {}   {}\n\n\n'.format(
-        anaesthetist.split()[-1], today)
     short_results = []
     number = 0
     for row in results:
-        di = {'n':row['print_name'],'f': row['first_code'],
-              's':row['second_code'], '70':row['seventy_code'],
-              'a':row['asa_code'], 't':row['time_code']}
+        di = {'n': row['print_name'], 'f': row['first_code'],
+              's': row['second_code'], '70': row['seventy_code'],
+              'a': row['asa_code'], 't': row['time_code']}
         short_results.append(di)
         number += 1
     patient_string = tabulate(short_results)
@@ -548,6 +583,10 @@ def test_print_anaesthetic_report(results, today, anaesthetist):
     with open(s, 'w') as f:
         f.write(out_string)
     os.startfile(s, 'print')
+
+
+def view_log():
+    os.startfile('d:\\JOHN TILLET\\episode_data\\docbill.txt')
 
 
 def make_episode_string(outtime, room, endoscopist, anaesthetist, print_name,
@@ -602,9 +641,14 @@ def make_webpage(ep_string):
             new_index.write(head_string + ep_string + base_string)
     nob_today = 'd:\\Nobue\\today.html'
     shutil.copyfile(today_path, nob_today)
-    time.sleep(1)
-    pya.moveTo(x=780, y=90)
-    pya.click()
+
+
+def close_out():
+        time.sleep(1)
+        pya.moveTo(x=780, y=90)
+        pya.click()
+        pya.moveTo(x=780, y=110)
+
 
 def update_html():
     today = datetime.datetime.now()
@@ -615,64 +659,71 @@ def update_html():
     nob_today = 'd:\\Nobue\\today.html'
     shutil.copyfile(today_path, nob_today)
 
+
 def login_and_run(room):
     colorama.init(autoreset=True)
+    logging.basicConfig(
+        filename='d:\\JOHN TILLET\\episode_data\\docbill.txt',
+        level=logging.DEBUG,
+        format='%(asctime)s %(levelname)s %(name)s %(message)s')
+    logger = logging.getLogger(__name__)
     while True:
-        print('\033[2J')  # clear screen
-
         anaesthetist = get_anaesthetist()
 
-        print ('\nWelcome Dr {}!\n'.format(
-            anaesthetist.split()[-1]))
-
-        if anaesthetist in nc.REGULAR_ANAESTHETISTS:
-            input("""Please let Kate know if you
-have any upcoming change in your roster.
-Press enter to continue""")
         endoscopist, consultant = get_endoscopist()
 
         nurse = get_nurse()
 
         while True:
-            print('\033[2J')  # clear screen
+            clear()
             print("""Current team is:
-            
+
             Endoscopist: {1}
             Anaesthetist: {0}
             Nurse: {2}""".format(anaesthetist, endoscopist, nurse))
             print()
-            
             while True:
                 print(CHOICE_STRING)
                 choice = input()
-                if choice in {'', 'ar', 'q', 'c', 'r', 'm', 'a', 'u', 'w'}:
+                if choice in {
+                        '', 'ar', 'q', 'h', 'c', 'r', 'm', 'a', 'u', 'w', 'l'}:
                     break
-            if choice == '':
-                bill(anaesthetist, endoscopist, consultant, nurse, room)
-            if choice == 'q':
-                print('Thanks. Bye!')
-                time.sleep(2)
-                sys.exit(0)
-            if choice == 'c':
-                break
-            if choice == 'r':
-                try:
-                    data_entry = inputer(consultant, 'locum')
-                except LoopException:
-                    continue
-                episode_update(room, endoscopist, anaesthetist, data_entry)
-            if choice == 'm':
-                message_string = make_message_string(anaesthetist)
-                make_webpage(message_string)
-            if choice == 'ar':
-                results, today = get_anaesthetic_eps_today(anaesthetist)
-                test_print_anaesthetic_report(results, today, anaesthetist)
-            if choice == 'w':
-                open_today()
-            if choice == 'a':
-                analysis()
-            if choice =='u':
-                update_html()
+            try:
+                if choice == '':
+                    bill(anaesthetist, endoscopist, consultant, nurse, room)
+                if choice == 'q':
+                    print('Thanks. Bye!')
+                    time.sleep(2)
+                    sys.exit(0)
+                if choice == 'h':
+                    clear()
+                    print(nc.USER_GUIDE)
+                    input('Hit any key to continue:')
+                if choice == 'c':
+                    break
+                if choice == 'r':
+                    try:
+                        data_entry = inputer(consultant, 'locum')
+                    except LoopException:
+                        continue
+                    episode_update(room, endoscopist, anaesthetist, data_entry)
+                if choice == 'm':
+                    message_string = make_message_string(anaesthetist)
+                    make_webpage(message_string)
+                if choice == 'ar':
+                    results, today = get_anaesthetic_eps_today(anaesthetist)
+                    print_anaesthetic_report(results, today, anaesthetist)
+                if choice == 'w':
+                    open_today()
+                if choice == 'l':
+                    view_log()
+                if choice == 'a':
+                    analysis()
+                if choice == 'u':
+                    update_html()
+            except Exception as err:
+                logger.error(err)
+                sys.exit(1)
 
 
 if __name__ == '__main__':

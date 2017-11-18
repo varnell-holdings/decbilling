@@ -95,6 +95,12 @@ ASA_DIC = {'0': None,
            '3': '92515-39',
            '4': '92515-49'}
 
+ASA_HELP = {'0': 'No Sedation',
+            '1': 'ASA 1',
+            '2': 'ASA 2',
+            '3': 'ASA 3',
+            '4': 'ASA 4'}
+
 UPPER_DIC = {'0': None,
              'c': None,
              '0c': None,
@@ -109,11 +115,13 @@ UPPER_DIC = {'0': None,
 
 UPPER_HELP = {'0': 'No upper procedure',
               'c': 'Endoscopy cancelled',
+              'pec': 'Endoscopy cancelled',
               'pe': 'Panendoscopy - no biopsy',
               'pb': 'Panendoscopy with biopsy',
               'od': 'Panendoscopy with oesophageal diatation',
               'pa': 'Panendoscopy with APC',
               'ha': 'Panendoscopy with HALO',
+              'ph': 'Panendoscopy with HALO',
               'pp': 'Panendoscopy with polypectomy',
               'pv': 'Panendoscopy with variceal banding',
               'br': 'Panendoscopy with BRAVO'}
@@ -138,11 +146,17 @@ COLON_HELP = {'0': 'No lower procedure',
               'csp': 'Long Colonoscopy with polypectomy - FOB screening',
               'sc': 'Short Colonoscopy no biopsy',
               'sb': 'Short Colonoscopy with biopsy',
+              'scb': 'Short Colonoscopy with biopsy',
+              'scp': 'Short Colonoscopy with polypectomy',
               'sp': 'Short Colonoscopy with polypectomy'}
 
 BANDING_DIC = {'0': None,
                'b': '32135-00',
                'a': '32153-00'}
+
+BANDING_HELP = {'0': 'No anal procedure',
+                'b': 'Banding of haemorrhoids',
+                'a': 'Anal dilatation'}
 
 FUND_ABREVIATION = {'h': 'hcf',
                     'b': 'bup',
@@ -151,7 +165,8 @@ FUND_ABREVIATION = {'h': 'hcf',
                     'a': 'ahsa',
                     'd': 'ama',
                     't': 'ahm',
-                    'bb': 'bb',
+                    'u': 'u',
+                    'p': 'p',
                     'v': 'va',
                     'o': 'os',
                     'g': 'ga'}
@@ -162,7 +177,8 @@ FUND_DIC = {'hcf': 'HCF',
             'nib': 'NIB',
             'ama': "The Doctor's Fund",
             'ahm': 'Australian Health Management',
-            'bb': 'Bulk Bill',
+            'p': 'Pensioner',
+            'u': 'Uninsured',
             'va': 'Veterans Affairs',
             'os': 'Overseas',
             'ga': 'Garrison Health',
@@ -185,3 +201,23 @@ AHSA_DIC = {'te': 'Teachers Federation Health',
             'na': 'Naval Health Benefits',
             're': 'Reserve Bank',
             'o': 'other'}
+
+USER_GUIDE = """In most places just hit the Enter key to get help.
+
+In most places type q to get back to the main menu if you have made a mistake.
+
+If you stuff something up just send a message - the secretaries can fix it.
+To do this type m in the main menu.
+Alternatively, if brave, you can use the redo function in the main menu.
+
+The program makes a web page. Type w in the main menu to see it.
+
+At the end of your day you can print a summary of your work.
+Type 'ar' in the main menu.
+Useful to check you didn't forget to bill someone.
+
+Let me know if you spot any bugs or want a new feature.
+
+John
+
+"""

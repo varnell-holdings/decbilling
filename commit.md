@@ -1,3 +1,10 @@
+18-11-2017
+
+- wrote function close_out() to close the open file in Blue Chip
+- added logging of crashes and a shortcut to open the log docbill.txt
+- separate uninsured and pensioners and add billing message in bill_process not inputbill
+- changed ? improved input bill UX - cursor stays on one line
+
 17-11-2017
 
 - bug fixes

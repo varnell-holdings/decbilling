@@ -25,20 +25,24 @@ Indata = namedtuple('Indata', 'asa, upper, colon, banding, consult,'
 def clear():
     print('\033[2J')  # clear screen
     print('\033[1;1H')  # move to top left
-    print('\n\n\n')
 
 
-def get_asa(message):
+def write_ts(ts):
+    clear()
+    print(ts)
+    print('\033[13H')
+
+
+def get_asa(message, ts):
     while True:
-        clear()
+        write_ts(ts)
         asa = input('ASA or 0 for no sedation:    ')
         if asa == 'q':
             raise LoopException
         elif asa == '0':
-            clear()
             print('Really no sedation?')
-            print('Press n to confirm no sedation'
-                  'or press Enter to try again: ')
+            print('Press n to confirm no sedation')
+            print('Press Enter to try again: ')
             no_sedation_confirm = input()
             if no_sedation_confirm == 'n':
                 message += ' No Sedation'
@@ -46,7 +50,7 @@ def get_asa(message):
         elif asa in {'1', '2', '3', '4'}:
             break
         else:
-            clear()
+            write_ts(ts)
             print('\033[31;1m' + 'help')
             print('Press 0 for no sedation')
             print('Use asa 1 - 4 only - no extras.')
@@ -55,11 +59,9 @@ def get_asa(message):
             ans = input('Press Enter to try again: ')
             if ans == 'q':
                 raise LoopException
-    clear()
-    print(nc.ASA_HELP[asa])
+    ts += '\n' + nc.ASA_HELP[asa]
     asa = nc.ASA_DIC[asa]
-    time.sleep(0.7)
-    return asa, message
+    return asa, message, ts
 
 
 def get_insurance(asa, anaesthetist):
@@ -159,11 +161,11 @@ def get_insurance(asa, anaesthetist):
     return (insur_code, fund_number, ref, full_fund)
 
 
-def get_upper(message):
+def get_upper(message, ts):
     varix_flag = False
     varix_lot = ''
     while True:
-        clear()
+        write_ts(ts)
         upper = input('Upper:  ')
         if upper == 'q':
             raise LoopException
@@ -178,7 +180,6 @@ def get_upper(message):
         elif upper in nc.UPPER_DIC:
             break
         else:
-            clear()
             print('\033[31;1m' + 'help')
             print('Hit Enter to retry or q to return to the main menu:')
             ans = input('Press h to see your options: ')
@@ -190,7 +191,7 @@ def get_upper(message):
                 print('Type c to indicate upper cancelled')
                 print()
                 ans = input('Hit Enter to retry'
-                            'or q to return to the main menu:')
+                            ' or q to return to the main menu:')
                 if ans == 'q':
                     raise LoopException
 
@@ -209,16 +210,14 @@ def get_upper(message):
                 print('\033[31;1m' + 'TRY AGAIN!')
                 print("Type either '90' or 'u' for ultra")
         message += ' HALO {}'.format(halo)
-    clear()
-    print(nc.UPPER_HELP[upper])
+    ts += '\n' + nc.UPPER_HELP[upper]
     upper = nc.UPPER_DIC[upper]
-    time.sleep(0.7)
-    return upper, varix_flag, varix_lot, message
+    return upper, varix_flag, varix_lot, message, ts
 
 
-def get_colon(upper, message):
+def get_colon(upper, message, ts):
     while True:
-        clear()
+        write_ts(ts)
         colon = input('Lower:  ')
         if colon == 'q':
             raise LoopException
@@ -236,7 +235,6 @@ def get_colon(upper, message):
                 message += ' Colon cancelled'
             break
         else:
-            clear()
             print('\033[31;1m' + 'help')
             print('Press Enter to try again')
             ans = input('Press h to see your options: ')
@@ -245,23 +243,23 @@ def get_colon(upper, message):
                 pprint.pprint(nc.COLON_HELP)
                 print()
                 ans = input('Hit Enter to retry'
-                            'or q to return to the main menu:')
+                            ' or q to return to the main menu:')
                 if ans == 'q':
                     raise LoopException
-    clear()
-    print(nc.COLON_HELP[colon])
+    ts += '\n' + nc.COLON_HELP[colon]
     colon = nc.COLON_DIC[colon]
-    time.sleep(0.7)
-    return colon, message
+    return colon, message, ts
 
 
-def get_banding(consultant, lower, message):
+def get_banding(consultant, lower, message, ts):
     if consultant not in nc.BANDERS or lower is None:
-        banding = None
-        return banding, message
+        banding = '0'
+        ts += '\n' + nc.BANDING_HELP[banding]
+        banding = nc.BANDING_DIC[banding]
+        return banding, message, ts
 
     while True:
-        clear()
+        write_ts(ts)
         banding = input('Anal procedure:   ')
         if banding == 'q':
             raise LoopException
@@ -278,7 +276,7 @@ def get_banding(consultant, lower, message):
                 message += ' Bill bilateral pudendal blocks'
             break
         else:
-            clear()
+            write_ts(ts)
             print('\033[31;1m' + 'help')
             print('Select 0 for no anal procedure')
             print('Select a for anal dilatation')
@@ -286,16 +284,14 @@ def get_banding(consultant, lower, message):
             ans = input('Hit Enter to retry or q to return to the main menu:')
             if ans == 'q':
                 raise LoopException
-    clear()
-    print(nc.BANDING_HELP[banding])
-    time.sleep(0.7)
+    ts += '\n' + nc.BANDING_HELP[banding]
     banding = nc.BANDING_DIC[banding]
-    return banding, message
+    return banding, message, ts
 
 
-def get_clips(message):
+def get_clips(message, ts):
     while True:
-        clear()
+        write_ts(ts)
         clips = input('Clips: ')
         if clips == 'q':
             raise LoopException
@@ -305,22 +301,20 @@ def get_clips(message):
                 message += ' clips * {}'.format(clips)
             break
         else:
-            clear()
+            write_ts(ts)
             print('\033[31;1m' + 'help')
             print('Type 0 or number of clips')
             print('No need for stickers or lot numbers')
             ans = input('Hit Enter to retry or q to return to the main menu:')
             if ans == 'q':
                 raise LoopException
-    clear()
-    print('{} clips.'.format(clips))
-    time.sleep(0.7)
-    return clips, message
+    ts += '\n' + '{} clips.'.format(clips)
+    return clips, message, ts
 
 
-def get_op_time():
+def get_op_time(ts):
     while True:
-        clear()
+        write_ts(ts)
         op_time = input('Time in theatre:   ')
         if op_time == 'q':
             raise LoopException
@@ -328,25 +322,23 @@ def get_op_time():
             op_time = int(op_time)
             break
         else:
-            clear()
+            write_ts(ts)
             print('\033[31;1m' + 'help')
             print('Enter minutes in theatre other than 0, 116, or 110')
             ans = input('Hit Enter to retry or q to return to the main menu:')
             if ans == 'q':
                 raise LoopException
-    clear()
-    print('Time in Theatre was {} minutes.'.format(op_time))
-    time.sleep(0.7)
-    return op_time
+    ts += '\n' + 'Time in Theatre was {} minutes.'.format(str(op_time))
+    return op_time, ts
 
 
-def get_consult(consultant, upper, lower, time_in_theatre, message):
+def get_consult(consultant, upper, lower, time_in_theatre, message, ts):
     if consultant in {'Dr A Stoita', 'Dr C Bariol'} or consultant in nc.VMOS:
         consult = None
 
     elif consultant in nc.CONSULTERS:
         while True:
-            clear()
+            write_ts(ts)
             print('Ask Dr {} what consult to bill.'.format(
                 consultant.split()[-1]))
             consult = input('Consult: ')
@@ -357,7 +349,7 @@ def get_consult(consultant, upper, lower, time_in_theatre, message):
                     consult = None
                 break
             else:
-                clear()
+                write_ts(ts)
                 print('\033[31;1m' + 'help')
                 print('Choices are 110, 117, 116, 0')
                 print()
@@ -368,38 +360,36 @@ def get_consult(consultant, upper, lower, time_in_theatre, message):
                 print('Cannot charge 116 if patient has had a colonoscopy')
                 print()
                 ans = input('Hit Enter to retry'
-                            'or q to return to the main menu:')
+                            ' or q to return to the main menu:')
                 if ans == 'q':
                     raise LoopException
 
-#    elif consultant in nc.CONSULTERS and lower is None:
-#        while True:
-#            consult = input('Consult: ')
-#            if consult == 'q':
-#                raise LoopException
-#            elif consult in {'110', '116', '0'}:
-#                if consult == '0':
-#                    consult = None
-#                break
-#            else:
-#                print('Dr {} sometimes charges a 110'.format(
-#                    consultant.split()[-1]))
-#                print('110 is an initial consult. '
-#                      'Can usually only charge once in a year')
-#                print('116 is a subsequent consult')
-#                print('Type 0 for no consult.')
-    elif consultant == 'Dr D Williams':
-        if int(time_in_theatre) > 30 and lower is not None:
-            clear()
-            print('\033[31;1m' + 'Dr Williams may bill a 110.')
-            while True:
-                response = input('Confirm ([y]/n) ')
-                if response.lower() in {'y', 'n', ''}:
-                    break
-            if response in {'y', ''}:
-                consult = '110'
+    elif consultant in {'Dr D Williams', 'Dr R Feller'}:
+        longcol = time_in_theatre > 30 and lower is not None
+        if longcol and consultant == 'Dr D Williams':
+            write_ts(ts)
+            print('Dr Williams may bill a 110.')
+        elif consultant == 'Dr R Feller':
+            write_ts(ts)
+            print("Dr Feller does 110's on new patients only")
+        while True:
+            write_ts(ts)
+            consult = input('Consult: ')
+            if consult == 'q':
+                raise LoopException
+            elif consult in {'110', '0'}:
+                if consult == '0':
+                    consult = None
+                break
             else:
-                consult = None
+                write_ts(ts)
+                print('\033[31;1m' + 'help')
+                print('110 for a long consult.')
+                print('0 for no consult')
+                ans = input('Hit Enter to retry'
+                            ' or q to return to the main menu: ')
+                if ans == 'q':
+                    raise LoopException
 
     elif consultant == 'Dr C Vickers':
         pu = upper in {'30473-01', '30478-04', '41819-00'}
@@ -409,35 +399,26 @@ def get_consult(consultant, upper, lower, time_in_theatre, message):
         else:
             consult = None
 
-    elif consultant == 'Dr R Feller':
-        clear()
-        print("Dr Feller does 110's on new patients only")
-        while True:
-            consult = input('Consult: ')
-            if consult == 'q':
-                raise LoopException
-            elif consult in {'110', '0'}:
-                if consult == '0':
-                    consult = None
-                break
-            else:
-                clear()
-                print('\033[31;1m' + 'help')
-                print('110 for a long consult.')
-                print('0 for no consult')
-                ans = input('Hit Enter to retry'
-                            'or q to return to the main menu: ')
-                if ans == 'q':
-                    raise LoopException
-    clear()
-    if consult is None:
-        print('Dr {} is not billing a consultation'.format(
-            consultant.split()[-1]))
-    else:
-        print('Dr {} is billing a {}'.format(
-            consultant.split()[-1], consult))
-    time.sleep(0.7)
-    return (consult, message)
+    ts += '\n' + 'Consult:   {}'.format(str(consult))
+    return (consult, message, ts)
+
+
+def confirm(message, ts):
+    while True:
+        write_ts(ts)
+        print('Hit Enter to confirm the above')
+        print('Type q to start again')
+        print('Type m to add a message')
+        ans = input()
+        if ans == 'q':
+            raise LoopException
+        elif ans == 'm':
+            added = input()
+            message += ' ' + added
+            ts += '\n' + 'Message: {}'.format(message)
+        else:
+            break
+    return message
 
 
 def in_and_out_calculater(time_in_theatre):
@@ -451,29 +432,31 @@ def in_and_out_calculater(time_in_theatre):
     return (in_formatted, out_formatted)
 
 
-def inputer(consultant, anaesthetist):
+def inputer(endoscopist, consultant, anaesthetist):
     colorama.init(autoreset=True)
 
     message = ''
-
+    ts = 'Endoscopist:  {}'.format(endoscopist)
     try:
-        (asa, message) = get_asa(message)
+        (asa, message, ts) = get_asa(message, ts)
 
         (insur_code, fund_number, ref, full_fund) = get_insurance(
             asa, anaesthetist)
 
-        (upper, varix_flag, varix_lot, message) = get_upper(message)
+        (upper, varix_flag, varix_lot, message, ts) = get_upper(message, ts)
 
-        (colon, message) = get_colon(upper, message)
+        (colon, message, ts) = get_colon(upper, message, ts)
 
-        (banding, message) = get_banding(consultant, colon, message)
+        (banding, message, ts) = get_banding(consultant, colon, message, ts)
 
-        (clips, message) = get_clips(message)
+        (clips, message, ts) = get_clips(message, ts)
 
-        op_time = get_op_time()
+        op_time, ts = get_op_time(ts)
 
-        (consult, message) = get_consult(
-            consultant, upper, colon, op_time, message)
+        (consult, message, ts) = get_consult(
+            consultant, upper, colon, op_time, message, ts)
+
+        message = confirm(message, ts)
     except LoopException:
         raise
 

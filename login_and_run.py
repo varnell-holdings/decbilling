@@ -130,7 +130,7 @@ def get_nurse():
 def bill(anaesthetist, endoscopist, consultant, nurse, room):
     """Workhorse function"""
     try:
-        data_entry = inputer(consultant, anaesthetist)
+        data_entry = inputer(endoscopist, consultant, anaesthetist)
 
         (asa, upper, colon, banding, consult, message, op_time,
          ref, full_fund, insur_code, fund_number, clips, varix_flag, varix_lot,
@@ -696,7 +696,7 @@ def login_and_run(room):
                             bill(
                                 anaesthetist, endoscopist,
                                 consultant, nurse, room)
-                    except Exception:
+                    except LoopException:
                         continue
                 if choice == 'end':
                     print('Thanks. Bye!')

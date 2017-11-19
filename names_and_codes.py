@@ -204,11 +204,12 @@ AHSA_DIC = {'te': 'Teachers Federation Health',
 
 USER_GUIDE = """In most places just hit the Enter key to get help.
 
-In most places type q to get back to the main menu if you have made a mistake.
+Type q to get back to the main menu.
 
 If you stuff something up just send a message - the secretaries can fix it.
-To do this type m in the main menu.
+Type m in the main menu.
 Alternatively, if brave, you can use the redo function in the main menu.
+Type r in the main menu.
 
 The program makes a web page. Type w in the main menu to see it.
 

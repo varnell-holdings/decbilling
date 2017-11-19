@@ -29,14 +29,14 @@ class EpFullException(Exception):
     pass
 
 
-CHOICE_STRING = """Continue         enter
-User Guide       h
-Change team      c
-Redo             r
-Send a message   m
-Print a summary  ar
-See webpage      w
-Quit             q"""
+CHOICE_STRING = """Continue           enter
+User Guide         h
+Change team        c
+Redo               r
+Send a message     m
+Print a summary    ar
+See webpage        w
+Quit the program   end"""
 
 
 def get_anaesthetist():
@@ -58,7 +58,7 @@ def get_anaesthetist():
     clear()
     print ('Welcome Dr {}.'.format(
         anaesthetist.split()[-1]))
-    time.sleep(2)
+    time.sleep(1)
     return anaesthetist
 
 
@@ -69,7 +69,7 @@ def get_endoscopist():
         if initials in nc.DOC_DIC:
             clear()
             print(nc.DOC_DIC[initials])
-            time.sleep(1)
+            time.sleep(0.7)
             endoscopist = nc.DOC_DIC[initials]
             break
         else:
@@ -90,7 +90,7 @@ def get_endoscopist():
             if initials in nc.DOC_DIC:
                 clear()
                 print(nc.DOC_DIC[initials])
-                time.sleep(1)
+                time.sleep(0.7)
                 consultant = nc.DOC_DIC[initials]
                 break
             else:
@@ -113,7 +113,7 @@ def get_nurse():
         if initials in nc.NURSES_DIC:
             clear()
             print(nc.NURSES_DIC[initials])
-            time.sleep(1)
+            time.sleep(0.7)
             nurse = nc.NURSES_DIC[initials]
             break
         else:
@@ -161,7 +161,7 @@ def bill(anaesthetist, endoscopist, consultant, nurse, room):
         close_out()
 
     except (LoopException, EpFullException):
-        return
+        raise
 
 
 def make_message_string(anaesthetist):
@@ -686,12 +686,19 @@ def login_and_run(room):
                 print(CHOICE_STRING)
                 choice = input()
                 if choice in {
-                        '', 'ar', 'q', 'h', 'c', 'r', 'm', 'a', 'u', 'w', 'l'}:
+                        '', 'ar', 'end', 'h', 'c', 'r',
+                        'm', 'a', 'u', 'w', 'l'}:
                     break
             try:
                 if choice == '':
-                    bill(anaesthetist, endoscopist, consultant, nurse, room)
-                if choice == 'q':
+                    try:
+                        while True:
+                            bill(
+                                anaesthetist, endoscopist,
+                                consultant, nurse, room)
+                    except Exception:
+                        continue
+                if choice == 'end':
                     print('Thanks. Bye!')
                     time.sleep(2)
                     sys.exit(0)

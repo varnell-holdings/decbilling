@@ -37,8 +37,9 @@ def get_asa(message):
         elif asa == '0':
             clear()
             print('Really no sedation?')
-            print('Press n to confirm no sedation')
-            no_sedation_confirm = input('Press Enter to try again: ')
+            print('Press n to confirm no sedation'
+                  'or press Enter to try again: ')
+            no_sedation_confirm = input()
             if no_sedation_confirm == 'n':
                 message += ' No Sedation'
                 break
@@ -49,7 +50,7 @@ def get_asa(message):
             print('\033[31;1m' + 'help')
             print('Press 0 for no sedation')
             print('Use asa 1 - 4 only - no extras.')
-            print('Press q to go back')
+            print('Press q to go back to the main menu')
             print('If not working try pressing numlock key')
             ans = input('Press Enter to try again: ')
             if ans == 'q':
@@ -57,7 +58,7 @@ def get_asa(message):
     clear()
     print(nc.ASA_HELP[asa])
     asa = nc.ASA_DIC[asa]
-    time.sleep(1)
+    time.sleep(0.7)
     return asa, message
 
 
@@ -179,7 +180,7 @@ def get_upper(message):
         else:
             clear()
             print('\033[31;1m' + 'help')
-            print('Press Enter to try again')
+            print('Hit Enter to retry or q to return to the main menu:')
             ans = input('Press h to see your options: ')
             if ans == 'h':
                 clear()
@@ -188,7 +189,8 @@ def get_upper(message):
                 print('Add "a" on end of code if upper was added on')
                 print('Type c to indicate upper cancelled')
                 print()
-                ans = input('Hit Enter to retry or q to restart this patient:')
+                ans = input('Hit Enter to retry'
+                            'or q to return to the main menu:')
                 if ans == 'q':
                     raise LoopException
 
@@ -210,7 +212,7 @@ def get_upper(message):
     clear()
     print(nc.UPPER_HELP[upper])
     upper = nc.UPPER_DIC[upper]
-    time.sleep(1)
+    time.sleep(0.7)
     return upper, varix_flag, varix_lot, message
 
 
@@ -242,13 +244,14 @@ def get_colon(upper, message):
                 clear()
                 pprint.pprint(nc.COLON_HELP)
                 print()
-                ans = input('Hit Enter to retry or q to restart this patient:')
+                ans = input('Hit Enter to retry'
+                            'or q to return to the main menu:')
                 if ans == 'q':
                     raise LoopException
     clear()
     print(nc.COLON_HELP[colon])
     colon = nc.COLON_DIC[colon]
-    time.sleep(1)
+    time.sleep(0.7)
     return colon, message
 
 
@@ -280,12 +283,12 @@ def get_banding(consultant, lower, message):
             print('Select 0 for no anal procedure')
             print('Select a for anal dilatation')
             print('Select b for banding of haemorrhoids')
-            ans = input('Hit Enter to retry or q to restart this patient:')
+            ans = input('Hit Enter to retry or q to return to the main menu:')
             if ans == 'q':
                 raise LoopException
     clear()
     print(nc.BANDING_HELP[banding])
-    time.sleep(1)
+    time.sleep(0.7)
     banding = nc.BANDING_DIC[banding]
     return banding, message
 
@@ -306,12 +309,12 @@ def get_clips(message):
             print('\033[31;1m' + 'help')
             print('Type 0 or number of clips')
             print('No need for stickers or lot numbers')
-            ans = input('Hit Enter to retry or q to restart this patient:')
+            ans = input('Hit Enter to retry or q to return to the main menu:')
             if ans == 'q':
                 raise LoopException
     clear()
     print('{} clips.'.format(clips))
-    time.sleep(1)
+    time.sleep(0.7)
     return clips, message
 
 
@@ -328,12 +331,12 @@ def get_op_time():
             clear()
             print('\033[31;1m' + 'help')
             print('Enter minutes in theatre other than 0, 116, or 110')
-            ans = input('Hit Enter to retry or q to restart this patient:')
+            ans = input('Hit Enter to retry or q to return to the main menu:')
             if ans == 'q':
                 raise LoopException
     clear()
     print('Time in Theatre was {} minutes.'.format(op_time))
-    time.sleep(1)
+    time.sleep(0.7)
     return op_time
 
 
@@ -364,7 +367,8 @@ def get_consult(consultant, upper, lower, time_in_theatre, message):
                 print('116 is a short follow up')
                 print('Cannot charge 116 if patient has had a colonoscopy')
                 print()
-                ans = input('Hit Enter to retry or q to restart this patient:')
+                ans = input('Hit Enter to retry'
+                            'or q to return to the main menu:')
                 if ans == 'q':
                     raise LoopException
 
@@ -421,7 +425,8 @@ def get_consult(consultant, upper, lower, time_in_theatre, message):
                 print('\033[31;1m' + 'help')
                 print('110 for a long consult.')
                 print('0 for no consult')
-                ans = input('Hit Enter to retry or q to restart this patient:')
+                ans = input('Hit Enter to retry'
+                            'or q to return to the main menu: ')
                 if ans == 'q':
                     raise LoopException
     clear()
@@ -431,7 +436,7 @@ def get_consult(consultant, upper, lower, time_in_theatre, message):
     else:
         print('Dr {} is billing a {}'.format(
             consultant.split()[-1], consult))
-    time.sleep(1)
+    time.sleep(0.7)
     return (consult, message)
 
 

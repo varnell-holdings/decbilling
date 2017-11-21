@@ -135,7 +135,8 @@ def bill(anaesthetist, endoscopist, consultant, nurse, room):
         (asa, upper, colon, banding, consult, message, op_time,
          ref, full_fund, insur_code, fund_number, clips, varix_flag, varix_lot,
          in_theatre, out_theatre) = data_entry
-
+        if anaesthetist == 'Dr J Tillett':
+            episode_getfund()
         message = episode_opener(message)
         episode_discharge(in_theatre, out_theatre, anaesthetist, endoscopist)
 
@@ -586,7 +587,7 @@ def print_anaesthetic_report(results, today, anaesthetist):
 
 
 def view_log():
-    os.startfile('d:\\JOHN TILLET\\episode_data\\docbill.txt')
+    os.startfile('d:\\JOHN TILLET\\episode_data\\doc_error.txt')
 
 
 def make_episode_string(outtime, room, endoscopist, anaesthetist, print_name,
@@ -644,9 +645,10 @@ def make_webpage(ep_string):
 
 
 def close_out():
-        time.sleep(1)
         pya.moveTo(x=780, y=90)
         pya.click()
+        time.sleep(1)
+        pya.press('enter')
         pya.moveTo(x=780, y=110)
 
 
@@ -660,11 +662,55 @@ def update_html():
     shutil.copyfile(today_path, nob_today)
 
 
+def episode_getfund():
+    # get mcn
+    tmcn = pyperclip.copy('na')
+    pya.moveTo(424, 474, duration=0.1)
+    pya.dragTo(346, 474, duration=0.1)
+    pya.moveTo(424, 474,duration=0.1)
+    pya.click(button='right')
+    pya.moveTo(477, 542, duration=0.1)
+    pya.click()
+    tmcn = pyperclip.paste()
+    # get ref
+    tref = pyperclip.copy('na')
+    pya.moveTo(500, 475, duration=0.1)
+    pya.dragRel(-8, 0, duration=0.1)
+    pya.moveRel(8, 0,duration=0.1)
+    pya.click(button='right')
+    pya.moveTo(542, 536, duration=0.1)
+    pya.click()
+    tref = pyperclip.paste()
+    # get fund name
+    tfund_name = pyperclip.copy('na')
+    pya.moveTo(696, 508, duration=0.1)
+    pya.dragTo(543, 508, duration=0.1)
+    pya.moveTo(696, 508,duration=0.1)
+    pya.click(button='right')
+    pya.moveTo(717, 579, duration=0.1)
+    pya.click()
+    tfund_name = pyperclip.paste()
+    # get fund number
+    tfund_number = pyperclip.copy('na')
+    pya.moveTo(646, 545, duration=0.1)
+    pya.dragTo(543, 545, duration=0.1)
+    pya.moveTo(646, 545,duration=0.1)
+    pya.click(button='right')
+    pya.moveTo(692, 392, duration=0.1)
+    pya.click()
+    tfund_number = pyperclip.paste()
+    return_data = (tmcn, tref, tfund_name, tfund_number)
+    csvfile = 'd:\\JOHN TILLET\\episode_data\\jtdata\\test_funds.csv'
+    with open(csvfile, 'a') as handle:
+        datawriter = csv.writer(handle, dialect='excel', lineterminator='\n')
+        datawriter.writerow(return_data)
+
+
 def login_and_run(room):
     colorama.init(autoreset=True)
     logging.basicConfig(
-        filename='d:\\JOHN TILLET\\episode_data\\docbill.txt',
-        level=logging.DEBUG,
+        filename='d:\\JOHN TILLET\\episode_data\\doc_error.txt',
+        level=logging.ERROR,
         format='%(asctime)s %(levelname)s %(name)s %(message)s')
     logger = logging.getLogger(__name__)
     while True:

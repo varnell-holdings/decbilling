@@ -1,3 +1,10 @@
+22-11-2017
+
+- add option to just display anaesthetic report
+- change anaesthetic report to upper/lower vs first/second
+- fund scraping working
+- episode_scrape returns postcode
+
 18-11-2017
 
 - wrote function close_out() to close the open file in Blue Chip

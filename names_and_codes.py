@@ -214,8 +214,8 @@ Type r in the main menu.
 
 The program makes a web page. Type w in the main menu to see it.
 
-At the end of your day you can print a summary of your work.
-Type 'ar' in the main menu.
+At the end of your day you can display or print a summary of your work.
+Type 'ar' or 'par' in the main menu.
 Useful to check you didn't forget to bill someone.
 
 Let me know if you spot any bugs or want a new feature.

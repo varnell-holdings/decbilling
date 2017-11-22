@@ -3,7 +3,6 @@ from collections import namedtuple
 import datetime
 from dateutil.relativedelta import relativedelta
 import pprint
-import sys
 import time
 
 import colorama
@@ -17,7 +16,7 @@ class LoopException(Exception):
 
 Indata = namedtuple('Indata', 'asa, upper, colon, banding, consult,'
                     'message, op_time,'
-                    'ref, full_fund, insur_code, fund_number,'
+                    'ref, fund_name, insur_code, fund_number,'
                     'clips, varix_flag, varix_lot, in_formatted,'
                     'out_formatted')
 
@@ -64,30 +63,13 @@ def get_asa(message, ts):
     return asa, message, ts
 
 
-def get_insurance(asa, anaesthetist):
-    """Gets insurance details.
-
-    returns insur_code, fund_number, ref, full_fund, message
-    returns 'na' if detail not needed
-    adds a message to secretaries in certain situations
-    (overseas or bulk bill patients)
-
-    asa None indicates no anaesthetic given
-    only certain anaesthetists use this feature
-
-    need both full_fund and insur_code variables
-     as ahsa funds all have same fees
-    ref is medicare ref number
-    we get medicare number by scraping episode
-    """
-    ref = full_fund = insur_code = fund_number = 'na'
-    if asa is None or anaesthetist not in nc.BILLING_ANAESTHETISTS:
-        return (insur_code, fund_number, ref, full_fund)
-    # get full_fund and insur_code
+def get_insurance(asa, anaesthetist, ts):
+    """Gets insur_code for jrt account program."""
+    insur_code = fund_number = ref = fund_name = ''
+    if asa is None or anaesthetist != 'Dr J Tillett':
+        return insur_code, fund_number, ref, fund_name
     while True:
-        print('\033[2J')  # clear screen
-        print('\033[1;1H')  # move to top left
-        print('\n\n\n')
+        write_ts(ts)
         fund_input = input('Fund:   ')
         if fund_input == 'q':
             raise LoopException
@@ -96,69 +78,14 @@ def get_insurance(asa, anaesthetist):
             print('{}'.format(nc.FUND_DIC[insur_code]))
             break
         else:
+            write_ts(ts)
             print('Your choices are.')
             pprint.pprint(nc.FUND_ABREVIATION)
+            ans = input('Press Enter to try again: ')
+            if ans == 'q':
+                raise LoopException
 
-    if insur_code == 'ahsa':
-        while True:
-            ahsa_fund = input('Fund first two letters or o or h: ')
-            if ahsa_fund == 'h':
-                pprint.pprint(nc.AHSA_DIC)
-            elif ahsa_fund not in nc.AHSA_DIC:
-                print('\033[31;1m' + 'TRY AGAIN!')
-                continue
-            elif ahsa_fund == 'o':
-                full_fund = input('Enter Fund Name:  ')
-                break
-            else:
-                full_fund = nc.AHSA_DIC[ahsa_fund]
-                print('{}'.format(full_fund))
-                break
-    elif insur_code == 'os':
-        while True:
-            os_fund = input('OS patient Fund: ')
-            if os_fund in {'h', 'b', 'm', 'n', 'o'}:  # o means not in fund
-                break
-            print('\033[31;1m' + "Choices: h, b, m, n, o")
-        os_insur_code = nc.FUND_ABREVIATION[os_fund]
-        full_fund = nc.FUND_DIC[os_insur_code]
-    else:
-        full_fund = nc.FUND_DIC[insur_code]
-    print()
-    # get ref and fund_number
-    if insur_code == 'os' and full_fund == 'Overseas':  # os - not in fund
-        ref = fund_number = 'na'
-    elif insur_code == 'os' and full_fund != 'Overseas':  # os - in fund
-        ref = 'na'
-        fund_number = input('F Num:  ')
-    elif insur_code == 'ga':
-        ref = input('Episode ID: ')
-        print()
-        fund_number = input('Approval Number: ')
-    elif insur_code == 'va':
-        ref = 'na'
-        fund_number = input('VA Num: ')
-    elif insur_code == 'p' or insur_code == 'u':
-        while True:
-            ref = input('Ref:    ')
-            if ref.isdigit() and len(ref) == 1 and ref != '0':
-                break
-        fund_number = 'na'
-    else:
-        while True:
-            ref = input('Ref:    ')
-            if ref.isdigit() and len(ref) == 1 and ref != '0':
-                break
-            print('\033[31;1m' + 'TRY AGAIN! Single digit only.')
-        print()
-        while True:
-            fund_number = input('F Num:  ')
-            if fund_number[:-1].isdigit():  # med private has a final letter
-                break
-            print('\033[31;1m' + 'TRY AGAIN!')
-    print('\033[2J')  # clear screen
-    print('\033[1;1H')  # move to top left
-    return (insur_code, fund_number, ref, full_fund)
+    return (insur_code, fund_number, ref, fund_name)
 
 
 def get_upper(message, ts):
@@ -440,8 +367,8 @@ def inputer(endoscopist, consultant, anaesthetist):
     try:
         (asa, message, ts) = get_asa(message, ts)
 
-        (insur_code, fund_number, ref, full_fund) = get_insurance(
-            asa, anaesthetist)
+        (insur_code, fund_number, ref, fund_name) = get_insurance(
+            asa, anaesthetist, ts)
 
         (upper, varix_flag, varix_lot, message, ts) = get_upper(message, ts)
 
@@ -463,12 +390,12 @@ def inputer(endoscopist, consultant, anaesthetist):
     (in_theatre, out_theatre) = in_and_out_calculater(op_time)
 
     in_data = Indata(asa, upper, colon, banding, consult, message, op_time,
-                     ref, full_fund, insur_code, fund_number,
+                     ref, fund_name, insur_code, fund_number,
                      clips, varix_flag, varix_lot, in_theatre, out_theatre)
 
     return in_data
 
 
 if __name__ == '__main__':
-    consultant = sys.argv[1]
-    print(inputer(consultant, anaesthetist='Dr J Tillett'))
+    print(inputer(endoscopist='Dr A Wettstein', consultant='Dr A Wettstein',
+                  anaesthetist='Dr J Tillett'))

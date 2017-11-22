@@ -34,7 +34,8 @@ User Guide         h
 Change team        c
 Redo               r
 Send a message     m
-Print a summary    ar
+Display a summary  ar
+Print a summary    par
 See webpage        w
 Quit the program   end"""
 
@@ -133,20 +134,20 @@ def bill(anaesthetist, endoscopist, consultant, nurse, room):
         data_entry = inputer(endoscopist, consultant, anaesthetist)
 
         (asa, upper, colon, banding, consult, message, op_time,
-         ref, full_fund, insur_code, fund_number, clips, varix_flag, varix_lot,
+         ref, fund, insur_code, fund_number, clips, varix_flag, varix_lot,
          in_theatre, out_theatre) = data_entry
         if anaesthetist == 'Dr J Tillett':
-            episode_getfund()
+            (mcn, ref, fund, fund_number) = episode_getfund()
         message = episode_opener(message)
         episode_discharge(in_theatre, out_theatre, anaesthetist, endoscopist)
 
         episode_theatre(endoscopist, nurse, clips, varix_flag, varix_lot)
         episode_procedures(upper, colon, banding, asa)
-        mrn, print_name, address, dob, mcn = episode_scrape()
+        mrn, print_name, address, postcode, dob = episode_scrape()
 
         ae_csv, ae_db_dict, message = bill_process(
             dob, upper, colon, asa, mcn, insur_code, op_time,
-            print_name, address, ref, full_fund, fund_number,
+            print_name, address, ref, fund, fund_number,
             endoscopist, anaesthetist, message)
         to_anaesthetic_database(ae_db_dict)
 
@@ -179,7 +180,7 @@ def make_message_string(anaesthetist):
 def episode_update(room, endoscopist, anaesthetist, data_entry):
     # data_enry is a tuple -> unpack it
     (asa, upper, colon, banding, consult, message, op_time,
-     ref, full_fund, insur_code, fund_number, clips, varix_flag,
+     ref, fund, insur_code, fund_number, clips, varix_flag,
      varix_lot, in_formatted, out_formatted) = data_entry
 
     message = episode_opener(message)
@@ -196,9 +197,8 @@ def episode_update(room, endoscopist, anaesthetist, data_entry):
 
 
 def open_today():
-    b = webbrowser
     nob_today = 'd:\\Nobue\\today.html'
-    b.open(nob_today)
+    webbrowser.open(nob_today)
 
 
 def analysis():
@@ -373,56 +373,52 @@ def episode_theatre(endoscopist, nurse, clips, varix_flag, varix_lot):
 
 def episode_scrape():
     pya.hotkey('alt', 'd')
-    mcn = pyperclip.copy('')  # put '' on clipboard before each copy
+    mrn = pyperclip.copy('')  # put '' on clipboard before each copy
     pya.hotkey('ctrl', 'c')
     mrn = pyperclip.paste()
     pya.press('tab')
-    mcn = pyperclip.copy('')
+    title = pyperclip.copy('')
     pya.hotkey('ctrl', 'c')
     title = pyperclip.paste()
     pya.press('tab')
-    mcn = pyperclip.copy('')
+    first_name = pyperclip.copy('')
     pya.hotkey('ctrl', 'c')
     first_name = pyperclip.paste()
     pya.typewrite(['tab'] * 2, interval=0.1)
-    mcn = pyperclip.copy('')
+    last_name = pyperclip.copy('')
     pya.hotkey('ctrl', 'c')
     last_name = pyperclip.paste()
     print_name = title + ' ' + first_name + ' ' + last_name
     pya.press('tab')
-    mcn = pyperclip.copy('')
+    street_number = pyperclip.copy('')
     pya.hotkey('ctrl', 'c')
     street_number = pyperclip.paste()
     pya.press('tab')
-    mcn = pyperclip.copy('')
+    street_name = pyperclip.copy('')
     pya.hotkey('ctrl', 'c')
     street_name = pyperclip.paste()
     pya.press('tab')
-    mcn = pyperclip.copy('')
+    suburb = pyperclip.copy('')
     pya.hotkey('ctrl', 'c')
     suburb = pyperclip.paste()
     suburb = suburb.lower()
     suburb = suburb.title()
     pya.press('tab')
-    mcn = pyperclip.copy('')
+    postcode = pyperclip.copy('')
     pya.hotkey('ctrl', 'c')
     postcode = pyperclip.paste()
     address = street_number + ' ' + street_name + ' ' + suburb + ' ' + postcode
     pya.press('tab')
-    mcn = pyperclip.copy('')
+    dob = pyperclip.copy('')
     pya.hotkey('ctrl', 'c')
     dob = pyperclip.paste()
-    pya.typewrite(['tab'] * 6, interval=0.1)
-    mcn = pyperclip.copy('')
-    pya.hotkey('ctrl', 'c')
-    mcn = pyperclip.paste()
     pya.hotkey('alt', 'f4')
-    return (mrn, print_name, address, dob, mcn)
+    return (mrn, print_name, address, postcode, dob)
 
 
-def get_age_difference(bc_dob):
+def get_age_difference(dob):
     today_raw = datetime.datetime.today()
-    dob = parse(bc_dob, dayfirst=True)
+    dob = parse(dob, dayfirst=True)
     age_sep = relativedelta(today_raw, dob)
     return age_sep.years
 
@@ -455,8 +451,8 @@ def get_time_code(op_time):
     return time_code
 
 
-def bill_process(bc_dob, upper, lower, asa, mcn, insur_code, op_time,
-                 print_name, address, ref, full_fund,
+def bill_process(dob, upper, lower, asa, mcn, insur_code, op_time,
+                 patient, address, ref, fund,
                  fund_number, endoscopist, anaesthetist, message):
     """Turn raw data into stuff ready to go into my account.
 
@@ -465,14 +461,16 @@ def bill_process(bc_dob, upper, lower, asa, mcn, insur_code, op_time,
     """
     now = datetime.datetime.now()
     today_for_invoice = now.strftime('%d' + '-' + '%m' + '-' + '%Y')
-    age_diff = get_age_difference(bc_dob)
+    age_diff = get_age_difference(dob)
     age_seventy = upper_done = lower_done = asa_three = age_seventy = 'No'
-    asa_code = seventy_code = ''
+    upper_code = lower_code = asa_code = seventy_code = ''
 
     if upper:
-        upper_done = 'Yes'
+        upper_done = 'Yes'  # this goes to jrt csv file
+        upper_code = '20740'  # this goes to anaesthetic database
     if lower:
         lower_done = 'Yes'
+        lower_code = '20810'
     if asa[-2] == '3':
         asa_three = 'Yes'
         asa_code = '25000'
@@ -487,49 +485,40 @@ def bill_process(bc_dob, upper, lower, asa, mcn, insur_code, op_time,
     if insur_code == 'u' or insur_code == 'p':
         insur_code = 'bb'
         message += ' JT will bulk bill'
-    if insur_code == 'os' and full_fund != 'Overseas':  # os - in fund
-        message += ' JT will bill {}.'.format(full_fund)
-
-    if upper:
-        first_code = '20740'
-    else:
-        first_code = '20810'
-    if upper and lower:
-        second_code = '20810'
-    else:
-        second_code = ''
+    # if insur_code == 'os' and fund != 'Overseas':  # os - in fund
+    #     message += ' JT will bill {}.'.format(fund)
 
     time_code = get_time_code(op_time)
 
     if anaesthetist == 'Dr J Tillett':
         invoice = get_invoice_number()
     else:
-        invoice = 'na'
+        invoice = ''
     # db has direct aneasthetic codes under first and second
     # now used for anaesthetic day reports
     Anaes_ep = namedtuple(
-        'Anaes_ep', 'today_for_invoice, print_name, address, bc_dob,'
-        'mcn, ref, full_fund, fund_number, insur_code, endoscopist,'
-        'anaesthetist, first_code, second_code, seventy_code,'
+        'Anaes_ep', 'today_for_invoice, patient, address, dob,'
+        'mcn, ref, fund, fund_number, insur_code, endoscopist,'
+        'anaesthetist, upper_code, lower_code, seventy_code,'
         'asa_code, time_code, invoice')
 
     anaesthetic_data = Anaes_ep(
-        today_for_invoice, print_name, address, bc_dob, mcn, ref,
-        full_fund, fund_number, insur_code, endoscopist, anaesthetist,
-        first_code, second_code, seventy_code, asa_code, time_code, invoice)
+        today_for_invoice, patient, address, dob, mcn, ref,
+        fund, fund_number, insur_code, endoscopist, anaesthetist,
+        upper_code, lower_code, seventy_code, asa_code, time_code, invoice)
 
     anaesthetic_data_dict = anaesthetic_data._asdict()  # for dataset
 
     # csv has fields with yes and no under upper_done etc
     # for my account printing program
     Aneas_ep_csv = namedtuple(
-        'Aneas_ep_csv', 'today_for_invoice, print_name, address, bc_dob, mcn,'
-        'ref, full_fund, fund_number, insur_code, endoscopist, upper_done,'
+        'Aneas_ep_csv', 'today_for_invoice, patient, address, dob, mcn,'
+        'ref, fund, fund_number, insur_code, endoscopist, upper_done,'
         'lower_done, age_seventy, asa_three, time_code, invoice')
 
     ae_csv = Aneas_ep_csv(
-        today_for_invoice, print_name, address, bc_dob, mcn, ref,
-        full_fund, fund_number, insur_code, endoscopist, upper_done,
+        today_for_invoice, patient, address, dob, mcn, ref,
+        fund, fund_number, insur_code, endoscopist, upper_done,
         lower_done, age_seventy, asa_three, time_code, invoice)
 
     return ae_csv, anaesthetic_data_dict, message
@@ -560,37 +549,41 @@ def get_anaesthetic_eps_today(anaes):
     table = db['episodes']
     results = table.find(today_for_invoice=today,
                          anaesthetist=anaes,
-                         order_by=['endoscopist', 'id'])
+                         order_by=['id'])
     return results, today
 
 
-def print_anaesthetic_report(results, today, anaesthetist):
+def make_anaesthetic_report(results, today, anaesthetist):
     """Write & print a txt file of anaesthetics today by anaesthetist"""
     out_string = 'Patients for Dr {}   {}\n\n\n'.format(
         anaesthetist.split()[-1], today)
-    short_results = []
+    results_list = []
     number = 0
     for row in results:
-        di = {'n': row['print_name'], 'f': row['first_code'],
-              's': row['second_code'], '70': row['seventy_code'],
-              'a': row['asa_code'], 't': row['time_code']}
-        short_results.append(di)
+        # tabulate seems to expect list of dicts
+        d = {'n': row['patient'], 'add': row['address'], 'dob': row['dob'],
+             'end': row['endoscopist'], 'f': row['upper_code'],
+             's': row['lower_code'], '70': row['seventy_code'],
+             'a': row['asa_code'], 't': row['time_code'], 'mcn': row['mcn'],
+             'ref': row['ref'], 'fund': row['fund'],
+             'fund_number': row['fund_number']}
+        results_list.append(d)
         number += 1
-    patient_string = tabulate(short_results)
+    patient_string = tabulate(results_list)
     bottom_string = '\n\nTotal number of patients {}'.format(number)
     out_string += patient_string
     out_string += bottom_string
     s = 'd:\\JOHN TILLET\\episode_data\\anaesthetic_report.txt'
     with open(s, 'w') as f:
         f.write(out_string)
-    os.startfile(s, 'print')
+    return s
 
 
 def view_log():
     os.startfile('d:\\JOHN TILLET\\episode_data\\doc_error.txt')
 
 
-def make_episode_string(outtime, room, endoscopist, anaesthetist, print_name,
+def make_episode_string(outtime, room, endoscopist, anaesthetist, patient,
                         consult, upper, colon, message):
     doc_surname = endoscopist.split()[-1]
     if doc_surname == 'Vivekanandarajah':
@@ -608,7 +601,7 @@ def make_episode_string(outtime, room, endoscopist, anaesthetist, print_name,
     html = "<tr><td>{0}</td><td>{1}</td><td>{2}</td><td>{3}</td>\
             <td>{4}</td><td>{5}</td><td>{6}</td><td>{7}</td></tr>\n"
     ep_string = html.format(
-        outtime, room, docs, print_name, consult, upper, colon, message)
+        outtime, room, docs, patient, consult, upper, colon, message)
     return ep_string
 
 
@@ -664,46 +657,47 @@ def update_html():
 
 def episode_getfund():
     # get mcn
-    tmcn = pyperclip.copy('na')
+    mcn = pyperclip.copy('na')
     pya.moveTo(424, 474, duration=0.1)
     pya.dragTo(346, 474, duration=0.1)
-    pya.moveTo(424, 474,duration=0.1)
+    pya.moveTo(424, 474, duration=0.1)
     pya.click(button='right')
     pya.moveTo(477, 542, duration=0.1)
     pya.click()
-    tmcn = pyperclip.paste()
+    mcn = pyperclip.paste()
     # get ref
-    tref = pyperclip.copy('na')
+    ref = pyperclip.copy('na')
     pya.moveTo(500, 475, duration=0.1)
     pya.dragRel(-8, 0, duration=0.1)
-    pya.moveRel(8, 0,duration=0.1)
+    pya.moveRel(8, 0, duration=0.1)
     pya.click(button='right')
     pya.moveTo(542, 536, duration=0.1)
     pya.click()
-    tref = pyperclip.paste()
+    ref = pyperclip.paste()
     # get fund name
-    tfund_name = pyperclip.copy('na')
+    fund = pyperclip.copy('na')
     pya.moveTo(696, 508, duration=0.1)
     pya.dragTo(543, 508, duration=0.1)
-    pya.moveTo(696, 508,duration=0.1)
+    pya.moveTo(696, 508, duration=0.1)
     pya.click(button='right')
     pya.moveTo(717, 579, duration=0.1)
     pya.click()
-    tfund_name = pyperclip.paste()
+    fund = pyperclip.paste()
     # get fund number
-    tfund_number = pyperclip.copy('na')
+    fund_number = pyperclip.copy('na')
     pya.moveTo(646, 545, duration=0.1)
     pya.dragTo(543, 545, duration=0.1)
-    pya.moveTo(646, 545,duration=0.1)
+    pya.moveTo(646, 545, duration=0.1)
     pya.click(button='right')
     pya.moveTo(692, 392, duration=0.1)
     pya.click()
-    tfund_number = pyperclip.paste()
-    return_data = (tmcn, tref, tfund_name, tfund_number)
+    fund_number = pyperclip.paste()
+    return_data = (mcn, ref, fund, fund_number)
     csvfile = 'd:\\JOHN TILLET\\episode_data\\jtdata\\test_funds.csv'
     with open(csvfile, 'a') as handle:
         datawriter = csv.writer(handle, dialect='excel', lineterminator='\n')
         datawriter.writerow(return_data)
+    return return_data
 
 
 def login_and_run(room):
@@ -732,7 +726,7 @@ def login_and_run(room):
                 print(CHOICE_STRING)
                 choice = input()
                 if choice in {
-                        '', 'ar', 'end', 'h', 'c', 'r',
+                        '', 'ar', 'par', 'end', 'h', 'c', 'r',
                         'm', 'a', 'u', 'w', 'l'}:
                     break
             try:
@@ -765,7 +759,12 @@ def login_and_run(room):
                     make_webpage(message_string)
                 if choice == 'ar':
                     results, today = get_anaesthetic_eps_today(anaesthetist)
-                    print_anaesthetic_report(results, today, anaesthetist)
+                    s = make_anaesthetic_report(results, today, anaesthetist)
+                    os.startfile(s)
+                if choice == 'par':
+                    results, today = get_anaesthetic_eps_today(anaesthetist)
+                    s = make_anaesthetic_report(results, today, anaesthetist)
+                    os.startfile(s, 'print')
                 if choice == 'w':
                     open_today()
                 if choice == 'l':

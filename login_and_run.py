@@ -390,9 +390,10 @@ def episode_theatre(endoscopist, nurse, clips, varix_flag, varix_lot, room):
 def episode_scrape():
     pya.hotkey('alt', 'd')
     mrn = pyperclip.copy('')  # put '' on clipboard before each copy
+    time.sleep(1)
     pya.hotkey('ctrl', 'c')
     mrn = pyperclip.paste()
-    if not mrn.isdigit():
+    if not mrn.isdigit() or mrn == 19299:
         pya.alert(text='Problem!! Try Again', title='', button='OK')
         time.sleep(1)
         pya.hotkey('alt', 'f4')

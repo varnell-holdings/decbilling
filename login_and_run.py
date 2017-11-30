@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from collections import namedtuple
+from collections import namedtuple, OrderedDict
 import csv
 import datetime
 from dateutil.relativedelta import relativedelta
@@ -24,6 +24,8 @@ from tabulate import tabulate
 from inputbill import (inputer, LoopException, clear)
 import names_and_codes as nc
 
+pya.PAUSE = 0.2
+pya.FAILSAFE = True
 
 class EpFullException(Exception):
     pass
@@ -133,34 +135,36 @@ def bill(anaesthetist, endoscopist, consultant, nurse, room):
     try:
         data_entry = inputer(endoscopist, consultant, anaesthetist)
 
-        (asa, upper, colon, banding, consult, message, op_time,
-         ref, fund, insur_code, fund_number, clips, varix_flag, varix_lot,
-         in_theatre, out_theatre) = data_entry
+        (asa, upper, colon, banding, consult, message, op_time, insur_code,
+         clips, varix_flag, varix_lot, in_theatre, out_theatre) = data_entry
+
         if anaesthetist == 'Dr J Tillett':
+#            open_file(mrn)
             (mcn, ref, fund, fund_number) = episode_getfund()
+        else:
+            mcn = ref = fund = fund_number = ''
+            
         message = episode_opener(message)
-        episode_discharge(in_theatre, out_theatre, anaesthetist, endoscopist)
-
-        episode_theatre(endoscopist, nurse, clips, varix_flag, varix_lot)
+        mrn, name, address, postcode, dob = episode_scrape()
+        episode_discharge(in_theatre, out_theatre, anaesthetist, endoscopist)   
+        episode_theatre(endoscopist, nurse, clips, varix_flag, varix_lot, room)
         episode_procedures(upper, colon, banding, asa)
-        mrn, print_name, address, postcode, dob = episode_scrape()
-
+        
         ae_csv, ae_db_dict, message = bill_process(
-            dob, upper, colon, asa, mcn, insur_code, op_time,
-            print_name, address, ref, fund, fund_number,
-            endoscopist, anaesthetist, message)
+            dob, upper, colon, asa, mcn, insur_code, op_time, name, address,
+            ref, fund, fund_number, endoscopist, anaesthetist, message)
         to_anaesthetic_database(ae_db_dict)
 
         if asa is not None and anaesthetist == 'Dr J Tillett':
             to_csv(ae_csv)
 
         episode_string = make_episode_string(
-            out_theatre, room, endoscopist, anaesthetist, print_name, consult,
+            out_theatre, room, endoscopist, anaesthetist, name, consult,
             upper, colon, message)
 
         make_webpage(episode_string)
 
-        close_out()
+        close_out(anaesthetist)
 
     except (LoopException, EpFullException):
         raise
@@ -193,7 +197,7 @@ def episode_update(room, endoscopist, anaesthetist, data_entry):
         out_formatted, room, endoscopist, anaesthetist, print_name,
         consult, upper, colon, message)
     make_webpage(out_string)
-    close_out()
+    close_out(anaesthetist)
 
 
 def open_today():
@@ -245,28 +249,29 @@ def episode_opener(message):
 
     pya.press('n')
     while not pya.pixelMatchesColor(820, 130, (195, 90, 80), tolerance=10):
-        time.sleep(1)
+        time.sleep(0.3)
 
     pya.typewrite(['down'] * 11, interval=0.1)
     pya.press('enter')
     pya.hotkey('alt', 'f')
-    time.sleep(1)
-    if pya.pixelMatchesColor(520, 380, (25, 121, 202), tolerance=10):
-        time.sleep(0.3)
-        pya.press('enter')
-        pya.press('c')
-        pya.hotkey('alt', 'f4')
+    pic = 'd:\\John TILLET\\episode_data\\aileen.png'
+    while  pya.locateOnScreen(pic, region=(0,45,150,40)) is not None:
         time.sleep(1)
-        pya.press('f8')
-        time.sleep(1)
-        pya.typewrite(['enter'] * 3, interval=1.0)
-        message += ' New episode made'
+        if pya.pixelMatchesColor(520, 380, (25, 121, 202), tolerance=10):
+            time.sleep(0.3)
+            pya.press('enter')
+            pya.press('c')
+            pya.hotkey('alt', 'f4')
+            time.sleep(1)
+            pya.press('f8')
+            time.sleep(1)
+            pya.typewrite(['enter'] * 3, interval=1.0)
+            message += ' New episode made'
     return message
 
 
 def episode_discharge(intime, outtime, anaesthetist, endoscopist):
     pya.hotkey('alt', 'i')
-    time.sleep(0.3)
     pya.typewrite(['enter'] * 4, interval=0.1)
     test = pyperclip.copy('empty')
     pya.hotkey('ctrl', 'c')
@@ -275,7 +280,7 @@ def episode_discharge(intime, outtime, anaesthetist, endoscopist):
         pya.alert(text='Data here already! Try Again', title='', button='OK')
         time.sleep(1)
         pya.hotkey('alt', 'f4')
-        raise EpFullException
+        raise EpFullException('EpFullException raised')
     pya.typewrite(intime)
     pya.typewrite(['enter'] * 2, interval=0.1)
     pya.typewrite(outtime)
@@ -290,6 +295,7 @@ def episode_discharge(intime, outtime, anaesthetist, endoscopist):
 
 
 def episode_procedures(upper, lower, anal, asa):
+    anal_flag = False
     pya.hotkey('alt', 'p')
     if lower:  # first line - either upper or lower is always true
         pya.typewrite(lower + '\n')
@@ -304,30 +310,39 @@ def episode_procedures(upper, lower, anal, asa):
     elif anal:
         pya.typewrite(anal + '\n')
         pya.press('enter')
+        anal_flag = True
     else:
         if asa:
             pya.typewrite(asa + '\n')
             pya.press('enter')
+        pya.hotkey('alt', 'f4')
         return
     pya.typewrite(['tab'] * 2, interval=0.1)
-    if anal:  # third line
+    if anal and anal_flag == False:  # third line
         pya.typewrite(anal + '\n')
         pya.press('enter')
     else:
         if asa:
             pya.typewrite(asa + '\n')
             pya.press('enter')
+        pya.hotkey('alt', 'f4')
         return
     pya.typewrite(['tab'] * 2, interval=0.1)
     if asa:  # fourth line
         pya.typewrite(asa + '\n')
         pya.press('enter')
+    pya.hotkey('alt', 'f4')
+    return
 
 
-def episode_theatre(endoscopist, nurse, clips, varix_flag, varix_lot):
+def episode_theatre(endoscopist, nurse, clips, varix_flag, varix_lot, room):
     pya.hotkey('alt', 'n')
     pya.typewrite(['left'] * 2, interval=0.1)
-    pya.moveTo(50, 155)
+    
+
+    doc_coord = (100,155)
+    
+    pya.moveTo(doc_coord)
     pya.click()
     pya.press('tab')
     doc_test = pyperclip.copy('empty')
@@ -336,21 +351,22 @@ def episode_theatre(endoscopist, nurse, clips, varix_flag, varix_lot):
     if doc_test == 'Endoscopist':
         pya.press('tab')
         pya.typewrite(['enter'] * 2, interval=0.1)
-        pya.moveTo(450, 155)
+        pya.moveRel(400, 0)
         pya.click()
         pya.typewrite(['tab'] * 2, interval=0.1)
         pya.typewrite(['enter'] * 2, interval=0.1)
 
-    pya.moveTo(50, 155)
+    
+    pya.moveTo(doc_coord)
     pya.click()
     pya.typewrite(endoscopist)
     pya.typewrite(['enter', 'e', 'enter'], interval=0.1)
-    pya.moveTo(450, 155)
+    pya.moveRel(400, 0)
     pya.click()
     pya.typewrite(nurse)
     pya.typewrite(['enter', 'e', 'enter'], interval=0.1)
     if clips != 0 or varix_flag is True:
-        pya.moveTo(50, 350)
+        pya.moveTo(100, 360)
         pya.click()
         if varix_flag is True:
             pyperclip.copy('Boston Scientific Speedband Superview Super 7')
@@ -376,6 +392,11 @@ def episode_scrape():
     mrn = pyperclip.copy('')  # put '' on clipboard before each copy
     pya.hotkey('ctrl', 'c')
     mrn = pyperclip.paste()
+    if not mrn.isdigit():
+        pya.alert(text='Problem!! Try Again', title='', button='OK')
+        time.sleep(1)
+        pya.hotkey('alt', 'f4')
+        raise EpFullException('EpFullException raised')
     pya.press('tab')
     title = pyperclip.copy('')
     pya.hotkey('ctrl', 'c')
@@ -412,7 +433,6 @@ def episode_scrape():
     dob = pyperclip.copy('')
     pya.hotkey('ctrl', 'c')
     dob = pyperclip.paste()
-    pya.hotkey('alt', 'f4')
     return (mrn, print_name, address, postcode, dob)
 
 
@@ -561,19 +581,20 @@ def make_anaesthetic_report(results, today, anaesthetist):
     number = 0
     for row in results:
         # tabulate seems to expect list of dicts
-        d = {'n': row['patient'], 'add': row['address'], 'dob': row['dob'],
-             'end': row['endoscopist'], 'f': row['upper_code'],
-             's': row['lower_code'], '70': row['seventy_code'],
-             'a': row['asa_code'], 't': row['time_code'], 'mcn': row['mcn'],
-             'ref': row['ref'], 'fund': row['fund'],
-             'fund_number': row['fund_number']}
+        d = [('n', row['patient']), ('add', row['address']), ('dob', row['dob']),
+             ('end', row['endoscopist']), ('f', row['upper_code']),
+             ('s', row['lower_code']), ('70', row['seventy_code']),
+             ('a', row['asa_code']), ('t', row['time_code']), ('mcn', row['mcn']),
+             ('ref', row['ref']), ('fund', row['fund']),
+             ('fund_number', row['fund_number'])]
+        d = OrderedDict(d)
         results_list.append(d)
         number += 1
-    patient_string = tabulate(results_list)
+    patient_string = tabulate(results_list, tablefmt='html')
     bottom_string = '\n\nTotal number of patients {}'.format(number)
     out_string += patient_string
     out_string += bottom_string
-    s = 'd:\\JOHN TILLET\\episode_data\\anaesthetic_report.txt'
+    s = 'd:\\Nobue\\anaesthetic_report.html'
     with open(s, 'w') as f:
         f.write(out_string)
     return s
@@ -637,12 +658,17 @@ def make_webpage(ep_string):
     shutil.copyfile(today_path, nob_today)
 
 
-def close_out():
+def close_out(anaesthetist):
+        time.sleep(1)
         pya.moveTo(x=780, y=90)
         pya.click()
         time.sleep(1)
-        pya.press('enter')
+        pya.hotkey('alt', 'n')
         pya.moveTo(x=780, y=110)
+        if anaesthetist == 'Dr J Tillett':
+            results, today = get_anaesthetic_eps_today(anaesthetist)
+            s = make_anaesthetic_report(results, today, anaesthetist)
+            os.startfile(s)
 
 
 def update_html():
@@ -655,7 +681,27 @@ def update_html():
     shutil.copyfile(today_path, nob_today)
 
 
+def open_file(mrn):
+    pya.click(100, 100)
+    pya.hotkey('alt', 'f')
+    time.sleep(1)
+    pya.press('enter')
+    time.sleep(1)
+    pya.typewrite(['tab'] * 2)
+    pya.press('down')
+    pya.hotkey('shift', 'tab')
+    pya.hotkey('shift', 'tab')
+    pya.typewrite(mrn)
+    pya.press('enter')
+
+
 def episode_getfund():
+    while True:
+        if not pya.pixelMatchesColor(150, 630, (255, 0, 0)):
+            print('Open the patient file.')
+            input('Hit Enter when ready.')
+        else:
+            break
     # get mcn
     mcn = pyperclip.copy('na')
     pya.moveTo(424, 474, duration=0.1)
@@ -665,6 +711,7 @@ def episode_getfund():
     pya.moveTo(477, 542, duration=0.1)
     pya.click()
     mcn = pyperclip.paste()
+    mcn = mcn.replace(' ', '')
     # get ref
     ref = pyperclip.copy('na')
     pya.moveTo(500, 475, duration=0.1)
@@ -683,6 +730,8 @@ def episode_getfund():
     pya.moveTo(717, 579, duration=0.1)
     pya.click()
     fund = pyperclip.paste()
+    if 'United' in fund:
+        fund = 'Grand United Corporate Health'
     # get fund number
     fund_number = pyperclip.copy('na')
     pya.moveTo(646, 545, duration=0.1)
@@ -736,7 +785,7 @@ def login_and_run(room):
                             bill(
                                 anaesthetist, endoscopist,
                                 consultant, nurse, room)
-                    except LoopException:
+                    except (LoopException, EpFullException):
                         continue
                 if choice == 'end':
                     print('Thanks. Bye!')

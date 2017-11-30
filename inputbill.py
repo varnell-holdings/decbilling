@@ -15,8 +15,7 @@ class LoopException(Exception):
 
 
 Indata = namedtuple('Indata', 'asa, upper, colon, banding, consult,'
-                    'message, op_time,'
-                    'ref, fund_name, insur_code, fund_number,'
+                    'message, op_time, insur_code,'
                     'clips, varix_flag, varix_lot, in_formatted,'
                     'out_formatted')
 
@@ -30,6 +29,10 @@ def write_ts(ts):
     clear()
     print(ts)
     print('\033[13H')
+
+def get_mrn():
+    mrn = input('MRN: ')
+    return mrn
 
 
 def get_asa(message, ts):
@@ -63,11 +66,11 @@ def get_asa(message, ts):
     return asa, message, ts
 
 
-def get_insurance(asa, anaesthetist, ts):
+def get_insurance(asa, anaesthetist, ts, insur_code):
     """Gets insur_code for jrt account program."""
-    insur_code = fund_number = ref = fund_name = ''
+
     if asa is None or anaesthetist != 'Dr J Tillett':
-        return insur_code, fund_number, ref, fund_name
+        return insur_code
     while True:
         write_ts(ts)
         fund_input = input('Fund:   ')
@@ -85,7 +88,7 @@ def get_insurance(asa, anaesthetist, ts):
             if ans == 'q':
                 raise LoopException
 
-    return (insur_code, fund_number, ref, fund_name)
+    return insur_code
 
 
 def get_upper(message, ts):
@@ -300,7 +303,6 @@ def get_consult(consultant, upper, lower, time_in_theatre, message, ts):
             write_ts(ts)
             print("Dr Feller does 110's on new patients only")
         while True:
-            write_ts(ts)
             consult = input('Consult: ')
             if consult == 'q':
                 raise LoopException
@@ -318,13 +320,13 @@ def get_consult(consultant, upper, lower, time_in_theatre, message, ts):
                 if ans == 'q':
                     raise LoopException
 
-    elif consultant == 'Dr C Vickers':
-        pu = upper in {'30473-01', '30478-04', '41819-00'}
-        pl = lower in {'32090-01', '32093-00', '32084-01', '32087-00'}
-        if pu or pl:
-            consult = '117'
-        else:
-            consult = None
+#    elif consultant == 'Dr C Vickers':
+#        pu = upper in {'30473-01', '30478-04', '41819-00'}
+#        pl = lower in {'32090-01', '32093-00', '32084-01', '32087-00'}
+#        if pu or pl:
+#            consult = '117'
+#        else:
+#            consult = None
 
     ts += '\n' + 'Consult:   {}'.format(str(consult))
     return (consult, message, ts)
@@ -363,12 +365,16 @@ def inputer(endoscopist, consultant, anaesthetist):
     colorama.init(autoreset=True)
 
     message = ''
+    insur_code = ''
     ts = 'Endoscopist:  {}'.format(endoscopist)
     try:
+#        if anaesthetist == 'Dr J Tillett':
+#            mrn = get_mrn()
+        
         (asa, message, ts) = get_asa(message, ts)
 
-        (insur_code, fund_number, ref, fund_name) = get_insurance(
-            asa, anaesthetist, ts)
+        insur_code = get_insurance(
+            asa, anaesthetist, ts, insur_code)
 
         (upper, varix_flag, varix_lot, message, ts) = get_upper(message, ts)
 
@@ -390,8 +396,8 @@ def inputer(endoscopist, consultant, anaesthetist):
     (in_theatre, out_theatre) = in_and_out_calculater(op_time)
 
     in_data = Indata(asa, upper, colon, banding, consult, message, op_time,
-                     ref, fund_name, insur_code, fund_number,
-                     clips, varix_flag, varix_lot, in_theatre, out_theatre)
+                    insur_code, clips, varix_flag, varix_lot,
+                    in_theatre, out_theatre)
 
     return in_data
 

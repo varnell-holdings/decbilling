@@ -1,9 +1,9 @@
-22-11-2017
+30-11-2017
 
-- add option to just display anaesthetic report
-- change anaesthetic report to upper/lower vs first/second
-- fund scraping working
-- episode_scrape returns postcode
+- added another check to episode_open. A screeshot called aileen.png is checked for
+- change order in episode. Now scrape first and check that mrn isdigit
+- anaesthetic report now an html file
+
 
 18-11-2017
 

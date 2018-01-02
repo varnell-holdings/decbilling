@@ -1,3 +1,15 @@
+22-12-2017
+
+- add refering gp scraper
+- make seperate episode_close function
+- write episodes medical data to csv file
+- hard wire weekly target into analysis
+- don't scrape insurance if asa is None
+- dont do  bill_process if asa is None
+- bug fix in redo - inputer upacking too many variables
+- added a check that fund membership details panel is present in get_fund
+
+
 30-11-2017
 
 - added another check to episode_open. A screeshot called aileen.png is checked for

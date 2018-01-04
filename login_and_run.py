@@ -27,6 +27,7 @@ import names_and_codes as nc
 pya.PAUSE = 0.2
 pya.FAILSAFE = False
 
+
 class EpFullException(Exception):
     pass
 
@@ -140,23 +141,23 @@ def bill(anaesthetist, endoscopist, consultant, nurse, room):
          clips, varix_flag, varix_lot, in_theatre, out_theatre) = data_entry
 
         if anaesthetist == 'Dr J Tillett' and asa is not None:
-#            open_file(mrn)
-            (mcn, ref, fund, fund_number) = episode_getfund()
+            (mcn, ref, fund, fund_number) = episode_getfund(insur_code)
         else:
             mcn = ref = fund = fund_number = ''
-            
+
         message = episode_open(message)
         mrn, name, address, postcode, dob = episode_scrape()
         gp = episode_gp()
-        episode_discharge(in_theatre, out_theatre, anaesthetist, endoscopist)   
+        episode_discharge(in_theatre, out_theatre, anaesthetist, endoscopist)
         episode_theatre(endoscopist, nurse, clips, varix_flag, varix_lot, room)
         episode_procedures(upper, colon, banding, asa)
         episode_close()
-        
+
         if asa is not None:
             ae_csv, ae_db_dict, message = bill_process(
-                dob, upper, colon, asa, mcn, insur_code, op_time, name, address,
-                ref, fund, fund_number, endoscopist, anaesthetist, message)
+                dob, upper, colon, asa, mcn, insur_code, op_time,
+                name, address, ref, fund, fund_number, endoscopist,
+                anaesthetist, message)
             to_anaesthetic_database(ae_db_dict)
 
         if asa is not None and anaesthetist == 'Dr J Tillett':
@@ -175,68 +176,100 @@ def bill(anaesthetist, endoscopist, consultant, nurse, room):
         raise
 
 
-def make_message_string(anaesthetist):
-    print('\033[2J')  # clear screen
-    print('\033[1;1H')  # move to top left
-    print('Type your message. Your name is automatically included.')
-    message = input('Message: ')
-    html = "<tr><td></td><td></td><td>Message from</td><td>{0}</td>\
-            <td></td><td></td><td></td><td>{1}</td></tr>\n"
-    message_string = html.format(anaesthetist, message)
-    return message_string
+def episode_get_mcn_and_ref():
+    # get mcn
+    mcn = pyperclip.copy('na')
+    pya.moveTo(424, 474, duration=0.1)
+    pya.dragTo(346, 474, duration=0.1)
+    pya.moveTo(424, 474, duration=0.1)
+    pya.click(button='right')
+    pya.moveTo(477, 542, duration=0.1)
+    pya.click()
+    mcn = pyperclip.paste()
+    mcn = mcn.replace(' ', '')
+    # get ref
+    ref = pyperclip.copy('na')
+    pya.moveTo(500, 475, duration=0.1)
+    pya.dragRel(-8, 0, duration=0.1)
+    pya.moveRel(8, 0, duration=0.1)
+    pya.click(button='right')
+    pya.moveTo(542, 536, duration=0.1)
+    pya.click()
+    ref = pyperclip.paste()
+    return mcn, ref
 
 
-def episode_update(room, endoscopist, anaesthetist, data_entry):
-    # data_enry is a tuple -> unpack it
-    (asa, upper, colon, banding, consult, message, op_time,
-     insur_code, clips, varix_flag,
-     varix_lot, in_formatted, out_formatted) = data_entry
-
-    message = episode_open(message)
-    episode_procedures(upper, colon, banding, asa)
-    mrn, print_name, address, dob, mcn = episode_scrape()
-
-    message += ' Updated this patient. Check Blue Chip is correct.'
-
-    out_string = make_episode_string(
-        out_formatted, room, endoscopist, anaesthetist, print_name,
-        consult, upper, colon, message)
-    make_webpage(out_string)
-    close_out(anaesthetist)
+def episode_get_fund_name():
+    # get fund name
+    fund = pyperclip.copy('na')
+    pya.moveTo(696, 508, duration=0.1)
+    pya.dragTo(543, 508, duration=0.1)
+    pya.moveTo(696, 508, duration=0.1)
+    pya.click(button='right')
+    pya.moveTo(717, 579, duration=0.1)
+    pya.click()
+    fund = pyperclip.paste()
+    if 'United' in fund:
+        fund = 'Grand United Corporate Health'
+    return fund
 
 
-def open_today():
-    nob_today = 'd:\\Nobue\\today.html'
-    webbrowser.open(nob_today)
+def episode_get_fund_number():
+    # get fund number
+    fund_number = pyperclip.copy('na')
+    pya.moveTo(646, 545, duration=0.1)
+    pya.dragTo(543, 545, duration=0.1)
+    pya.moveTo(646, 545, duration=0.1)
+    pya.click(button='right')
+    pya.moveTo(692, 392, duration=0.1)
+    pya.click()
+    fund_number = pyperclip.paste()
+    return fund_number
 
 
-def analysis():
-    """Print number of accounts ready to print and whether on weekly target."""
+def episode_getfund(insur_code):
+    while True:
+        if not pya.pixelMatchesColor(150, 630, (255, 0, 0)):
+            print('Open the patient file.')
+            input('Hit Enter when ready.')
+        else:
+            break
+#    while True:
+#        pic = 'd:\\John TILLET\\episode_data\\membership.png'
+#        if pya.locateOnScreen(pic, region=(527, 512,100, 25)) is None:
+#            print('Health Fund Membership summary is missing.')
+#            input('Ask secretaries to fix. Then press Enter')
+#        else:
+#            break
+    # get mcn
+    if insur_code == 'ga':
+        ref = input('Episode ID: ')
+        fund_number = input('Approval Number: ')
+        fund = 'Garrison Health'
+        mcn = 'na'
+    elif insur_code in {'p', 'u'}:
+        fund = nc.FUND_DIC[insur_code]
+        fund_number = 'na'
+        mcn, ref = episode_get_mcn_and_ref()
+    elif insur_code == 'ahsa':
+        ahsa_abbr = input('Enter 2 letter ahsa code: ')
+        if ahsa_abbr not in nc.AHSA_DIC.keys():
+            fund = episode_get_fund_name()
+        else:
+            fund = nc.AHSA_DIC[ahsa_abbr]
+        fund_number = episode_get_fund_number()
+        mcn, ref = episode_get_mcn_and_ref()
+    else:
+        fund = nc.FUND_DIC[insur_code]
+        fund_number = episode_get_fund_number()
+        mcn, ref = episode_get_mcn_and_ref()
 
-    csvfile = 'd:\\JOHN TILLET\\episode_data\\jtdata\\patients.csv'
-    picklefile = 'd:\\JOHN TILLET\\episode_data\\jtdata\\invoice_store.py'
-    try:
-        with open(csvfile, 'r') as file_handle:
-            reader = csv.reader(file_handle)
-            first_bill = next(reader)
-            first_bill_invoice = int(first_bill[15])  # invoice from first acc
-    except IOError:
-        print("Can't find patients.csv")
-        return
-    with open(picklefile, 'rb') as handle:
-        last_invoice = pickle.load(handle)
-    print('Number on this print run - {}'.format(
-        last_invoice - first_bill_invoice))
-    first_date = datetime.datetime(2017, 7, 1)
-    today = datetime.datetime.today()
-    days_diff = (today - first_date).days
-    desired_weekly = 60
-    first_invoice = 5100
-    invoice_diff = last_invoice - first_invoice
-    desired_number = int(days_diff * desired_weekly / 7)
-    excess = invoice_diff - desired_number
-    print('{} excess to average {} per week.'.format(excess, desired_weekly))
-    input('Hit Enter to continue.')
+    insur_details = (mcn, ref, fund, fund_number)
+    csvfile = 'd:\\JOHN TILLET\\episode_data\\jtdata\\test_funds.csv'
+    with open(csvfile, 'a') as handle:
+        datawriter = csv.writer(handle, dialect='excel', lineterminator='\n')
+        datawriter.writerow(insur_details)
+    return insur_details
 
 
 def episode_open(message):
@@ -261,7 +294,7 @@ def episode_open(message):
     pya.hotkey('alt', 'f')
 
     pic = 'd:\\John TILLET\\episode_data\\aileen.png'
-    while  pya.locateOnScreen(pic, region=(0,45,150,40)) is not None:
+    while pya.locateOnScreen(pic, region=(0, 45, 150, 40)) is not None:
         time.sleep(1)
         if pya.pixelMatchesColor(520, 380, (25, 121, 202), tolerance=10):
             time.sleep(0.3)
@@ -324,7 +357,7 @@ def episode_procedures(upper, lower, anal, asa):
             pya.press('enter')
         return
     pya.typewrite(['tab'] * 2, interval=0.1)
-    if anal and anal_flag == False:  # third line
+    if anal and anal_flag is False:  # third line
         pya.typewrite(anal + '\n')
         pya.press('enter')
     else:
@@ -351,10 +384,9 @@ def episode_gp():
 def episode_theatre(endoscopist, nurse, clips, varix_flag, varix_lot, room):
     pya.hotkey('alt', 'n')
     pya.typewrite(['left'] * 2, interval=0.1)
-    
 
-    doc_coord = (100,155)
-    
+    doc_coord = (100, 155)
+
     pya.moveTo(doc_coord)
     pya.click()
     pya.press('tab')
@@ -369,7 +401,6 @@ def episode_theatre(endoscopist, nurse, clips, varix_flag, varix_lot, room):
         pya.typewrite(['tab'] * 2, interval=0.1)
         pya.typewrite(['enter'] * 2, interval=0.1)
 
-    
     pya.moveTo(doc_coord)
     pya.click()
     pya.typewrite(endoscopist)
@@ -727,65 +758,68 @@ def open_file(mrn):
     pya.press('enter')
 
 
-def episode_getfund():
-    while True:
-        if not pya.pixelMatchesColor(150, 630, (255, 0, 0)):
-            print('Open the patient file.')
-            input('Hit Enter when ready.')
-        else:
-            break
-#    while True:
-#        pic = 'd:\\John TILLET\\episode_data\\membership.png'
-#        if pya.locateOnScreen(pic, region=(527, 512,100, 25)) is None:
-#            print('Health Fund Membership summary is missing.')
-#            input('Ask secretaries to fix. Then press Enter')
-#        else:
-#            break
-    # get mcn
-    mcn = pyperclip.copy('na')
-    pya.moveTo(424, 474, duration=0.1)
-    pya.dragTo(346, 474, duration=0.1)
-    pya.moveTo(424, 474, duration=0.1)
-    pya.click(button='right')
-    pya.moveTo(477, 542, duration=0.1)
-    pya.click()
-    mcn = pyperclip.paste()
-    mcn = mcn.replace(' ', '')
-    # get ref
-    ref = pyperclip.copy('na')
-    pya.moveTo(500, 475, duration=0.1)
-    pya.dragRel(-8, 0, duration=0.1)
-    pya.moveRel(8, 0, duration=0.1)
-    pya.click(button='right')
-    pya.moveTo(542, 536, duration=0.1)
-    pya.click()
-    ref = pyperclip.paste()
-    # get fund name
-    fund = pyperclip.copy('na')
-    pya.moveTo(696, 508, duration=0.1)
-    pya.dragTo(543, 508, duration=0.1)
-    pya.moveTo(696, 508, duration=0.1)
-    pya.click(button='right')
-    pya.moveTo(717, 579, duration=0.1)
-    pya.click()
-    fund = pyperclip.paste()
-    if 'United' in fund:
-        fund = 'Grand United Corporate Health'
-    # get fund number
-    fund_number = pyperclip.copy('na')
-    pya.moveTo(646, 545, duration=0.1)
-    pya.dragTo(543, 545, duration=0.1)
-    pya.moveTo(646, 545, duration=0.1)
-    pya.click(button='right')
-    pya.moveTo(692, 392, duration=0.1)
-    pya.click()
-    fund_number = pyperclip.paste()
-    return_data = (mcn, ref, fund, fund_number)
-    csvfile = 'd:\\JOHN TILLET\\episode_data\\jtdata\\test_funds.csv'
-    with open(csvfile, 'a') as handle:
-        datawriter = csv.writer(handle, dialect='excel', lineterminator='\n')
-        datawriter.writerow(return_data)
-    return return_data
+def make_message_string(anaesthetist):
+    print('\033[2J')  # clear screen
+    print('\033[1;1H')  # move to top left
+    print('Type your message. Your name is automatically included.')
+    message = input('Message: ')
+    html = "<tr><td></td><td></td><td>Message from</td><td>{0}</td>\
+            <td></td><td></td><td></td><td>{1}</td></tr>\n"
+    message_string = html.format(anaesthetist, message)
+    return message_string
+
+
+def episode_update(room, endoscopist, anaesthetist, data_entry):
+    # data_enry is a tuple -> unpack it
+    (asa, upper, colon, banding, consult, message, op_time,
+     insur_code, clips, varix_flag,
+     varix_lot, in_formatted, out_formatted) = data_entry
+
+    message = episode_open(message)
+    episode_procedures(upper, colon, banding, asa)
+    mrn, print_name, address, dob, mcn = episode_scrape()
+
+    message += ' Updated this patient. Check Blue Chip is correct.'
+
+    out_string = make_episode_string(
+        out_formatted, room, endoscopist, anaesthetist, print_name,
+        consult, upper, colon, message)
+    make_webpage(out_string)
+    close_out(anaesthetist)
+
+
+def open_today():
+    nob_today = 'd:\\Nobue\\today.html'
+    webbrowser.open(nob_today)
+
+
+def analysis():
+    """Print number of accounts ready to print and whether on weekly target."""
+
+    csvfile = 'd:\\JOHN TILLET\\episode_data\\jtdata\\patients.csv'
+    picklefile = 'd:\\JOHN TILLET\\episode_data\\jtdata\\invoice_store.py'
+    try:
+        with open(csvfile, 'r') as file_handle:
+            reader = csv.reader(file_handle)
+            first_bill = next(reader)
+            first_bill_invoice = int(first_bill[15])  # invoice from first acc
+    except IOError:
+        print("Can't find patients.csv")
+        return
+    with open(picklefile, 'rb') as handle:
+        last_invoice = pickle.load(handle)
+    print('Number on this print run - {}'.format(
+        last_invoice - first_bill_invoice))
+    first_date = datetime.datetime(2017, 7, 1)
+    today = datetime.datetime.today()
+    days_diff = (today - first_date).days
+    desired_weekly = 60
+    first_invoice = 5100
+    invoice_diff = last_invoice - first_invoice
+    desired_number = int(days_diff * desired_weekly / 7)
+    excess = invoice_diff - desired_number
+    print('{} excess to average {} per week.'.format(excess, desired_weekly))
+    input('Hit Enter to continue.')
 
 
 def login_and_run(room):
@@ -824,7 +858,17 @@ def login_and_run(room):
                             bill(
                                 anaesthetist, endoscopist,
                                 consultant, nurse, room)
-                    except (LoopException, EpFullException):
+                    except LoopException:
+                        continue
+                    except EpFullException:
+                        clear()
+                        print('There was data in the file opened.\n'
+                              'Either you have opened the wrong patient\n'
+                              'or the server made an error.\n'
+                              'Try to resend this patient. If it fails again'
+                              'send a message to the seretaries by pressing\n'
+                              'm in the next screen.\n')
+                        input('Press any key to continue: ')
                         continue
                 if choice == 'end':
                     print('Thanks. Bye!')

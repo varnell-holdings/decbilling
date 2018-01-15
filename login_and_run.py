@@ -713,7 +713,9 @@ def make_webpage(ep_string):
 
 def medical_data_to_csv(endoscopist, consultant, anaesthetist, nurse,
                         upper, lower, anal, postcode, dob, gp):
-    episode_data = (endoscopist, consultant, anaesthetist, nurse,
+    today = datetime.datetime.now()
+    today = today.strftime('%Y' + '-' + '%m' + '-' + '%d')
+    episode_data = (today, endoscopist, consultant, anaesthetist, nurse,
                     upper, lower, anal, postcode, dob, gp)
     csvfile = 'D:\\JOHN TILLET\\episode_data\\medical_data.csv'
     with open(csvfile, 'a') as handle:
@@ -865,8 +867,9 @@ def login_and_run(room):
                         print('There was data in the file opened.\n'
                               'Either you have opened the wrong patient\n'
                               'or the server made an error.\n'
-                              'Try to resend this patient. If it fails again'
-                              'send a message to the seretaries by pressing\n'
+                              'Try to resend this patient\n.' 
+                              'If it fails again send a message\n'
+                              'to the seretaries by pressing\n'
                               'm in the next screen.\n')
                         input('Press any key to continue: ')
                         continue

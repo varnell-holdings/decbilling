@@ -32,18 +32,6 @@ class EpFullException(Exception):
     pass
 
 
-CHOICE_STRING = """Continue           enter
-User Guide         h
-Change team        c
-Redo               r
-Send a message     m
-Display a summary  ar
-Print a summary    par
-Show roster        cal
-See webpage        w
-Quit the program   end"""
-
-
 def get_anaesthetist():
     while True:
         clear()
@@ -847,12 +835,18 @@ def login_and_run(room):
             Nurse: {2}""".format(anaesthetist, endoscopist, nurse))
             print()
             while True:
-                print(CHOICE_STRING)
+                print(nc.CHOICE_STRING)
                 choice = input()
                 if choice in {
                         '', 'ar', 'par', 'end', 'h', 'c', 'r',
                         'm', 'a', 'u', 'cal', 'w', 'l'}:
+                    fail_flag = False
                     break
+                else:
+                    fail_flag = True
+                    break
+            if fail_flag == True:
+                continue
             try:
                 if choice == '':
                     try:
@@ -864,13 +858,7 @@ def login_and_run(room):
                         continue
                     except EpFullException:
                         clear()
-                        print('There was data in the file opened.\n'
-                              'Either you have opened the wrong patient\n'
-                              'or the server made an error.\n'
-                              'Try to resend this patient\n.' 
-                              'If it fails again send a message\n'
-                              'to the seretaries by pressing\n'
-                              'm in the next screen.\n')
+                        print(nc.FILLED_TEXT)
                         input('Press any key to continue: ')
                         continue
                 if choice == 'end':

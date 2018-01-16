@@ -1,4 +1,6 @@
 # names_and_codes.py
+import textwrap
+
 
 NURSES_DIC = {'no': 'Nobue Chashin',
               'ja': 'Jacqueline James',
@@ -204,7 +206,7 @@ AHSA_DIC = {'te': 'Teachers Federation Health',
             're': 'Reserve Bank',
             'o': 'other'}
 
-USER_GUIDE = """In most places just hit the Enter key to get help.
+USER_GUIDE = textwrap.fill("""In most places just hit the Enter key to get help.
 
 Type q to get back to the main menu.
 
@@ -223,4 +225,25 @@ Let me know if you spot any bugs or want a new feature.
 
 John
 
-"""
+""", width=35)
+
+
+FILLED_TEXT = textwrap.fill(
+                              'There was data in the file opened.\n'
+                              'Either you have opened the wrong patient'
+                              'or the server made an error.\n'
+                              'Try to resend this patient\n.' 
+                              'If it fails again send a message'
+                              'to the seretaries by pressing'
+                              'm in the next screen.\n', width=30)
+
+CHOICE_STRING = """Continue           enter
+User Guide         h
+Change team        c
+Redo               r
+Send a message     m
+Display a summary  ar
+Print a summary    par
+Show roster        cal
+See webpage        w
+Quit the program   end"""

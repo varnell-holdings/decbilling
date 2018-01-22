@@ -90,7 +90,7 @@ PARTNERS = {'Dr C Bariol',
 BANDERS = {'DR R Gett', 'Dr A Meagher', 'Dr A Wettstein', 'Dr G Owen'}
 
 CONSULTERS = {'Dr S Ghaly', 'Dr S Vivekanandarajah',
-              'Dr A Wettstein', 'Dr C Vickers'}
+              'Dr A Wettstein', 'Dr C Vickers', 'Dr D Williams', 'Dr R Feller'}
 
 ASA_DIC = {'0': None,
            '1': '92515-19',
@@ -235,7 +235,7 @@ FILLED_TEXT = textwrap.fill(
                               'Try to resend this patient\n.' 
                               'If it fails again send a message'
                               'to the seretaries by pressing'
-                              'm in the next screen.\n', width=30)
+                              'm in the next screen.\n', width=35)
 
 CHOICE_STRING = """Continue           enter
 User Guide         h

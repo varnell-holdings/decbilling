@@ -102,7 +102,7 @@ def get_endoscopist():
 def get_nurse():
     while True:
         clear()
-        initials = input('Nurse initials:  ')
+        initials = input('Nurse initials:  ').lower()
         if initials in nc.NURSES_DIC:
             clear()
             print(nc.NURSES_DIC[initials])
@@ -126,10 +126,12 @@ def bill(anaesthetist, endoscopist, consultant, nurse, room):
         data_entry = inputer(endoscopist, consultant, anaesthetist)
 
         (asa, upper, colon, banding, consult, message, op_time, insur_code,
+         fund, ref, fund_number,
          clips, varix_flag, varix_lot, in_theatre, out_theatre) = data_entry
 
         if anaesthetist == 'Dr J Tillett' and asa is not None:
-            (mcn, ref, fund, fund_number) = episode_getfund(insur_code)
+            (mcn, ref, fund, fund_number) = episode_getfund(
+                    insur_code, fund, fund_number, ref)
         else:
             mcn = ref = fund = fund_number = ''
 
@@ -215,7 +217,7 @@ def episode_get_fund_number():
     return fund_number
 
 
-def episode_getfund(insur_code):
+def episode_getfund(insur_code, fund, fund_number, ref):
     while True:
         if not pya.pixelMatchesColor(150, 630, (255, 0, 0)):
             print('Open the patient file.')
@@ -231,24 +233,15 @@ def episode_getfund(insur_code):
 #            break
     # get mcn
     if insur_code == 'ga':
-        ref = input('Episode ID: ')
-        fund_number = input('Approval Number: ')
-        fund = 'Garrison Health'
-        mcn = 'na'
-    elif insur_code in {'p', 'u'}:
-        fund = nc.FUND_DIC[insur_code]
-        fund_number = 'na'
-        mcn, ref = episode_get_mcn_and_ref()
-    elif insur_code == 'ahsa':
-        ahsa_abbr = input('Enter 2 letter ahsa code: ')
-        if ahsa_abbr not in nc.AHSA_DIC.keys():
-            fund = episode_get_fund_name()
-        else:
-            fund = nc.AHSA_DIC[ahsa_abbr]
+        mcn = ''
+    elif insur_code == 'os' and fund !='Overseas':
         fund_number = episode_get_fund_number()
+        fund = episode_get_fund_name()
+        mcn = ref = ''
+    elif insur_code in {'p', 'u'}:
+        fund_number = ''
         mcn, ref = episode_get_mcn_and_ref()
     else:
-        fund = nc.FUND_DIC[insur_code]
         fund_number = episode_get_fund_number()
         mcn, ref = episode_get_mcn_and_ref()
 
@@ -762,7 +755,7 @@ def make_message_string(anaesthetist):
 def episode_update(room, endoscopist, anaesthetist, data_entry):
     # data_enry is a tuple -> unpack it
     (asa, upper, colon, banding, consult, message, op_time,
-     insur_code, clips, varix_flag,
+     insur_code, fund, ref, fund_number, clips, varix_flag,
      varix_lot, in_formatted, out_formatted) = data_entry
 
     message = episode_open(message)
@@ -834,18 +827,11 @@ def login_and_run(room):
             Anaesthetist: {0}
             Nurse: {2}""".format(anaesthetist, endoscopist, nurse))
             print()
-            while True:
-                print(nc.CHOICE_STRING)
-                choice = input()
-                if choice in {
-                        '', 'ar', 'par', 'end', 'h', 'c', 'r',
-                        'm', 'a', 'u', 'cal', 'w', 'l'}:
-                    fail_flag = False
-                    break
-                else:
-                    fail_flag = True
-                    break
-            if fail_flag == True:
+            print(nc.CHOICE_STRING)
+            choice = input().lower()
+            if choice not in {
+                    '', 'ar', 'par', 'end', 'h', 'c', 'r',
+                    'm', 'a', 'u', 'cal', 'w', 'l'}:
                 continue
             try:
                 if choice == '':

@@ -210,12 +210,9 @@ USER_GUIDE = textwrap.fill("""In most places just hit the Enter key to get help.
 
 Type q to get back to the main menu.
 
-If you stuff something up just send a message - the secretaries can fix it.
-Type m in the main menu.
+If you stuff something up just send a message by typing m - the secretaries can fix it.
 Alternatively, if brave, you can use the redo function in the main menu.
-Type r in the main menu.
-
-The program makes a web page. Type w in the main menu to see it.
+The program makes a web page. Type w to see it.
 
 At the end of your day you can display or print a summary of your work.
 Type 'ar' or 'par' in the main menu.

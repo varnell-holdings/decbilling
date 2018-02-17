@@ -32,18 +32,6 @@ class EpFullException(Exception):
     pass
 
 
-CHOICE_STRING = """Continue           enter
-User Guide         h
-Change team        c
-Redo               r
-Send a message     m
-Display a summary  ar
-Print a summary    par
-Show roster        cal
-See webpage        w
-Quit the program   end"""
-
-
 def get_anaesthetist():
     while True:
         clear()
@@ -114,7 +102,7 @@ def get_endoscopist():
 def get_nurse():
     while True:
         clear()
-        initials = input('Nurse initials:  ')
+        initials = input('Nurse initials:  ').lower()
         if initials in nc.NURSES_DIC:
             clear()
             print(nc.NURSES_DIC[initials])
@@ -138,10 +126,12 @@ def bill(anaesthetist, endoscopist, consultant, nurse, room):
         data_entry = inputer(endoscopist, consultant, anaesthetist)
 
         (asa, upper, colon, banding, consult, message, op_time, insur_code,
+         fund, ref, fund_number,
          clips, varix_flag, varix_lot, in_theatre, out_theatre) = data_entry
 
         if anaesthetist == 'Dr J Tillett' and asa is not None:
-            (mcn, ref, fund, fund_number) = episode_getfund(insur_code)
+            (mcn, ref, fund, fund_number) = episode_getfund(
+                insur_code, fund, fund_number, ref)
         else:
             mcn = ref = fund = fund_number = ''
 
@@ -227,7 +217,7 @@ def episode_get_fund_number():
     return fund_number
 
 
-def episode_getfund(insur_code):
+def episode_getfund(insur_code, fund, fund_number, ref):
     while True:
         if not pya.pixelMatchesColor(150, 630, (255, 0, 0)):
             print('Open the patient file.')
@@ -243,24 +233,15 @@ def episode_getfund(insur_code):
 #            break
     # get mcn
     if insur_code == 'ga':
-        ref = input('Episode ID: ')
-        fund_number = input('Approval Number: ')
-        fund = 'Garrison Health'
-        mcn = 'na'
-    elif insur_code in {'p', 'u'}:
-        fund = nc.FUND_DIC[insur_code]
-        fund_number = 'na'
-        mcn, ref = episode_get_mcn_and_ref()
-    elif insur_code == 'ahsa':
-        ahsa_abbr = input('Enter 2 letter ahsa code: ')
-        if ahsa_abbr not in nc.AHSA_DIC.keys():
-            fund = episode_get_fund_name()
-        else:
-            fund = nc.AHSA_DIC[ahsa_abbr]
+        mcn = ''
+    elif insur_code == 'os' and fund != 'Overseas':
         fund_number = episode_get_fund_number()
+        fund = episode_get_fund_name()
+        mcn = ref = ''
+    elif insur_code in {'p', 'u'}:
+        fund_number = ''
         mcn, ref = episode_get_mcn_and_ref()
     else:
-        fund = nc.FUND_DIC[insur_code]
         fund_number = episode_get_fund_number()
         mcn, ref = episode_get_mcn_and_ref()
 
@@ -630,10 +611,12 @@ def make_anaesthetic_report(results, today, anaesthetist):
     number = 0
     for row in results:
         # tabulate seems to expect list of dicts
-        d = [('n', row['patient']), ('add', row['address']), ('dob', row['dob']),
+        d = [('n', row['patient']), ('add', row['address']),
+             ('dob', row['dob']),
              ('end', row['endoscopist']), ('f', row['upper_code']),
              ('s', row['lower_code']), ('70', row['seventy_code']),
-             ('a', row['asa_code']), ('t', row['time_code']), ('mcn', row['mcn']),
+             ('a', row['asa_code']), ('t', row['time_code']),
+             ('mcn', row['mcn']),
              ('ref', row['ref']), ('fund', row['fund']),
              ('fund_number', row['fund_number'])]
         d = OrderedDict(d)
@@ -713,7 +696,9 @@ def make_webpage(ep_string):
 
 def medical_data_to_csv(endoscopist, consultant, anaesthetist, nurse,
                         upper, lower, anal, postcode, dob, gp):
-    episode_data = (endoscopist, consultant, anaesthetist, nurse,
+    today = datetime.datetime.now()
+    today = today.strftime('%Y' + '-' + '%m' + '-' + '%d')
+    episode_data = (today, endoscopist, consultant, anaesthetist, nurse,
                     upper, lower, anal, postcode, dob, gp)
     csvfile = 'D:\\JOHN TILLET\\episode_data\\medical_data.csv'
     with open(csvfile, 'a') as handle:
@@ -772,7 +757,7 @@ def make_message_string(anaesthetist):
 def episode_update(room, endoscopist, anaesthetist, data_entry):
     # data_enry is a tuple -> unpack it
     (asa, upper, colon, banding, consult, message, op_time,
-     insur_code, clips, varix_flag,
+     insur_code, fund, ref, fund_number, clips, varix_flag,
      varix_lot, in_formatted, out_formatted) = data_entry
 
     message = episode_open(message)
@@ -844,13 +829,12 @@ def login_and_run(room):
             Anaesthetist: {0}
             Nurse: {2}""".format(anaesthetist, endoscopist, nurse))
             print()
-            while True:
-                print(CHOICE_STRING)
-                choice = input()
-                if choice in {
-                        '', 'ar', 'par', 'end', 'h', 'c', 'r',
-                        'm', 'a', 'u', 'cal', 'w', 'l'}:
-                    break
+            print(nc.CHOICE_STRING)
+            choice = input().lower()
+            if choice not in {
+                    '', 'ar', 'par', 'end', 'h', 'c', 'r',
+                    'm', 'a', 'u', 'cal', 'w', 'l'}:
+                continue
             try:
                 if choice == '':
                     try:
@@ -858,16 +842,12 @@ def login_and_run(room):
                             bill(
                                 anaesthetist, endoscopist,
                                 consultant, nurse, room)
+
                     except LoopException:
                         continue
                     except EpFullException:
                         clear()
-                        print('There was data in the file opened.\n'
-                              'Either you have opened the wrong patient\n'
-                              'or the server made an error.\n'
-                              'Try to resend this patient. If it fails again'
-                              'send a message to the seretaries by pressing\n'
-                              'm in the next screen.\n')
+                        print(nc.FILLED_TEXT)
                         input('Press any key to continue: ')
                         continue
                 if choice == 'end':

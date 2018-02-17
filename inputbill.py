@@ -1,5 +1,4 @@
 """CLI input for docbill.py."""
-from collections import namedtuple
 import datetime
 from dateutil.relativedelta import relativedelta
 import pprint
@@ -12,12 +11,6 @@ import names_and_codes as nc
 
 class LoopException(Exception):
     pass
-
-
-Indata = namedtuple('Indata', 'asa, upper, colon, banding, consult,'
-                    'message, op_time, insur_code,'
-                    'clips, varix_flag, varix_lot, in_formatted,'
-                    'out_formatted')
 
 
 def clear():
@@ -66,14 +59,14 @@ def get_asa(message, ts):
     return asa, message, ts
 
 
-def get_insurance(asa, anaesthetist, ts, insur_code):
+def get_insurance(asa, anaesthetist, ts):
     """Gets insur_code for jrt account program."""
-
+    insur_code = fund = ref = fund_number = ''
     if asa is None or anaesthetist != 'Dr J Tillett':
-        return insur_code
+        return insur_code, fund , ref, fund_number
     while True:
         write_ts(ts)
-        fund_input = input('Fund:   ')
+        fund_input = input('Fund:   ').lower()
         if fund_input == 'q':
             raise LoopException
         elif fund_input in nc.FUND_ABREVIATION:
@@ -88,7 +81,30 @@ def get_insurance(asa, anaesthetist, ts, insur_code):
             if ans == 'q':
                 raise LoopException
 
-    return insur_code
+    if insur_code == 'ga':
+        ref = input('Episode ID: ')
+        fund_number = input('Approval Number: ')
+        fund = 'Garrison Health'
+
+    elif insur_code == 'ahsa':
+        print('Enter 2 letter ahsa code')
+        print('or Enter if not in list: ')
+        ahsa_abbr = input().lower()
+        if ahsa_abbr not in nc.AHSA_DIC.keys():
+            fund = input("Enter fund name: ")
+        else:
+            fund = nc.AHSA_DIC[ahsa_abbr]
+
+    elif insur_code == 'os':
+        paying = input('Paying today? y/n ').lower()
+        if paying == 'y':
+            fund = 'Overseas'
+
+    else:
+        fund = nc.FUND_DIC[insur_code]
+            
+    
+    return insur_code, fund, ref, fund_number
 
 
 def get_upper(message, ts):
@@ -96,7 +112,7 @@ def get_upper(message, ts):
     varix_lot = ''
     while True:
         write_ts(ts)
-        upper = input('Upper:  ')
+        upper = input('Upper:  ').lower()
         if upper == 'q':
             raise LoopException
         elif upper in {'c', 'pec'}:
@@ -148,7 +164,7 @@ def get_upper(message, ts):
 def get_colon(upper, message, ts):
     while True:
         write_ts(ts)
-        colon = input('Lower:  ')
+        colon = input('Lower:  ').lower()
         if colon == 'q':
             raise LoopException
         elif colon in nc.COLON_DIC:
@@ -190,7 +206,7 @@ def get_banding(consultant, lower, message, ts):
 
     while True:
         write_ts(ts)
-        banding = input('Anal procedure:   ')
+        banding = input('Anal procedure:   ').lower()
         if banding == 'q':
             raise LoopException
         elif banding == '0':
@@ -294,31 +310,31 @@ def get_consult(consultant, upper, lower, time_in_theatre, message, ts):
                 if ans == 'q':
                     raise LoopException
 
-    elif consultant in {'Dr D Williams', 'Dr R Feller'}:
-        longcol = time_in_theatre > 30 and lower is not None
-        if longcol and consultant == 'Dr D Williams':
-            write_ts(ts)
-            print('Dr Williams may bill a 110.')
-        elif consultant == 'Dr R Feller':
-            write_ts(ts)
-            print("Dr Feller does 110's on new patients only")
-        while True:
-            consult = input('Consult: ')
-            if consult == 'q':
-                raise LoopException
-            elif consult in {'110', '0'}:
-                if consult == '0':
-                    consult = None
-                break
-            else:
-                write_ts(ts)
-                print('\033[31;1m' + 'help')
-                print('110 for a long consult.')
-                print('0 for no consult')
-                ans = input('Hit Enter to retry'
-                            ' or q to return to the main menu: ')
-                if ans == 'q':
-                    raise LoopException
+#    elif consultant in {'Dr D Williams', 'Dr R Feller'}:
+#        longcol = time_in_theatre > 30 and lower is not None
+#        if longcol and consultant == 'Dr D Williams':
+#            write_ts(ts)
+#            print('Dr Williams may bill a 110.')
+#        elif consultant == 'Dr R Feller':
+#            write_ts(ts)
+#            print("Dr Feller does 110's on new patients only")
+#        while True:
+#            consult = input('Consult: ')
+#            if consult == 'q':
+#                raise LoopException
+#            elif consult in {'110', '0'}:
+#                if consult == '0':
+#                    consult = None
+#                break
+#            else:
+#                write_ts(ts)
+#                print('\033[31;1m' + 'help')
+#                print('110 for a long consult.')
+#                print('0 for no consult')
+#                ans = input('Hit Enter to retry'
+#                            ' or q to return to the main menu: ')
+#                if ans == 'q':
+#                    raise LoopException
 
 #    elif consultant == 'Dr C Vickers':
 #        pu = upper in {'30473-01', '30478-04', '41819-00'}
@@ -365,7 +381,6 @@ def inputer(endoscopist, consultant, anaesthetist):
     colorama.init(autoreset=True)
 
     message = ''
-    insur_code = ''
     ts = 'Endoscopist:  {}'.format(endoscopist)
     try:
 #        if anaesthetist == 'Dr J Tillett':
@@ -373,8 +388,8 @@ def inputer(endoscopist, consultant, anaesthetist):
         
         (asa, message, ts) = get_asa(message, ts)
 
-        insur_code = get_insurance(
-            asa, anaesthetist, ts, insur_code)
+        insur_code, fund, ref, fund_number = get_insurance(
+            asa, anaesthetist, ts)
 
         (upper, varix_flag, varix_lot, message, ts) = get_upper(message, ts)
 
@@ -395,9 +410,9 @@ def inputer(endoscopist, consultant, anaesthetist):
 
     (in_theatre, out_theatre) = in_and_out_calculater(op_time)
 
-    in_data = Indata(asa, upper, colon, banding, consult, message, op_time,
-                    insur_code, clips, varix_flag, varix_lot,
-                    in_theatre, out_theatre)
+    in_data = (asa, upper, colon, banding, consult, message, op_time,
+               insur_code, fund, ref, fund_number, clips, varix_flag,
+               varix_lot, in_theatre, out_theatre)
 
     return in_data
 

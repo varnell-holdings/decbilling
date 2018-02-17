@@ -1,3 +1,10 @@
+
+5-1-2017
+
+- calendar added
+- landing page for EpisodeFullException
+- selective scraping of fund details depending on fund
+
 22-12-2017
 
 - add refering gp scraper

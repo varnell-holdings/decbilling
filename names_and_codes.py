@@ -1,4 +1,6 @@
 # names_and_codes.py
+import textwrap
+
 
 NURSES_DIC = {'no': 'Nobue Chashin',
               'ja': 'Jacqueline James',
@@ -88,7 +90,7 @@ PARTNERS = {'Dr C Bariol',
 BANDERS = {'DR R Gett', 'Dr A Meagher', 'Dr A Wettstein', 'Dr G Owen'}
 
 CONSULTERS = {'Dr S Ghaly', 'Dr S Vivekanandarajah',
-              'Dr A Wettstein', 'Dr C Vickers'}
+              'Dr A Wettstein', 'Dr C Vickers', 'Dr D Williams', 'Dr R Feller'}
 
 ASA_DIC = {'0': None,
            '1': '92515-19',
@@ -204,16 +206,13 @@ AHSA_DIC = {'te': 'Teachers Federation Health',
             're': 'Reserve Bank',
             'o': 'other'}
 
-USER_GUIDE = """In most places just hit the Enter key to get help.
+USER_GUIDE = textwrap.fill("""In most places just hit the Enter key to get help.
 
 Type q to get back to the main menu.
 
-If you stuff something up just send a message - the secretaries can fix it.
-Type m in the main menu.
+If you stuff something up just send a message by typing m - the secretaries can fix it.
 Alternatively, if brave, you can use the redo function in the main menu.
-Type r in the main menu.
-
-The program makes a web page. Type w in the main menu to see it.
+The program makes a web page. Type w to see it.
 
 At the end of your day you can display or print a summary of your work.
 Type 'ar' or 'par' in the main menu.
@@ -223,4 +222,25 @@ Let me know if you spot any bugs or want a new feature.
 
 John
 
-"""
+""", width=35)
+
+
+FILLED_TEXT = textwrap.fill(
+                              'There was data in the file opened.\n'
+                              'Either you have opened the wrong patient'
+                              'or the server made an error.\n'
+                              'Try to resend this patient\n.' 
+                              'If it fails again send a message'
+                              'to the seretaries by pressing'
+                              'm in the next screen.\n', width=35)
+
+CHOICE_STRING = """Continue           enter
+User Guide         h
+Change team        c
+Redo               r
+Send a message     m
+Display a summary  ar
+Print a summary    par
+Show roster        cal
+See webpage        w
+Quit the program   end"""

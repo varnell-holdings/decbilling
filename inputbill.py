@@ -63,7 +63,7 @@ def get_insurance(asa, anaesthetist, ts):
     """Gets insur_code for jrt account program."""
     insur_code = fund = ref = fund_number = ''
     if asa is None or anaesthetist != 'Dr J Tillett':
-        return insur_code, fund , ref, fund_number
+        return insur_code, fund, ref, fund_number, ts
     while True:
         write_ts(ts)
         fund_input = input('Fund:   ').lower()
@@ -102,9 +102,9 @@ def get_insurance(asa, anaesthetist, ts):
 
     else:
         fund = nc.FUND_DIC[insur_code]
-            
-    
-    return insur_code, fund, ref, fund_number
+
+    ts += '\n' + fund
+    return insur_code, fund, ref, fund_number, ts
 
 
 def get_upper(message, ts):
@@ -383,12 +383,10 @@ def inputer(endoscopist, consultant, anaesthetist):
     message = ''
     ts = 'Endoscopist:  {}'.format(endoscopist)
     try:
-#        if anaesthetist == 'Dr J Tillett':
-#            mrn = get_mrn()
-        
+
         (asa, message, ts) = get_asa(message, ts)
 
-        insur_code, fund, ref, fund_number = get_insurance(
+        insur_code, fund, ref, fund_number, ts = get_insurance(
             asa, anaesthetist, ts)
 
         (upper, varix_flag, varix_lot, message, ts) = get_upper(message, ts)

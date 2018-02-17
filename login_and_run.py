@@ -847,6 +847,7 @@ def login_and_run(room):
                         continue
                     except EpFullException:
                         clear()
+                        logger.error('Episode full exception.')
                         print(nc.FILLED_TEXT)
                         input('Press any key to continue: ')
                         continue

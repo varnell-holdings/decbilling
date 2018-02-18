@@ -795,11 +795,11 @@ def analysis():
         last_invoice = pickle.load(handle)
     print('Number on this print run - {}'.format(
         last_invoice - first_bill_invoice))
-    first_date = datetime.datetime(2017, 7, 1)
+    first_date = datetime.datetime(2018, 1, 1)
     today = datetime.datetime.today()
     days_diff = (today - first_date).days
     desired_weekly = 60
-    first_invoice = 5100
+    first_invoice = 6848
     invoice_diff = last_invoice - first_invoice
     desired_number = int(days_diff * desired_weekly / 7)
     excess = invoice_diff - desired_number

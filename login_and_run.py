@@ -803,6 +803,11 @@ def open_today():
     webbrowser.open(nob_today)
 
 
+def open_intranet():
+    intranet = 'https://intranet.stvincents.com.au'
+    webbrowser.open(intranet)
+
+
 def analysis():
     """Print number of accounts ready to print and whether on weekly target."""
 
@@ -858,7 +863,7 @@ def login_and_run(room):
             choice = input().lower()
             if choice not in {
                     '', 'ar', 'par', 'end', 'h', 'c', 'r',
-                    'm', 'a', 'u', 'cal', 'w', 'l'}:
+                    'm', 'a', 'u', 'cal', 'w', 'l', 'i'}:
                 continue
             try:
                 if choice == '':
@@ -909,6 +914,8 @@ def login_and_run(room):
                     open_calendar()
                 if choice == 'w':
                     open_today()
+                if choice == 'i':
+                    open_intranet()
                 if choice == 'l':
                     view_log()
                 if choice == 'a':

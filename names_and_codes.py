@@ -218,6 +218,8 @@ At the end of your day you can display or print a summary of your work.
 Type 'ar' or 'par' in the main menu.
 Useful to check you didn't forget to bill someone.
 
+i will open the St Vincents intranet
+
 Let me know if you spot any bugs or want a new feature.
 
 John
@@ -239,8 +241,9 @@ User Guide         h
 Change team        c
 Redo               r
 Send a message     m
-Display a summary  ar
-Print a summary    par
+Anaes summary      ar
+Print summary      par
 Show roster        cal
 See webpage        w
+STV intranet       i
 Quit the program   end"""

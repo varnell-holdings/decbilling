@@ -583,7 +583,7 @@ def to_anaesthetic_database(an_ep_dict):
 
 
 def to_csv(episode_data):
-    """Write tuple of billing data to csv."""
+    """Write tuple of jrt's billing data to csv."""
     csvfile = 'd:\\JOHN TILLET\\episode_data\\jtdata\\patients.csv'
     with open(csvfile, 'a') as handle:
         datawriter = csv.writer(handle, dialect='excel', lineterminator='\n')
@@ -627,6 +627,30 @@ def make_anaesthetic_report(results, today, anaesthetist):
     out_string += patient_string
     out_string += bottom_string
     s = 'd:\\Nobue\\anaesthetic_report.html'
+    with open(s, 'w') as f:
+        f.write(out_string)
+    return s
+
+
+def make_simple_anaesthetic_report(results, today, anaesthetist):
+    """Write & print a txt file of anaesthetics today by anaesthetist"""
+    out_string = 'Patients for Dr {}   {}\n\n\n'.format(
+        anaesthetist.split()[-1], today)
+    results_list = []
+    number = 0
+    for row in results:
+        # tabulate seems to expect list of dicts
+        d = [('n', row['patient']), ('f', row['upper_code']),
+             ('s', row['lower_code']), ('70', row['seventy_code']),
+             ('a', row['asa_code']), ('t', row['time_code'])]
+        d = OrderedDict(d)
+        results_list.append(d)
+        number += 1
+    patient_string = tabulate(results_list, tablefmt='html')
+    bottom_string = '\n\nTotal number of patients {}'.format(number)
+    out_string += patient_string
+    out_string += bottom_string
+    s = 'd:\\Nobue\\simple_anaesthetic_report.html'
     with open(s, 'w') as f:
         f.write(out_string)
     return s
@@ -729,6 +753,7 @@ def update_html():
     shutil.copyfile(today_path, nob_today)
 
 
+# currently not used
 def open_file(mrn):
     pya.click(100, 100)
     pya.hotkey('alt', 'f')
@@ -872,11 +897,13 @@ def login_and_run(room):
                     make_webpage(message_string)
                 if choice == 'ar':
                     results, today = get_anaesthetic_eps_today(anaesthetist)
-                    s = make_anaesthetic_report(results, today, anaesthetist)
+                    s = make_simple_anaesthetic_report(
+                        results, today, anaesthetist)
                     os.startfile(s)
                 if choice == 'par':
                     results, today = get_anaesthetic_eps_today(anaesthetist)
-                    s = make_anaesthetic_report(results, today, anaesthetist)
+                    s = make_simple_anaesthetic_report(
+                        results, today, anaesthetist)
                     os.startfile(s, 'print')
                 if choice == 'cal':
                     open_calendar()

@@ -74,9 +74,9 @@ def get_insurance(asa, anaesthetist, ts):
             print('{}'.format(nc.FUND_DIC[insur_code]))
             break
         else:
-            write_ts(ts)
+            clear()
             print('Your choices are.')
-            pprint.pprint(nc.FUND_ABREVIATION)
+            pprint.pprint(nc.FUND_HELP)
             ans = input('Press Enter to try again: ')
             if ans == 'q':
                 raise LoopException
@@ -87,13 +87,23 @@ def get_insurance(asa, anaesthetist, ts):
         fund = 'Garrison Health'
 
     elif insur_code == 'ahsa':
-        print('Enter 2 letter ahsa code')
-        print('or Enter if not in list: ')
-        ahsa_abbr = input().lower()
-        if ahsa_abbr not in nc.AHSA_DIC.keys():
-            fund = input("Enter fund name: ")
-        else:
-            fund = nc.AHSA_DIC[ahsa_abbr]
+        while True:
+            write_ts(ts)
+            print('Enter 2 letter ahsa code or Enter to see choices')
+            ahsa_abbr = input().lower()
+            if ahsa_abbr == '':
+                clear()
+                print('Your choices are.')
+                pprint.pprint(nc.AHSA_DIC)
+                ans = input('Press Enter to try again: ')
+                if ans == 'q':
+                    raise LoopException
+            elif ahsa_abbr in nc.AHSA_DIC.keys():               
+                if ahsa_abbr == 'ot':
+                    fund = input("Enter fund name: ")
+                else:
+                    fund = nc.AHSA_DIC[ahsa_abbr]
+                break
 
     elif insur_code == 'os':
         paying = input('Paying today? y/n ').lower()
@@ -103,7 +113,7 @@ def get_insurance(asa, anaesthetist, ts):
     else:
         fund = nc.FUND_DIC[insur_code]
 
-    ts += '\n' + fund
+    ts += '\n' + 'Fund: ' + fund
     return insur_code, fund, ref, fund_number, ts
 
 
@@ -310,40 +320,6 @@ def get_consult(consultant, upper, lower, time_in_theatre, message, ts):
                 if ans == 'q':
                     raise LoopException
 
-#    elif consultant in {'Dr D Williams', 'Dr R Feller'}:
-#        longcol = time_in_theatre > 30 and lower is not None
-#        if longcol and consultant == 'Dr D Williams':
-#            write_ts(ts)
-#            print('Dr Williams may bill a 110.')
-#        elif consultant == 'Dr R Feller':
-#            write_ts(ts)
-#            print("Dr Feller does 110's on new patients only")
-#        while True:
-#            consult = input('Consult: ')
-#            if consult == 'q':
-#                raise LoopException
-#            elif consult in {'110', '0'}:
-#                if consult == '0':
-#                    consult = None
-#                break
-#            else:
-#                write_ts(ts)
-#                print('\033[31;1m' + 'help')
-#                print('110 for a long consult.')
-#                print('0 for no consult')
-#                ans = input('Hit Enter to retry'
-#                            ' or q to return to the main menu: ')
-#                if ans == 'q':
-#                    raise LoopException
-
-#    elif consultant == 'Dr C Vickers':
-#        pu = upper in {'30473-01', '30478-04', '41819-00'}
-#        pl = lower in {'32090-01', '32093-00', '32084-01', '32087-00'}
-#        if pu or pl:
-#            consult = '117'
-#        else:
-#            consult = None
-
     ts += '\n' + 'Consult:   {}'.format(str(consult))
     return (consult, message, ts)
 
@@ -358,7 +334,8 @@ def confirm(message, ts):
         if ans == 'q':
             raise LoopException
         elif ans == 'm':
-            added = input()
+            clear()
+            added = input('Message: ')
             message += ' ' + added
             ts += '\n' + 'Message: {}'.format(message)
         else:

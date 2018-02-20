@@ -138,7 +138,8 @@ def bill(anaesthetist, endoscopist, consultant, nurse, room):
         message = episode_open(message)
         mrn, name, address, postcode, dob = episode_scrape()
         gp = episode_gp()
-        episode_discharge(in_theatre, out_theatre, anaesthetist, endoscopist)
+        endoscopist = episode_discharge(
+                in_theatre, out_theatre, anaesthetist, endoscopist)
         episode_theatre(endoscopist, nurse, clips, varix_flag, varix_lot, room)
         episode_procedures(upper, colon, banding, asa)
         episode_close()
@@ -312,7 +313,25 @@ def episode_discharge(intime, outtime, anaesthetist, endoscopist):
         pya.typewrite('\n')
     else:
         pya.typewrite(['tab'] * 7, interval=0.1)
-    pya.typewrite(endoscopist)
+
+    test = pyperclip.copy('empty')
+    pya.hotkey('ctrl', 'c')
+    doctor = pyperclip.paste()
+
+    endoscopist_surname = endoscopist.split()[-1].lower()
+
+    doctor_surname = doctor.split()[-1].lower()
+
+    if endoscopist_surname != doctor_surname:
+        response = pya.confirm(
+            text='You are logged in with {} but the secretaries have entered'
+                 ' {}. Choose the correct one'.format(endoscopist, doctor),
+            title='Confirm Endoscopist',
+            buttons=['{}'.format(doctor), '{}'.format(endoscopist)])
+
+        pya.typewrite(response)
+        endoscopist = response
+    return endoscopist
 
 
 def episode_procedures(upper, lower, anal, asa):
@@ -583,7 +602,7 @@ def to_anaesthetic_database(an_ep_dict):
 
 
 def to_csv(episode_data):
-    """Write tuple of jrt's billing data to csv."""
+    """Write tuple of billing data to csv."""
     csvfile = 'd:\\JOHN TILLET\\episode_data\\jtdata\\patients.csv'
     with open(csvfile, 'a') as handle:
         datawriter = csv.writer(handle, dialect='excel', lineterminator='\n')
@@ -627,30 +646,6 @@ def make_anaesthetic_report(results, today, anaesthetist):
     out_string += patient_string
     out_string += bottom_string
     s = 'd:\\Nobue\\anaesthetic_report.html'
-    with open(s, 'w') as f:
-        f.write(out_string)
-    return s
-
-
-def make_simple_anaesthetic_report(results, today, anaesthetist):
-    """Write & print a txt file of anaesthetics today by anaesthetist"""
-    out_string = 'Patients for Dr {}   {}\n\n\n'.format(
-        anaesthetist.split()[-1], today)
-    results_list = []
-    number = 0
-    for row in results:
-        # tabulate seems to expect list of dicts
-        d = [('n', row['patient']), ('f', row['upper_code']),
-             ('s', row['lower_code']), ('70', row['seventy_code']),
-             ('a', row['asa_code']), ('t', row['time_code'])]
-        d = OrderedDict(d)
-        results_list.append(d)
-        number += 1
-    patient_string = tabulate(results_list, tablefmt='html')
-    bottom_string = '\n\nTotal number of patients {}'.format(number)
-    out_string += patient_string
-    out_string += bottom_string
-    s = 'd:\\Nobue\\simple_anaesthetic_report.html'
     with open(s, 'w') as f:
         f.write(out_string)
     return s
@@ -753,7 +748,6 @@ def update_html():
     shutil.copyfile(today_path, nob_today)
 
 
-# currently not used
 def open_file(mrn):
     pya.click(100, 100)
     pya.hotkey('alt', 'f')
@@ -801,11 +795,6 @@ def episode_update(room, endoscopist, anaesthetist, data_entry):
 def open_today():
     nob_today = 'd:\\Nobue\\today.html'
     webbrowser.open(nob_today)
-
-
-def open_intranet():
-    intranet = 'https://intranet.stvincents.com.au'
-    webbrowser.open(intranet)
 
 
 def analysis():
@@ -863,7 +852,7 @@ def login_and_run(room):
             choice = input().lower()
             if choice not in {
                     '', 'ar', 'par', 'end', 'h', 'c', 'r',
-                    'm', 'a', 'u', 'cal', 'w', 'l', 'i'}:
+                    'm', 'a', 'u', 'cal', 'w', 'l'}:
                 continue
             try:
                 if choice == '':
@@ -902,20 +891,16 @@ def login_and_run(room):
                     make_webpage(message_string)
                 if choice == 'ar':
                     results, today = get_anaesthetic_eps_today(anaesthetist)
-                    s = make_simple_anaesthetic_report(
-                        results, today, anaesthetist)
+                    s = make_anaesthetic_report(results, today, anaesthetist)
                     os.startfile(s)
                 if choice == 'par':
                     results, today = get_anaesthetic_eps_today(anaesthetist)
-                    s = make_simple_anaesthetic_report(
-                        results, today, anaesthetist)
+                    s = make_anaesthetic_report(results, today, anaesthetist)
                     os.startfile(s, 'print')
                 if choice == 'cal':
                     open_calendar()
                 if choice == 'w':
                     open_today()
-                if choice == 'i':
-                    open_intranet()
                 if choice == 'l':
                     view_log()
                 if choice == 'a':

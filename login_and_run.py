@@ -202,6 +202,9 @@ def episode_get_fund_name():
     fund = pyperclip.paste()
     if 'United' in fund:
         fund = 'Grand United Corporate Health'
+    if fund == 'na':
+        fund = pya.prompt(
+            text='Please enter Fund name', title='Fund Name', default='')
     return fund
 
 
@@ -215,6 +218,9 @@ def episode_get_fund_number():
     pya.moveTo(692, 392, duration=0.1)
     pya.click()
     fund_number = pyperclip.paste()
+    if fund_number == 'na':
+        fund_number = pya.prompt(
+            text='Please enter fund number!', title='Fund Number', default='')
     return fund_number
 
 

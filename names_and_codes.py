@@ -214,11 +214,10 @@ If you stuff something up just send a message by typing m - the secretaries can 
 Alternatively, if brave, you can use the redo function in the main menu.
 The program makes a web page. Type w to see it.
 
-At the end of your day you can display or print a summary of your work.
-Type 'ar' or 'par' in the main menu.
-Useful to check you didn't forget to bill someone.
+At the end of your day you can display a summary of your work  - type ar
 
-i will open the St Vincents intranet
+Useful to check you didn't forget to bill someone.
+ctrl + w will open the patien'ts old records
 
 Let me know if you spot any bugs or want a new feature.
 
@@ -237,13 +236,8 @@ FILLED_TEXT = textwrap.fill(
                               'm in the next screen.\n', width=35)
 
 CHOICE_STRING = """Continue           enter
-User Guide         h
 Change team        c
-Redo               r
 Send a message     m
 Anaes summary      ar
-Print summary      par
-Show roster        cal
-See webpage        w
-STV intranet       i
-Quit the program   end"""
+old records        ctrl + w
+"""

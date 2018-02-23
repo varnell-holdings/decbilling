@@ -76,7 +76,7 @@ def get_insurance(asa, anaesthetist, ts):
         else:
             clear()
             print('Your choices are.')
-            pprint.pprint(nc.FUND_HELP)
+            pprint.pprint(nc.FUND_ABREVIATION)
             ans = input('Press Enter to try again: ')
             if ans == 'q':
                 raise LoopException
@@ -99,7 +99,7 @@ def get_insurance(asa, anaesthetist, ts):
                 if ans == 'q':
                     raise LoopException
             elif ahsa_abbr in nc.AHSA_DIC.keys():               
-                if ahsa_abbr == 'ot':
+                if ahsa_abbr == 'o':
                     fund = input("Enter fund name: ")
                 else:
                     fund = nc.AHSA_DIC[ahsa_abbr]

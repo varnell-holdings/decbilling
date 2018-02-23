@@ -245,6 +245,8 @@ def episode_getfund(insur_code, fund, fund_number, ref):
         fund_number = episode_get_fund_number()
         fund = episode_get_fund_name()
         mcn = ref = ''
+    elif insur_code == 'os' and fund == 'Overseas':
+        pass
     elif insur_code in {'p', 'u'}:
         fund_number = ''
         mcn, ref = episode_get_mcn_and_ref()
@@ -657,6 +659,30 @@ def make_anaesthetic_report(results, today, anaesthetist):
     return s
 
 
+def make_short_anaesthetic_report(results, today, anaesthetist):
+    """Write & print a txt file of anaesthetics today by anaesthetist"""
+    out_string = 'Patients for Dr {}   {}\n\n\n'.format(
+        anaesthetist.split()[-1], today)
+    results_list = []
+    number = 0
+    for row in results:
+        # tabulate seems to expect list of dicts
+        d = [('n', row['patient']), ('f', row['upper_code']),
+             ('s', row['lower_code']), ('70', row['seventy_code']),
+             ('a', row['asa_code']), ('t', row['time_code'])]
+        d = OrderedDict(d)
+        results_list.append(d)
+        number += 1
+    patient_string = tabulate(results_list, tablefmt='html')
+    bottom_string = '\n\nTotal number of patients {}'.format(number)
+    out_string += patient_string
+    out_string += bottom_string
+    s = 'd:\\Nobue\\anaesthetic_report.html'
+    with open(s, 'w') as f:
+        f.write(out_string)
+    return s
+
+
 def view_log():
     os.startfile('d:\\JOHN TILLET\\episode_data\\doc_error.txt')
 
@@ -857,7 +883,7 @@ def login_and_run(room):
             print(nc.CHOICE_STRING)
             choice = input().lower()
             if choice not in {
-                    '', 'ar', 'par', 'end', 'h', 'c', 'r',
+                    '', 'ar', 'q', 'h', 'c', 'r',
                     'm', 'a', 'u', 'cal', 'w', 'l'}:
                 continue
             try:
@@ -876,7 +902,7 @@ def login_and_run(room):
                         print(nc.FILLED_TEXT)
                         input('Press any key to continue: ')
                         continue
-                if choice == 'end':
+                if choice == 'q':
                     print('Thanks. Bye!')
                     time.sleep(2)
                     sys.exit(0)
@@ -897,12 +923,8 @@ def login_and_run(room):
                     make_webpage(message_string)
                 if choice == 'ar':
                     results, today = get_anaesthetic_eps_today(anaesthetist)
-                    s = make_anaesthetic_report(results, today, anaesthetist)
+                    s = make_short_anaesthetic_report(results, today, anaesthetist)
                     os.startfile(s)
-                if choice == 'par':
-                    results, today = get_anaesthetic_eps_today(anaesthetist)
-                    s = make_anaesthetic_report(results, today, anaesthetist)
-                    os.startfile(s, 'print')
                 if choice == 'cal':
                     open_calendar()
                 if choice == 'w':

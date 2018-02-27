@@ -246,7 +246,7 @@ def episode_getfund(insur_code, fund, fund_number, ref):
         fund = episode_get_fund_name()
         mcn = ref = ''
     elif insur_code == 'os' and fund == 'Overseas':
-        pass
+        mcn = ref = ''
     elif insur_code in {'p', 'u'}:
         fund_number = ''
         mcn, ref = episode_get_mcn_and_ref()

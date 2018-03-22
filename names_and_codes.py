@@ -70,13 +70,15 @@ DOC_DIC = {'cb': 'Dr C Bariol',
            'jm': 'Dr J Mill',
            'cw': 'Dr Yang Wu',
            'ak': 'Dr A Kim',
-           'ndl': 'Dr N De Luca'}
+           'ndl': 'Dr N De Luca',
+           'ch': 'Dr Craig HAIFER'}
 
 LOCUMS = {'Dr W Bye',
           'Dr V Nguyen',
           'Dr J Mill',
           'Dr Yang Wu',
-          'Dr A Kim'}
+          'Dr A Kim',
+          'Dr Craig HAIFER'}
 
 PARTNERS = {'Dr C Bariol',
             'Dr R Feller',
@@ -89,8 +91,8 @@ PARTNERS = {'Dr C Bariol',
 
 BANDERS = {'DR R Gett', 'Dr A Meagher', 'Dr A Wettstein', 'Dr G Owen'}
 
-CONSULTERS = {'Dr S Ghaly', 'Dr S Vivekanandarajah',
-              'Dr A Wettstein', 'Dr C Vickers', 'Dr D Williams', 'Dr R Feller'}
+CONSULTERS = {'Dr S Vivekanandarajah', 'Dr A Wettstein',
+              'Dr C Vickers', 'Dr R Feller', 'Dr D Williams'}
 
 ASA_DIC = {'0': None,
            '1': '92515-19',

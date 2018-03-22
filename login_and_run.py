@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
-from collections import namedtuple, OrderedDict
+from collections import namedtuple, OrderedDict, deque
 import csv
 import datetime
 from dateutil.relativedelta import relativedelta
 from dateutil.parser import parse
 import glob
+from jinja2 import PackageLoader, Environment
 import logging
 import os
 import os.path
@@ -159,6 +160,10 @@ def bill(anaesthetist, endoscopist, consultant, nurse, room):
             upper, colon, message)
 
         make_webpage(episode_string)
+        today_path = episode_to_csv(
+                out_theatre, room, endoscopist, anaesthetist, name,consult,
+                upper, colon, message, banding, clips, varix_flag, mrn)
+        make_today_sec(today_path)
         medical_data_to_csv(endoscopist, consultant, anaesthetist, nurse,
                             upper, colon, banding, postcode, dob, gp)
         close_out(anaesthetist)
@@ -282,7 +287,7 @@ def episode_open(message):
     pya.typewrite(['down'] * 11, interval=0.1)
     pya.press('enter')
     pya.hotkey('alt', 'f')
-
+    time.sleep(2)
     pic = 'd:\\John TILLET\\episode_data\\aileen.png'
     while pya.locateOnScreen(pic, region=(0, 45, 150, 40)) is not None:
         time.sleep(1)
@@ -743,6 +748,76 @@ def make_webpage(ep_string):
             new_index.write(head_string + ep_string + base_string)
     nob_today = 'd:\\Nobue\\today.html'
     shutil.copyfile(today_path, nob_today)
+
+def episode_to_csv(outtime, room, endoscopist, anaesthetist, patient,
+                   consult, upper, colon, message, banding,
+                   clips, varix_flag, mrn):
+    """Write episode data data to csv."""
+    doc_surname = endoscopist.split()[-1]
+    if doc_surname == 'Vivekanandarajah':
+        doc_surname = 'Suhir'
+    anaesthetist_surname = anaesthetist.split()[-1]
+    docs = doc_surname + '/' + anaesthetist_surname
+
+    if not consult:
+        consult = ''
+    if not upper:
+        upper = ''
+    if not colon:
+        colon = ''
+
+    episode_data = (outtime, room, docs, patient,
+                    consult, upper, colon, message,
+                    banding, clips, varix_flag, mrn)
+    today = datetime.datetime.now()
+    date_file_str = today.strftime('%Y' + '-' + '%m' + '-' + '%d')
+    date_filename = date_file_str + '.csv'
+    today_path = os.path.join(
+        'd:\\JOHN TILLET\\episode_data\\csv\\' + date_filename)
+    if os.path.isfile(today_path):
+        with open(today_path, 'a') as handle:
+            datawriter = csv.writer(
+                handle, dialect='excel', lineterminator='\n')
+            datawriter.writerow(episode_data)
+    else:
+        # move old files to episode-csv folder
+        base = 'd:\\JOHN TILLET\\episode_data\\csv\\'
+        dest = 'd:\\JOHN TILLET\\episode_data\\csv\\csv-backup'
+        for src in glob.glob(base + '*.csv'):
+            shutil.move(src, dest)
+        with open(today_path, 'w') as handle:
+            datawriter = csv.writer(
+                handle, dialect='excel', lineterminator='\n')
+            datawriter.writerow(episode_data)
+    return today_path
+
+#def render_from_template(template_name, **kwargs):
+#    loader = PackageLoader('bccode', 'templates')
+#    env = Environment(loader=loader)
+#    template = env.get_template(template_name)
+#    return template.render(**kwargs)
+
+
+def make_today_sec(today_path):
+    today_date = datetime.datetime.now()
+    today_str = today_date.strftime(
+        '%A' + '  ' + '%d' + ':' + '%m' + ':' + '%Y')
+    today_data = deque()
+    with open(today_path) as data:
+        reader = csv.reader(data)
+        for ep in reader:
+            today_data.appendleft(ep)
+    loader = PackageLoader('bccode', 'templates')
+    env = Environment(loader=loader)
+    template_name = 'today_sec_template.html'
+    template = env.get_template(template_name)
+    a = template.render(today_data=today_data, today_date=today_str)
+#    a = render_from_template(
+#        'today_sec_template.html',
+#        today_data=today_data, today_date=today_str)
+    with open('d:\\Nobue\\today_new.html', 'w') as f:
+        f.write(a)
+
 
 
 def medical_data_to_csv(endoscopist, consultant, anaesthetist, nurse,

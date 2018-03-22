@@ -288,8 +288,43 @@ def get_op_time(ts):
     return op_time, ts
 
 
+#def get_consult(consultant, upper, lower, time_in_theatre, message, ts):
+#    if consultant not in nc.CONSULTERS:
+#        consult = None
+#    else:
+#        while True:
+#            write_ts(ts)
+#            print('Ask Dr {} what consult to bill.'.format(
+#                consultant.split()[-1]))
+#            consult = input('Consult: ')
+#            if consult == 'q':
+#                raise LoopException
+#            elif consult in {'110', '116', '117', '0'}:
+#                if consult == '0':
+#                    consult = None
+#                break
+#            else:
+#                write_ts(ts)
+#                print('\033[31;1m' + 'help')
+#                print('Choices are 110, 117, 116, 0')
+#                print()
+#                print('110 is an initial consult. ')
+#                print('Can usually only charge a 110 once in a year')
+#                print('117 is a complex follow up')
+#                print('116 is a short follow up')
+#                print('Cannot charge 116 if patient has had a colonoscopy')
+#                print()
+#                ans = input('Hit Enter to retry'
+#                            ' or q to return to the main menu:')
+#                if ans == 'q':
+#                    raise LoopException
+#
+#    ts += '\n' + 'Consult:   {}'.format(str(consult))
+#    return (consult, message, ts)
+
+
 def get_consult(consultant, upper, lower, time_in_theatre, message, ts):
-    if consultant in {'Dr A Stoita', 'Dr C Bariol'} or consultant in nc.VMOS:
+    if consultant not in nc.CONSULTERS:
         consult = None
 
     elif consultant in nc.CONSULTERS:
@@ -300,20 +335,21 @@ def get_consult(consultant, upper, lower, time_in_theatre, message, ts):
             consult = input('Consult: ')
             if consult == 'q':
                 raise LoopException
-            elif consult in {'110', '116', '117', '0'}:
+            elif consult in {'l', 's', '0'}:
                 if consult == '0':
                     consult = None
+                elif consult == 'l':
+                    consult = '110'
+                elif consult == 's':
+                    consult = '117'
                 break
             else:
                 write_ts(ts)
                 print('\033[31;1m' + 'help')
-                print('Choices are 110, 117, 116, 0')
+                print('Choices are l, s, 0')
                 print()
-                print('110 is an initial consult. ')
-                print('Can usually only charge a 110 once in a year')
-                print('117 is a complex follow up')
-                print('116 is a short follow up')
-                print('Cannot charge 116 if patient has had a colonoscopy')
+                print('l is an initial or long consult. ')
+                print('s is a short follow up')
                 print()
                 ans = input('Hit Enter to retry'
                             ' or q to return to the main menu:')

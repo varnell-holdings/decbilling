@@ -5,39 +5,16 @@
 
 import csv
 from collections import defaultdict
-import logging
 import math
 import os
 import sys
+import time
 
 import docx
 from docx.shared import Mm
 
+from names_and_codes import FUND_FEES, BILLER
 
-# In[2]:
-
-# %load ./helpers/fundfees.py
-
-# value is a list of  two numbers - the consult fee and the unit fee
-
-FUND_FEES = {'hcf': [90.30, 34.70], 'bup': [74.40, 33.60],
-             'mpl': [73.00, 32.70], 'ahsa': [68.40, 34.70],
-             'ahm': [71.05, 32.70], 'nib': [65.95, 31.50],
-             'ama': [150.00, 77.00], 'ga': [82.60, 45.00],
-             'va': [69.45, 32.70], 'bb': [32.25, 14.85], 'os': [65.95, 31.50]}
-
-
-# In[3]:
-
-BILLER = {'Dr J Tillett':
-            {'name': 'Dr John Tillett',
-            'address': '7 Henry Lawson Drive, Villawood NSW 2163',
-            'provider': '0307195H',
-            'contact', 'Phone: 8382 6622 Email: john@endoscopy.stvincents.com.au'},
-            }
-
-
-# In[ ]:
 
 # %load ./helpers/printacc.py
 """Prints a single accout to a docx document and returns it"""
@@ -221,43 +198,73 @@ def process_acc(grand_total, ep):
 """Close and delete files at end of script."""
 
 
-def cleanup():
+def cleanup(datafile, masterfile, summaryfile, printfile):
     """Close and delete files at end of script."""
+    input('Press Enter to open accounts summary for printing')
+    os.startfile(summaryfile)
+    input('Press Enter to open accounts for printing')
+    os.startfile(printfile)
+    print()
     while True:
-        merge = """Press y to merge downloaded file into master csv file
-and delete download
-Press n to just exit
-Press d to exit and delete without merge.  """
+        merge = """When finished printing accounts, Press y to save these patients.
+Press n to just exit (current batch will stay in place.)
+"""
         flag = input(merge)
-        if flag in {'y', 'n', 'd'}:
+        if flag in {'y', 'n'}:
             break
     if flag == 'n':
         pass
 
-    elif flag == 'd':
-        os.remove('/Users/jtair/Downloads/patients.csv')
-
     elif flag == 'y':
-        with open('/Users/jtair/Downloads/patients.csv') as csvhandle:
-            with open('/Users/jtair/Dropbox/decprograms/'
-                      'jtbill/data/patients.csv', 'a') as filehandle:
+        with open(datafile) as csvhandle:
+            with open(masterfile, 'a') as filehandle:
                 csvdata = csv.reader(csvhandle)
                 csvwriter = csv.writer(filehandle)
                 for p in csvdata:
                     csvwriter.writerow(p)
-        os.remove('/Users/jtair/Downloads/patients.csv')
+        try:
+            os.remove(datafile)
+        except FileNotFoundError:
+            pass
+
+# Print iterations progress
+def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, length = 25, fill = '█'):
+    """
+    Call in a loop to create terminal progress bar
+    @params:
+        iteration   - Required  : current iteration (Int)
+        total       - Required  : total iterations (Int)
+        prefix      - Optional  : prefix string (Str)
+        suffix      - Optional  : suffix string (Str)
+        decimals    - Optional  : positive number of decimals in percent complete (Int)
+        length      - Optional  : character length of bar (Int)
+        fill        - Optional  : bar fill character (Str)
+    """
+    percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
+    filledLength = int(length * iteration // total)
+    bar = fill * filledLength + '-' * (length - filledLength)
+    print('\r%s |%s| %s%% %s' % (prefix, bar, percent, suffix), end = '\r')
+    # Print New Line on Complete
+    if iteration == total: 
+        print()
 
 
 def main(biller):
     """Print account in batches of funds with total fees."""
 
     biller_surmame = biller.split()[-1]
-
+    summaryfile = 'D:\\JOHN TILLET\\episode_data\\accts_summary.txt'
+    printfile = 'D:\\JOHN TILLET\\episode_data\\accts.docx'
     datafile = 'D:\\JOHN TILLET\\episode_data\\' + biller_surmame + '.csv'
-
+    masterfile = 'D:\\JOHN TILLET\\episode_data\\csv\\' + biller_surmame + '.csv'
+    
     headers = ["date", "name", "address", "dob", "medicare_no", "ref",
                "fund_name", "fund_number", "fund_code", "doctor",
                "upper", "lower", "seventy", "asa_3", "time", "invoice"]
+    try:
+        os.remove(summaryfile)
+    except IOError:
+        pass
 
     try:
         with open(datafile) as csvfile:
@@ -268,6 +275,7 @@ def main(biller):
         print('No csv file found.')
         sys.exit(1)
 
+    print("Hi - printing Dr {}'s accounts".format(biller_surmame))
     doc = docx.Document()
     style = doc.styles['Normal']
     font = style.font
@@ -287,6 +295,13 @@ def main(biller):
 
     # for each fund in pat_dict get the list of episodes ep_list and print
     # them out in equal batches < 20
+    
+    length = len(ep_list)
+    print(length)
+    iteration = 0
+    printProgressBar(iteration, length, prefix = 'Progress:', suffix = 'Complete', length = 25)
+    
+
     for fu in pat_dict.keys():
         ep_list = pat_dict[fu]
         fund_len = len(ep_list)
@@ -299,21 +314,29 @@ def main(biller):
             num_p = print_calc(fund_left)
             end = start + num_p
             for np in ep_list[start: end]:
+                iteration += 1
                 processed = process_acc(grand_total, np)
                 grand_total, consult_as_float, unit, time_fee, total_fee, unit = processed
                 acc = print_account(np, doc, unit, consult_as_float,
                                     time_fee, total_fee, biller)
-            if np['fund_code'] == 'os':
-                logging.info('Overseas -- %s ' % num_p)
-            else:
-                logging.info('%s -- %s ' % (np['fund_name'], num_p,))
 
+            with open(summaryfile, 'a') as file:
+                if np['fund_code'] == 'os':
+                    file.write('Overseas -- %s\n ' % num_p)
+                else:
+                    file.write('%s -- %s\n ' % (np['fund_name'], num_p))
+                
             acc = print_batch_header(doc, fu, num_p, grand_total)
             fund_left -= num_p
             start += num_p
+
+            printProgressBar(iteration, length, prefix = 'Progress:', suffix = 'Complete', length = 25)
+            time.sleep(0.1)
             if start >= fund_len:
                 break
-    acc.save('D:\\JOHN TILLET\\episode_data\\accts.docx')
-
-
-main(False, False, False, biller='Dr J Tillett')
+    print()
+    acc.save(printfile)
+    print()
+    cleanup(datafile, masterfile, summaryfile, printfile)
+if __name__ == '__main__':
+    main(False, False, False, biller='Dr J Tillett')

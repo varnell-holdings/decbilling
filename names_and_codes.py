@@ -14,7 +14,8 @@ NURSES_DIC = {'no': 'Nobue Chashin',
               'su': 'Subeia Aziz Silva',
               'be': 'Belinda Plunkett',
               'ch': 'Cheryl Guise',
-              'ka': 'Katherine Turner', }
+              'ka': 'Katherine Turner',
+              'lo': 'Lorae Tamayo',}
 
 ANAESTHETISTS = {'tt': 'Dr T Thompson',
                  'sv': 'Dr S Vuong',
@@ -41,7 +42,7 @@ REGULAR_ANAESTHETISTS = {'Dr J Tillett', "Dr G O'Sullivan", 'Dr T Thompson',
                          'Dr S Vuong', 'Dr C Brown', 'Dr J Riley',
                          'Dr J Stevens', 'Dr D Bowring', 'Dr J Tester'}
 
-BILLING_ANAESTHETISTS = {'Dr J Tillett'}
+BILLING_ANAESTHETISTS = {'Dr J Tillett', 'Dr S Vuong'}
 
 VMOS = {'DR M Danta', 'DR R Gett', 'Prof R Lord', 'Dr G Owen', 'Dr A Meagher'}
 
@@ -71,14 +72,16 @@ DOC_DIC = {'cb': 'Dr C Bariol',
            'cw': 'Dr Yang Wu',
            'ak': 'Dr A Kim',
            'ndl': 'Dr N De Luca',
-           'ch': 'Dr Craig HAIFER'}
+           'ch': 'Dr Craig HAIFER',
+           'ss': 'Dr S Sanagapalli'}
 
 LOCUMS = {'Dr W Bye',
           'Dr V Nguyen',
           'Dr J Mill',
           'Dr Yang Wu',
           'Dr A Kim',
-          'Dr Craig HAIFER'}
+          'Dr Craig HAIFER',
+          'Dr S Sanagapalli'}
 
 PARTNERS = {'Dr C Bariol',
             'Dr R Feller',
@@ -191,6 +194,7 @@ FUND_DIC = {'hcf': 'HCF',
             'ahsa': 'AHSA'}
 
 AHSA_DIC = {'te': 'Teachers Federation Health',
+            'tu': 'Teachers Union Health',
             'we': 'Westfund',
             'au': 'Australian Unity Health',
             'cb': 'CBHS Health',
@@ -206,6 +210,7 @@ AHSA_DIC = {'te': 'Teachers Federation Health',
             'hb': 'HBF',
             'na': 'Naval Health Benefits',
             're': 'Reserve Bank',
+            'ph': 'Pheonix Health',
             'o': 'other'}
 
 USER_GUIDE = textwrap.fill("""In most places just hit the Enter key to get help.
@@ -239,7 +244,30 @@ FILLED_TEXT = textwrap.fill(
 
 CHOICE_STRING = """Continue           enter
 Change team        c
-Send a message     m
-Anaes summary      ar
+Anaes. roster      ros
+Anaes. summary     as
 old records        ctrl + w
 """
+
+
+# value is a list of  two numbers - the consult fee and the unit fee
+
+FUND_FEES = {'hcf': [90.30, 34.70], 'bup': [74.40, 33.60],
+             'mpl': [73.00, 32.70], 'ahsa': [68.40, 34.70],
+             'ahm': [71.05, 32.70], 'nib': [65.95, 31.50],
+             'ama': [150.00, 77.00], 'ga': [82.60, 45.00],
+             'va': [69.45, 32.70], 'bb': [32.25, 14.85], 'os': [65.95, 31.50]}
+
+
+
+BILLER = {'Dr J Tillett':
+            {'name': 'Dr John Tillett',
+            'address': '7 Henry Lawson Drive, Villawood NSW 2163',
+            'provider': '0307195H',
+            'contact': 'Phone: 8382 6622 Email: john@endoscopy.stvincents.com.au'},
+        'Dr S Vuong':
+             {'name': 'Dr Sabine Vuong',
+              'address': 'PO Box 169 Dulwich Hill 2203',
+              'provider': '2349492F',
+              'contact': '8382 3200'}
+            }

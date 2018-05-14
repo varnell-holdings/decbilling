@@ -119,7 +119,6 @@ def get_insurance(asa, anaesthetist, ts):
 
 
 def get_upper(message, ts):
-    varix_flag = False
     varix_lot = ''
     while True:
         write_ts(ts)
@@ -153,7 +152,6 @@ def get_upper(message, ts):
                     raise LoopException
 
     if upper == 'pv':
-        varix_flag = True
         message += ' Bill varix bander.'
         varix_lot = input('Bander LOT No: ')
     if upper in {'ha', 'ph'}:
@@ -169,7 +167,7 @@ def get_upper(message, ts):
         message += ' HALO {}'.format(halo)
     ts += '\n' + nc.UPPER_HELP[upper]
     upper = nc.UPPER_DIC[upper]
-    return upper, varix_flag, varix_lot, message, ts
+    return upper, varix_lot, message, ts
 
 
 def get_colon(upper, message, ts):
@@ -403,7 +401,7 @@ def inputer(endoscopist, consultant, anaesthetist):
         insur_code, fund, ref, fund_number, ts = get_insurance(
             asa, anaesthetist, ts)
 
-        (upper, varix_flag, varix_lot, message, ts) = get_upper(message, ts)
+        (upper, varix_lot, message, ts) = get_upper(message, ts)
 
         (colon, message, ts) = get_colon(upper, message, ts)
 
@@ -423,7 +421,7 @@ def inputer(endoscopist, consultant, anaesthetist):
     (in_theatre, out_theatre) = in_and_out_calculater(op_time)
 
     in_data = (asa, upper, colon, banding, consult, message, op_time,
-               insur_code, fund, ref, fund_number, clips, varix_flag,
+               insur_code, fund, ref, fund_number, clips,
                varix_lot, in_theatre, out_theatre)
 
     return in_data

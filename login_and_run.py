@@ -129,7 +129,7 @@ def bill(anaesthetist, endoscopist, consultant, nurse, room):
 
         (asa, upper, colon, banding, consult, message, op_time, insur_code,
          fund, ref, fund_number,
-         clips, varix_flag, varix_lot, in_theatre, out_theatre) = data_entry
+         clips, varix_lot, in_theatre, out_theatre) = data_entry
 
 #        scrape fund details if billing anaesthetist
         if anaesthetist in nc.BILLING_ANAESTHETISTS and asa is not None:
@@ -174,7 +174,7 @@ def bill(anaesthetist, endoscopist, consultant, nurse, room):
 
 #        finish data pasting into day surgery and exit
         episode_procedures(upper, colon, banding, asa)
-        episode_theatre(endoscopist, nurse, clips, varix_flag, varix_lot, room)
+        episode_theatre(endoscopist, nurse, clips, varix_lot, room)
         episode_close()
         time.sleep(2)
         close_out(anaesthetist)
@@ -411,7 +411,7 @@ def episode_gp():
     return gp
 
 
-def episode_theatre(endoscopist, nurse, clips, varix_flag, varix_lot, room):
+def episode_theatre(endoscopist, nurse, clips, varix_lot, room):
     pya.hotkey('alt', 'n')
     pya.typewrite(['left'] * 2, interval=0.1)
 
@@ -439,10 +439,10 @@ def episode_theatre(endoscopist, nurse, clips, varix_flag, varix_lot, room):
     pya.click()
     pya.typewrite(nurse)
     pya.typewrite(['enter', 'e', 'enter'], interval=0.1)
-    if clips != 0 or varix_flag is True:
+    if clips != 0 or varix_lot:
         pya.moveTo(100, 360)
         pya.click()
-        if varix_flag is True:
+        if varix_lot:
             pyperclip.copy('Boston Scientific Speedband Superview Super 7')
             pya.hotkey('ctrl', 'v')
             pya.press('enter')
@@ -813,7 +813,7 @@ def make_message_string(anaesthetist):
 def episode_update(room, endoscopist, anaesthetist, data_entry):
     # data_enry is a tuple -> unpack it
     (asa, upper, colon, banding, consult, message, op_time,
-     insur_code, fund, ref, fund_number, clips, varix_flag,
+     insur_code, fund, ref, fund_number, clips,
      varix_lot, in_formatted, out_formatted) = data_entry
 
     message = episode_open(message)

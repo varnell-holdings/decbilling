@@ -18,6 +18,13 @@ from names_and_codes import FUND_FEES, BILLER
 
 # %load ./helpers/printacc.py
 """Prints a single accout to a docx document and returns it"""
+def yes_no_decode(up ,low, age, asa):
+    if up in {'Yes', 'No'}:
+         up = 'upper_' + up
+         low = 'lower_' + low
+         age = 'age70_' + age
+         asa = 'asa3_' + asa
+    return up, low, age, asa
 
 
 def print_account(ep, doc, unit, consult_as_float,
@@ -72,28 +79,31 @@ def print_account(ep, doc, unit, consult_as_float,
     cons_str = '%.2f' % consult_as_float
     cons_str = cons_str.rjust(25)
     p_cons.add_run(cons_str)
-
-    if ep['upper'] == 'Yes':
+    
+    ep['upper'], ep['lower'], ep['seventy'], ep['asa_3'] = yes_no_decode(
+            ep['upper'], ep['lower'], ep['seventy'], ep['asa_3']) 
+    
+    if ep['upper'] == 'upper_Yes':
         p_endo = doc.add_paragraph('20740')
         endo_str = '%.2f' % (unit * 5)
         endo_str = endo_str.rjust(24)
         p_endo.add_run(endo_str)
-        if ep['lower'] == 'Yes':
+        if ep['lower'] == 'lower_Yes':
             p_col = doc.add_paragraph('20810')
             col_str = '%.2f' % 0.0
             col_str = col_str.rjust(26)
             p_col.add_run(col_str)
-    if ep['upper'] == 'No' and ep['lower'] == 'Yes':
+    if ep['upper'] == 'upper_No' and ep['lower'] == 'lower_Yes':
         p_col = doc.add_paragraph('20810')
         col_str = '%.2f' % (unit * 4)
         col_str = col_str.rjust(24)
         p_col.add_run(col_str)
-    if ep['seventy'] == 'Yes':
+    if ep['seventy'] == 'age70_Yes':
         p_age = doc.add_paragraph('25015')
         age_str = '%.2f' % unit
         age_str = age_str.rjust(25)
         p_age.add_run(age_str)
-    if ep['asa_3'] == 'Yes':
+    if ep['asa_3'] == 'asa3_Yes':
         p_sick = doc.add_paragraph('25000')
         sick_str = '%.2f' % unit
         sick_str = sick_str.rjust(25)
@@ -219,7 +229,7 @@ Press n to just exit (current batch will stay in place.)
         with open(datafile) as csvhandle:
             with open(masterfile, 'a') as filehandle:
                 csvdata = csv.reader(csvhandle)
-                csvwriter = csv.writer(filehandle)
+                csvwriter = csv.writer(filehandle, dialect='excel', lineterminator='\n')
                 for p in csvdata:
                     csvwriter.writerow(p)
         try:
@@ -339,4 +349,4 @@ def main(biller):
     print()
     cleanup(datafile, masterfile, summaryfile, printfile)
 if __name__ == '__main__':
-    main(False, False, False, biller='Dr J Tillett')
+    main(False, False, False, biller='Dr S Vuong')

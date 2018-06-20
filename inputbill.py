@@ -118,7 +118,7 @@ def get_insurance(asa, anaesthetist, ts):
     return insur_code, fund, ref, fund_number, ts
 
 
-def get_upper(message, ts):
+def get_upper(message, band3, ts):
     varix_lot = ''
     while True:
         write_ts(ts)
@@ -166,11 +166,13 @@ def get_upper(message, ts):
                 print("Type either '90' or 'u' for ultra")
         message += ' HALO {}'.format(halo)
     ts += '\n' + nc.UPPER_HELP[upper]
+    if upper in {'ha', 'ph', 'br'}: 
+        band3 = True
     upper = nc.UPPER_DIC[upper]
-    return upper, varix_lot, message, ts
+    return upper, varix_lot, message, band3, ts
 
 
-def get_colon(upper, message, ts):
+def get_colon(upper, message, band3, ts):
     while True:
         write_ts(ts)
         colon = input('Lower:  ').lower()
@@ -203,15 +205,18 @@ def get_colon(upper, message, ts):
                     raise LoopException
     ts += '\n' + nc.COLON_HELP[colon]
     colon = nc.COLON_DIC[colon]
-    return colon, message, ts
+    screen_polyp = '32089-00' in message
+    if colon in {'32093-00', '32094-00'} or screen_polyp:
+        band3 = True
+    return colon, message, band3, ts
 
 
-def get_banding(consultant, lower, message, ts):
+def get_banding(consultant, lower, message, band3, ts):
     if consultant not in nc.BANDERS or lower is None:
         banding = '0'
         ts += '\n' + nc.BANDING_HELP[banding]
         banding = nc.BANDING_DIC[banding]
-        return banding, message, ts
+        return banding, message, band3, ts
 
     while True:
         write_ts(ts)
@@ -227,6 +232,7 @@ def get_banding(consultant, lower, message, ts):
             break
         elif banding == 'a':
             message += ' Anal dilatation.'
+            band3 = True
             if consultant == 'Dr A Wettstein':
                 message += ' Bill bilateral pudendal blocks.'
             break
@@ -241,9 +247,9 @@ def get_banding(consultant, lower, message, ts):
                 raise LoopException
     ts += '\n' + nc.BANDING_HELP[banding]
     banding = nc.BANDING_DIC[banding]
-    return banding, message, ts
+    return banding, message, band3, ts
 
-def extra_banding(banding):
+def extra_banding(banding, band3):
     while True:
         clear()
         banding = input('Anal procedure:   ').lower()
@@ -257,6 +263,7 @@ def extra_banding(banding):
             break
         elif banding == 'a':
             anal_message = ' Anal dilatation.'
+            band3 = True
             break
         else:
             print('Select 0 for no anal procedure')
@@ -266,7 +273,7 @@ def extra_banding(banding):
             if ans == 'q':
                 raise LoopException
     banding = nc.BANDING_DIC[banding]
-    return banding, anal_message
+    return banding, band3, anal_message
     
     
 def get_clips(message, ts):
@@ -349,7 +356,7 @@ def get_consult(consultant, upper, lower, time_in_theatre, message, ts):
     return (consult, message, ts)
 
 
-def confirm(banding, message, ts):
+def confirm(banding, message, band3, ts):
     ts += '\n' + 'Message: {}'.format(message)
     while True:
         write_ts(ts)
@@ -370,19 +377,19 @@ def confirm(banding, message, ts):
                 print('Anal procedure already added!')
                 time.sleep(2)
                 continue
-            banding, anal_message = extra_banding(banding)
+            banding, band3, anal_message = extra_banding(banding, band3)
             message += anal_message
             ts = ts.replace('No anal procedure', 'Anal procedure done')
         else:
             break
-    return banding, message
+    return banding, band3, message
 
 
 def in_and_out_calculater(time_in_theatre):
     time_in_theatre = int(time_in_theatre)
-    nowtime = datetime.datetime.now()
-    outtime = nowtime + relativedelta(minutes=+3)
-    intime = nowtime + relativedelta(minutes=-time_in_theatre)
+    now = datetime.datetime.now()
+    outtime = now + relativedelta(minutes=+3)
+    intime = now + relativedelta(minutes=-time_in_theatre)
     out_formatted = outtime.strftime('%H' + ':' + '%M')
     in_formatted = intime.strftime('%H' + ':' + '%M')
 
@@ -393,6 +400,7 @@ def inputer(endoscopist, consultant, anaesthetist):
     colorama.init(autoreset=True)
 
     message = ''
+    band3 = False
     ts = 'Endoscopist:  {}'.format(endoscopist)
     try:
 
@@ -401,11 +409,12 @@ def inputer(endoscopist, consultant, anaesthetist):
         insur_code, fund, ref, fund_number, ts = get_insurance(
             asa, anaesthetist, ts)
 
-        (upper, varix_lot, message, ts) = get_upper(message, ts)
+        (upper, varix_lot, message ,band3, ts) = get_upper(message, band3, ts)
 
-        (colon, message, ts) = get_colon(upper, message, ts)
+        (colon, message, band3, ts) = get_colon(upper, message, band3, ts)
 
-        (banding, message, ts) = get_banding(consultant, colon, message, ts)
+        (banding, message, band3, ts) = get_banding(
+                consultant, colon, message, band3, ts)
 
         (clips, message, ts) = get_clips(message, ts)
 
@@ -414,7 +423,7 @@ def inputer(endoscopist, consultant, anaesthetist):
         (consult, message, ts) = get_consult(
             consultant, upper, colon, op_time, message, ts)
 
-        banding, message = confirm(banding, message, ts)
+        banding, band3, message = confirm(banding, message, band3, ts)
     except LoopException:
         raise
 
@@ -422,7 +431,7 @@ def inputer(endoscopist, consultant, anaesthetist):
 
     in_data = (asa, upper, colon, banding, consult, message, op_time,
                insur_code, fund, ref, fund_number, clips,
-               varix_lot, in_theatre, out_theatre)
+               varix_lot, in_theatre, out_theatre, band3)
 
     return in_data
 

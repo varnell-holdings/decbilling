@@ -1,37 +1,39 @@
 # -*- coding: utf-8 -*-
-from collections import namedtuple, OrderedDict, deque
+from collections import namedtuple,  deque
 import csv
 import datetime
 from dateutil.relativedelta import relativedelta
 from dateutil.parser import parse
-import glob
-from jinja2 import PackageLoader, Environment
+from jinja2 import Environment, FileSystemLoader
 import logging
 import os
 import os.path
 import pickle
 import pprint
-import shutil
 import sys
 import time
 import webbrowser
 
 import colorama
-import dataset
 import pyautogui as pya
 import pyperclip
-from tabulate import tabulate
 
-from inputbill import (inputer, LoopException, clear)
+from inputbill import (inputer, LoopException)
 import names_and_codes as nc
 import decbatches
 
 pya.PAUSE = 0.2
 pya.FAILSAFE = True
 
+today = datetime.datetime.now()
 
 class EpFullException(Exception):
     pass
+
+
+def clear():
+    print('\033[2J')  # clear screen
+    print('\033[1;1H')  # move to top left
 
 
 def get_anaesthetist():
@@ -122,14 +124,14 @@ def get_nurse():
     return nurse
 
 
-def bill(anaesthetist, endoscopist, consultant, nurse, room):
+def bill(anaesthetist, endoscopist, consultant, nurse):
     """Workhorse function"""
     try:
         data_entry = inputer(endoscopist, consultant, anaesthetist)
-
+#       unpack data_entry
         (asa, upper, colon, banding, consult, message, op_time, insur_code,
          fund, ref, fund_number,
-         clips, varix_lot, in_theatre, out_theatre) = data_entry
+         clips, varix_lot, in_theatre, out_theatre, band3) = data_entry
 
 #        scrape fund details if billing anaesthetist
         if anaesthetist in nc.BILLING_ANAESTHETISTS and asa is not None:
@@ -137,6 +139,7 @@ def bill(anaesthetist, endoscopist, consultant, nurse, room):
                 insur_code, fund, fund_number, ref)
         else:
             mcn = ref = fund = fund_number = ''
+            
 
 #        open day surgery and do some scrraping and pasting
         message = episode_open(message)
@@ -145,36 +148,31 @@ def bill(anaesthetist, endoscopist, consultant, nurse, room):
         endoscopist = episode_discharge(
                 in_theatre, out_theatre, anaesthetist, endoscopist)
         
-#        process data for anaesthetic billing and write to db for reports
-        if asa is not None:
-            ae_csv, ae_db_dict, message = bill_process(
+#        anaesthetic billing
+        if asa is not None and anaesthetist in nc.BILLING_ANAESTHETISTS:
+            anaesthetic_tuple, message = bill_process(
                 dob, upper, colon, asa, mcn, insur_code, op_time,
                 name, address, ref, fund, fund_number, endoscopist,
                 anaesthetist, message)
-            to_anaesthetic_database(ae_db_dict)
-
-#        write anaesthetic billing data to csv
-        if asa is not None and anaesthetist in nc.BILLING_ANAESTHETISTS:
-            to_anaesth_csv(ae_csv, anaesthetist)
-
+            to_anaesthetic_csv(anaesthetic_tuple, anaesthetist)
+            render_anaesthetic_report(anaesthetist)
+     
+#        web page with jinja2
         message = message_parse(message)  # break message into lines
-#        old web page
-        episode_string = make_episode_string(
-            out_theatre, room, endoscopist, anaesthetist, name, consult,
-            upper, colon, message)
-        make_webpage(episode_string)
-#        new web page with jinja2
         today_path = episode_to_csv(
-                out_theatre, room, endoscopist, anaesthetist, name,consult,
+                out_theatre, endoscopist, anaesthetist, name,consult,
                 upper, colon, message)
-        make_today_sec(today_path)
+        make_web_secretary(today_path)
 #        data collection into csv - not essential
         medical_data_to_csv(endoscopist, consultant, anaesthetist, nurse,
                             upper, colon, banding, postcode, dob, gp)
 
 #        finish data pasting into day surgery and exit
         episode_procedures(upper, colon, banding, asa)
-        episode_theatre(endoscopist, nurse, clips, varix_lot, room)
+        episode_theatre(endoscopist, nurse, clips, varix_lot)
+        if band3:
+            episode_claim()
+        pya.click()
         episode_close()
         time.sleep(2)
         close_out(anaesthetist)
@@ -247,19 +245,13 @@ def episode_get_fund_number():
 
 
 def episode_getfund(insur_code, fund, fund_number, ref):
+#    ref may contain garrison episode id
     while True:
         if not pya.pixelMatchesColor(150, 630, (255, 0, 0)):
             print('Open the patient file.')
             input('Hit Enter when ready.')
         else:
             break
-#    while True:
-#        pic = 'd:\\John TILLET\\episode_data\\membership.png'
-#        if pya.locateOnScreen(pic, region=(527, 512,100, 25)) is None:
-#            print('Health Fund Membership summary is missing.')
-#            input('Ask secretaries to fix. Then press Enter')
-#        else:
-#            break
     # get mcn
     if insur_code == 'ga':
         mcn = ''
@@ -269,19 +261,14 @@ def episode_getfund(insur_code, fund, fund_number, ref):
         mcn = ref = ''
     elif insur_code == 'os' and fund == 'Overseas':
         mcn = ref = ''
-    elif insur_code in {'p', 'u'}:
+    elif insur_code in {'p', 'u', 'v'}:
         fund_number = ''
         mcn, ref = episode_get_mcn_and_ref()
     else:
         fund_number = episode_get_fund_number()
         mcn, ref = episode_get_mcn_and_ref()
 
-    insur_details = (mcn, ref, fund, fund_number)
-    csvfile = 'd:\\JOHN TILLET\\episode_data\\jtdata\\test_funds.csv'
-    with open(csvfile, 'a') as handle:
-        datawriter = csv.writer(handle, dialect='excel', lineterminator='\n')
-        datawriter.writerow(insur_details)
-    return insur_details
+    return (mcn, ref, fund, fund_number)
 
 
 def episode_open(message):
@@ -411,7 +398,15 @@ def episode_gp():
     return gp
 
 
-def episode_theatre(endoscopist, nurse, clips, varix_lot, room):
+def episode_claim():
+    pya.hotkey('alt', 's')
+    pya.typewrite(['left'] * 2, interval=0.1)
+    for i in range(7):
+        pya.hotkey('shift', 'tab')
+    pya.press('3')
+
+
+def episode_theatre(endoscopist, nurse, clips, varix_lot):
     pya.hotkey('alt', 'n')
     pya.typewrite(['left'] * 2, interval=0.1)
 
@@ -518,14 +513,13 @@ def episode_close():
 # Utility fucntions for bill processing
 
 def get_age_difference(dob):
-    today_raw = datetime.datetime.today()
     dob = parse(dob, dayfirst=True)
-    age_sep = relativedelta(today_raw, dob)
+    age_sep = relativedelta(today, dob)
     return age_sep.years
 
 
 def get_invoice_number():
-    s = 'd:\\JOHN TILLET\\episode_data\\jtdata\\invoice_store.py'
+    s = 'd:\\JOHN TILLET\\episode_data\\invoice_store.py'
     with open(s, 'r+b') as handle:
         invoice = pickle.load(handle)
         invoice += 1
@@ -555,64 +549,45 @@ def get_time_code(op_time):
 def bill_process(dob, upper, lower, asa, mcn, insur_code, op_time,
                  patient, address, ref, fund,
                  fund_number, endoscopist, anaesthetist, message):
-    """Turn raw data into stuff ready to go into anaesthetic account.
+    """Turn raw data into stuff ready to go into anaesthetic csv file
 
     Generates and stores an incremented invoice number.
-    First returned tuple is for csv, second is for database
+    Returns a namedtuple
     """
-    now = datetime.datetime.now()
-    today_for_invoice = now.strftime('%d' + '-' + '%m' + '-' + '%Y')
-    today_lex = now.strftime('%Y' + '%m' + '%d')
+    today_for_invoice = today.strftime('%d' + '-' + '%m' + '-' + '%Y')
     age_diff = get_age_difference(dob)
     age_seventy = upper_done = lower_done = asa_three = age_seventy = 'No'
-    upper_code = lower_code = asa_code = seventy_code = ''
 
     if upper:
-        upper_done = 'Yes'  # this goes to jrt csv file
-        upper_code = '20740'  # this goes to anaesthetic database
+        upper_done = 'upper_Yes'  # this goes to jrt csv file
+    else:
+        upper_done = 'upper_No'
     if lower:
-        lower_done = 'Yes'
-        lower_code = '20810'
+        lower_done = 'lower_Yes'
+    else:
+        lower_done = 'lower_No'
     if asa[-2] == '3':
-        asa_three = 'Yes'
-        asa_code = '25000'
-    if asa[-2] == '4':
-        asa_three = 'Yes'
-        asa_code = '25005'
+        asa_three = 'asa3_Yes'
+    elif asa[-2] == '4':
+        asa_three = 'asa3_Four'
+    elif asa[-2] in {'1', '2'}:
+        asa_three = 'asa3_No'
     if age_diff >= 70:
-        age_seventy = 'Yes'
-        seventy_code = '25015'
+        age_seventy = 'age70_Yes'
+    else:
+        age_seventy = 'age70_No'
     if insur_code == 'os':  # get rid of mcn in reciprocal mc patients
         mcn = ''
-    if insur_code == 'u' or insur_code == 'p' and anaesthetist == 'Dr J Tillett':
+    jt = anaesthetist == 'Dr J Tillett'
+    if insur_code == 'u' or insur_code == 'p' and jt:
         insur_code = 'bb'
         message += ' JT will bulk bill.'
-    # if insur_code == 'os' and fund != 'Overseas':  # os - in fund
-    #     message += ' JT will bill {}.'.format(fund)
 
     time_code = get_time_code(op_time)
 
     invoice = get_invoice_number()
     invoice = 'DEC' + str(invoice)
 
-    # db has direct aneasthetic codes under first and second
-    # now used for anaesthetic day reports and jt analysis
-    Anaes_ep = namedtuple(
-        'Anaes_ep', 'today_for_invoice, patient, address, dob,'
-        'mcn, ref, fund, fund_number, insur_code, endoscopist,'
-        'anaesthetist, upper_code, lower_code, seventy_code,'
-        'asa_code, time_code, invoice, today_lex')
-
-    anaesthetic_data = Anaes_ep(
-        today_for_invoice, patient, address, dob, mcn, ref,
-        fund, fund_number, insur_code, endoscopist, anaesthetist,
-        upper_code, lower_code, seventy_code,
-        asa_code, time_code, invoice, today_lex)
-
-    anaesthetic_data_dict = anaesthetic_data._asdict()  # for dataset
-
-    # csv has fields with yes and no under upper_done etc
-    # for my account printing program
     Aneas_ep_csv = namedtuple(
         'Aneas_ep_csv', 'today_for_invoice, patient, address, dob, mcn,'
         'ref, fund, fund_number, insur_code, endoscopist, upper_done,'
@@ -623,7 +598,7 @@ def bill_process(dob, upper, lower, asa, mcn, insur_code, op_time,
         fund, fund_number, insur_code, endoscopist, upper_done,
         lower_done, age_seventy, asa_three, time_code, invoice)
 
-    return ae_csv, anaesthetic_data_dict, message
+    return ae_csv, message
 
 
 def message_parse(message):
@@ -633,25 +608,7 @@ def message_parse(message):
     return message
 
 
-def to_anaesthetic_database(an_ep_dict):
-    """Write anaethetic episode to sqlite using dataset"""
-    db_file = 'sqlite:///d:\\JOHN TILLET\\episode_data\\aneasthetics.db'
-    db = dataset.connect(db_file)
-    table = db['episodes']
-    table.insert(an_ep_dict)
-
-
-# Deprecated jrt billing csv function
-
-#def to_csv(episode_data):
-#    """Write tuple of billing data to csv."""
-#    csvfile = 'd:\\JOHN TILLET\\episode_data\\jtdata\\patients.csv'
-#    with open(csvfile, 'a') as handle:
-#        datawriter = csv.writer(handle, dialect='excel', lineterminator='\n')
-#        datawriter.writerow(episode_data)
-
-
-def to_anaesth_csv(episode_data, anaesthetist):
+def to_anaesthetic_csv(episode_data, anaesthetist):
     """Write tuple of anaesthetic billing data to csv
     for billing anaesthetists"""
     surname = anaesthetist.split()[-1]
@@ -661,177 +618,7 @@ def to_anaesth_csv(episode_data, anaesthetist):
         datawriter.writerow(episode_data)
 
 
-def get_anaesthetic_eps_today(anaes):
-    """Retrive a dict of all anaesthetics today by anaesthetist logged in"""
-    now = datetime.datetime.now()
-    today = now.strftime('%d' + '-' + '%m' + '-' + '%Y')
-    db_file = 'sqlite:///d:\\JOHN TILLET\\episode_data\\aneasthetics.db'
-    db = dataset.connect(db_file)
-    table = db['episodes']
-    results = table.find(today_for_invoice=today,
-                         anaesthetist=anaes,
-                         order_by=['id'])
-    return results, today
-
-
-def make_anaesthetic_report(results, today, anaesthetist):
-    """Write & print a txt file of anaesthetics today by anaesthetist"""
-    out_string = 'Patients for Dr {}   {}\n\n\n'.format(
-        anaesthetist.split()[-1], today)
-    results_list = []
-    number = 0
-    for row in results:
-        # tabulate seems to expect list of dicts
-        d = [('n', row['patient']), ('add', row['address']),
-             ('dob', row['dob']),
-             ('end', row['endoscopist']), ('f', row['upper_code']),
-             ('s', row['lower_code']), ('70', row['seventy_code']),
-             ('a', row['asa_code']), ('t', row['time_code']),
-             ('mcn', row['mcn']),
-             ('ref', row['ref']), ('fund', row['fund']),
-             ('fund_number', row['fund_number'])]
-        d = OrderedDict(d)
-        results_list.append(d)
-        number += 1
-    patient_string = tabulate(results_list, tablefmt='html')
-    bottom_string = '\n\nTotal number of patients {}'.format(number)
-    out_string += patient_string
-    out_string += bottom_string
-    s = 'd:\\Nobue\\anaesthetic_report.html'
-    with open(s, 'w') as f:
-        f.write(out_string)
-    return s
-
-
-def make_short_anaesthetic_report(results, today, anaesthetist):
-    """Write & print an abreviated txt file of anaesthetics 
-    done today by anaesthetist"""
-    out_string = 'Patients for Dr {}   {}\n\n\n'.format(
-        anaesthetist.split()[-1], today)
-    results_list = []
-    number = 0
-    for row in results:
-        # tabulate seems to expect list of dicts
-        d = [('n', row['patient']), ('f', row['upper_code']),
-             ('s', row['lower_code']), ('70', row['seventy_code']),
-             ('a', row['asa_code']), ('t', row['time_code'])]
-        d = OrderedDict(d)
-        results_list.append(d)
-        number += 1
-    patient_string = tabulate(results_list, tablefmt='html')
-    bottom_string = '\n\nTotal number of patients {}'.format(number)
-    out_string += patient_string
-    out_string += bottom_string
-    s = 'd:\\Nobue\\anaesthetic_report.html'
-    with open(s, 'w') as f:
-        f.write(out_string)
-    return s
-
-
-# Deprecated web page functions
-# Secretaries occaisionally use so kept running
-
-
-def make_episode_string(outtime, room, endoscopist, anaesthetist, patient,
-                        consult, upper, colon, message):
-    """Deprecated web page episode maker."""
-    doc_surname = endoscopist.split()[-1]
-    if doc_surname == 'Vivekanandarajah':
-        doc_surname = 'Suhir'
-    anaesthetist_surname = anaesthetist.split()[-1]
-    docs = doc_surname + '/' + anaesthetist_surname
-
-    if not consult:
-        consult = ''
-    if not upper:
-        upper = ''
-    if not colon:
-        colon = ''
-
-    html = "<tr><td>{0}</td><td>{1}</td><td>{2}</td><td>{3}</td>\
-            <td>{4}</td><td>{5}</td><td>{6}</td><td>{7}</td></tr>\n"
-    ep_string = html.format(
-        outtime, room, docs, patient, consult, upper, colon, message)
-    return ep_string
-
-
-def make_webpage(ep_string):
-    """Deprecated web page maker."""
-    today = datetime.datetime.now()
-    today_str = today.strftime('%A' + '  ' + '%d' + ':' + '%m' + ':' + '%Y')
-
-    head_string = '<html><body><H4>DEC procedures for {}</H4>\
-    <table cellspacing="10"><tr><th>Time</th><th>Room</th>\
-    <th>Doctors</th><th>Patient</th><th>Consult</th><th>Upper</th>\
-    <th>Lower</th><th>Message</th></tr>\n'.format(today_str)
-    base_string = "</table></body></html>"
-
-    date_file_str = today.strftime('%Y' + '-' + '%m' + '-' + '%d')
-    date_filename = date_file_str + '.html'
-    today_path = os.path.join(
-        'd:\\JOHN TILLET\\episode_data\\' + date_filename)
-
-    if os.path.isfile(today_path):
-        with open(today_path, 'r') as original:
-            original.readline()
-            new_base_string = original.read()
-        with open(today_path, 'w') as modified:
-            modified.write(head_string + ep_string + new_base_string)
-    else:
-        base = 'd:\\JOHN TILLET\\episode_data\\'
-        dest = 'd:\\JOHN TILLET\\episode_data\\html-backup'
-        for src in glob.glob(base + '*.html'):
-            shutil.move(src, dest)
-        with open(today_path, 'w') as new_index:
-            new_index.write(head_string + ep_string + base_string)
-    nob_today = 'd:\\Nobue\\today.html'
-    shutil.copyfile(today_path, nob_today)
-
-
-def update_html():
-    """Deprecated updater for old web page maker."""
-    today = datetime.datetime.now()
-    date_file_str = today.strftime('%Y' + '-' + '%m' + '-' + '%d')
-    date_filename = date_file_str + '.html'
-    today_path = os.path.join(
-        'd:\\JOHN TILLET\\episode_data\\' + date_filename)
-    nob_today = 'd:\\Nobue\\today.html'
-    shutil.copyfile(today_path, nob_today)
-
-
-def make_message_string(anaesthetist):
-    print('\033[2J')  # clear screen
-    print('\033[1;1H')  # move to top left
-    print('Type your message. Your name is automatically included.')
-    message = input('Message: ')
-    html = "<tr><td></td><td></td><td>Message from</td><td>{0}</td>\
-            <td></td><td></td><td></td><td>{1}</td></tr>\n"
-    message_string = html.format(anaesthetist, message)
-    return message_string
-
-
-def episode_update(room, endoscopist, anaesthetist, data_entry):
-    # data_enry is a tuple -> unpack it
-    (asa, upper, colon, banding, consult, message, op_time,
-     insur_code, fund, ref, fund_number, clips,
-     varix_lot, in_formatted, out_formatted) = data_entry
-
-    message = episode_open(message)
-    episode_procedures(upper, colon, banding, asa)
-    mrn, print_name, address, dob, mcn = episode_scrape()
-
-    message += ' Updated this patient. Check Blue Chip is correct.'
-
-    out_string = make_episode_string(
-        out_formatted, room, endoscopist, anaesthetist, print_name,
-        consult, upper, colon, message)
-    make_webpage(out_string)
-    close_out(anaesthetist)
-
-# end deprecated
-
-
-def episode_to_csv(outtime, room, endoscopist, anaesthetist, patient,
+def episode_to_csv(outtime, endoscopist, anaesthetist, patient,
                    consult, upper, colon, message):
     """Write episode data to csv for web page generation."""
     doc_surname = endoscopist.split()[-1]
@@ -846,66 +633,81 @@ def episode_to_csv(outtime, room, endoscopist, anaesthetist, patient,
         upper = ''
     if not colon:
         colon = ''
-    episode_data = (outtime, room, docs, patient,
+    episode_data = (outtime, docs, patient,
                     consult, upper, colon, message)
-    today = datetime.datetime.now()
     date_file_str = today.strftime('%Y' + '-' + '%m' + '-' + '%d')
     date_filename = date_file_str + '.csv'
     today_path = os.path.join(
         'd:\\JOHN TILLET\\episode_data\\csv\\' + date_filename)
-    if os.path.isfile(today_path):
-        with open(today_path, 'a') as handle:
-            datawriter = csv.writer(
-                handle, dialect='excel', lineterminator='\n')
-            datawriter.writerow(episode_data)
-    else:
-        # move old files to episode-csv folder
-        base = 'd:\\JOHN TILLET\\episode_data\\csv\\'
-        dest = 'd:\\JOHN TILLET\\episode_data\\csv\\csv-backup'
-        for src in glob.glob(base + '*.csv'):
-            shutil.move(src, dest)
-        with open(today_path, 'w') as handle:
-            datawriter = csv.writer(
-                handle, dialect='excel', lineterminator='\n')
-            datawriter.writerow(episode_data)
+    with open(today_path, 'a') as handle:
+        datawriter = csv.writer(
+            handle, dialect='excel', lineterminator='\n')
+        datawriter.writerow(episode_data)
+
     return today_path
 
 
-def make_today_sec(today_path):
+def make_web_secretary(today_path):
     """Render jinja2 template and write to file."""
-    today_date = datetime.datetime.now()
-    today_str = today_date.strftime(
-        '%A' + '  ' + '%d' + ':' + '%m' + ':' + '%Y')
+    today_str = today.strftime(
+        '%A' + '  ' + '%d' + '-' + '%m' + '-' + '%Y')
     today_data = deque()
     with open(today_path) as data:
         reader = csv.reader(data)
         for ep in reader:
             today_data.appendleft(ep)
-    loader = PackageLoader('bccode', 'templates')
+    path_to_template = 'D:\\JOHN TILLET\\episode_data\\today_sec_template.html'
+    loader = FileSystemLoader(os.path.dirname(path_to_template))
     env = Environment(loader=loader)
     template_name = 'today_sec_template.html'
     template = env.get_template(template_name)
     a = template.render(today_data=today_data, today_date=today_str)
     with open('d:\\Nobue\\today_new.html', 'w') as f:
         f.write(a)
-
+    file_date = today.strftime('%Y' + '-' + '%m' + '-' + '%d')
+    file_str = 'D:\\JOHN TILLET\\episode_data\\html-backup\\' + file_date + '.html'
+    with open(file_str, 'w') as f:
+        f.write(a)
 
 
 def medical_data_to_csv(endoscopist, consultant, anaesthetist, nurse,
                         upper, lower, anal, postcode, dob, gp):
     """Drop episode info into csv file for statistics."""
-    today = datetime.datetime.now()
-    today = today.strftime('%Y' + '-' + '%m' + '-' + '%d')
-    episode_data = (today, endoscopist, consultant, anaesthetist, nurse,
+    today_date = today.strftime('%Y' + '-' + '%m' + '-' + '%d')
+    episode_data = (today_date, endoscopist, consultant, anaesthetist, nurse,
                     upper, lower, anal, postcode, dob, gp)
     csvfile = 'D:\\JOHN TILLET\\episode_data\\medical_data.csv'
     with open(csvfile, 'a') as handle:
         datawriter = csv.writer(handle, dialect='excel', lineterminator='\n')
         datawriter.writerow(episode_data)
+ 
+def render_anaesthetic_report(anaesthetist):
+    anaes_surname = anaesthetist.split()[-1]
+    today_data = []
+    count = 0
+    today_date = today.strftime('%d' + '-' + '%m' + '-' + '%Y')
+    csvfile = 'd:\\JOHN TILLET\\episode_data\\{}.csv'.format(anaes_surname)
+    with open(csvfile) as handle:
+        reader = csv.reader(handle)
+        for episode in reader:
+            if episode[0] == today_date:
+                count += 1
+                today_data.append(episode)
+    path_to_template = 'D:\\JOHN TILLET\\episode_data\\today_anaesthetic_template.html'
+    loader = FileSystemLoader(os.path.dirname(path_to_template))
+    env = Environment(loader=loader)
+    template_name = 'today_anaesthetic_template.html'
+    template = env.get_template(template_name)
+    a = template.render(today_data=today_data,
+                        today_date=today_date,
+                        count=count,
+                        anaes_surname = anaes_surname)
+    with open('d:\\Nobue\\report_{}.html'.format(anaes_surname), 'w') as f:
+        f.write(a)
 
-
+    
 def close_out(anaesthetist):
-    """Close patient file with mouse click and display bulling details
+    """Close patient file with mouse click and display billing details
     if a billing anaesthetist."""
     time.sleep(1)
     pya.moveTo(x=780, y=90)
@@ -914,30 +716,9 @@ def close_out(anaesthetist):
     pya.hotkey('alt', 'n')
     pya.moveTo(x=780, y=110)
     if anaesthetist in nc.BILLING_ANAESTHETISTS:
-        results, today = get_anaesthetic_eps_today(anaesthetist)
-        s = make_anaesthetic_report(results, today, anaesthetist)
-        os.startfile(s)
-
-#  trial function to open using mrn
-def open_file(mrn):
-    """Open Blue chip record by mrn."""
-    pya.click(100, 100)
-    pya.hotkey('alt', 'f')
-    time.sleep(1)
-    pya.press('enter')
-    time.sleep(1)
-    pya.typewrite(['tab'] * 2)
-    pya.press('down')
-    pya.hotkey('shift', 'tab')
-    pya.hotkey('shift', 'tab')
-    pya.typewrite(mrn)
-    pya.press('enter')
-
-
-def open_today():
-    nob_today = 'd:\\Nobue\\today.html'
-    webbrowser.open(nob_today)
-
+        webbrowser.open(
+                'd:\\Nobue\\report_{}.html'.format(anaesthetist.split()[-1]))
+        
 
 def jt_analysis():
     """Print whether on weekly target from first_date.
@@ -945,12 +726,6 @@ def jt_analysis():
     """
     first_date = datetime.datetime(2018, 1, 1)
 #    first_date_lex = '20180401'
-    today = datetime.datetime.today()
-#    db_file = 'sqlite:///d:\\JOHN TILLET\\episode_data\\aneasthetics.db'
-#    db = dataset.connect(db_file)
-#    results = db.query('SELECT COUNT(*) FROM episodes WHERE anaesthetist = "Dr J Tillett" and today_lex > {}'.format(first_date_lex))
-#    results = next(results)
-#    results = results['COUNT(*)']
     results = 74
     with open('d:\JOHN TILLET\episode_data\medical_data.csv') as h:
         reader = csv.reader(h)
@@ -968,7 +743,7 @@ def jt_analysis():
 
 
 
-def login_and_run(room):
+def login_and_run():
     colorama.init(autoreset=True)
     logging.basicConfig(
         filename='d:\\JOHN TILLET\\episode_data\\doc_error.txt',
@@ -990,11 +765,13 @@ def login_and_run(room):
             Anaesthetist: {0}
             Nurse: {2}""".format(anaesthetist, endoscopist, nurse))
             print()
-            print(nc.CHOICE_STRING)
+            if anaesthetist in nc.BILLING_ANAESTHETISTS:
+                print(nc.CHOICE_STRING_BILLER)
+            else:
+                print(nc.CHOICE_STRING)
             choice = input().lower()
             if choice not in {
-                    '', 'as', 'q', 'h', 'c', 'r',
-                    'm', 'a', 'u', 'ros', 'w', 'l', 'pac'}:
+                    '', 'q', 'c', 's', 'a', 'u', 'r', 'w', 'p', 'm'}:
                 continue
             try:
                 if choice == '':
@@ -1002,8 +779,7 @@ def login_and_run(room):
                         while True:
                             bill(
                                 anaesthetist, endoscopist,
-                                consultant, nurse, room)
-
+                                consultant, nurse)
                     except LoopException:
                         continue
                     except EpFullException:
@@ -1016,48 +792,39 @@ def login_and_run(room):
                     print('Thanks. Bye!')
                     time.sleep(2)
                     sys.exit(0)
-                if choice == 'h':
-                    clear()
-                    print(nc.USER_GUIDE)
-                    input('Hit any key to continue:')
                 if choice == 'c':
                     break
-                if choice == 'r':
-                    try:
-                        data_entry = inputer(endoscopist, consultant, 'locum')
-                    except LoopException:
-                        continue
-                    episode_update(room, endoscopist, anaesthetist, data_entry)
-                if choice == 'm':
-                    message_string = make_message_string(anaesthetist)
-                    make_webpage(message_string)
-                if choice == 'as':
-                    results, today = get_anaesthetic_eps_today(anaesthetist)
-                    s = make_short_anaesthetic_report(results, today, anaesthetist)
-                    os.startfile(s)
-                if choice == 'pac':
+                if choice == 'p':
                     decbatches.main(anaesthetist)
-                    print('Go to accts.docx')
-                if choice == 'ros':
+                if choice == 'r':
                     webbrowser.open('d:\\Nobue\\anaesthetic_roster.html')
                 if choice == 'w':
-                    open_today()
-                if choice == 'l':
-                    os.startfile('d:\\JOHN TILLET\\episode_data\\doc_error.txt')
+                    webbrowser.open('d:\\Nobue\\today_new.html')
+                if choice == 's':
+                    os.startfile(
+                            'D:\\JOHN TILLET\\source\\active\\billing\\spyder.cmd')
                 if choice == 'a':
                     jt_analysis()
                 if choice == 'u':
-                     today = datetime.datetime.now()
-                     date_file_str = today.strftime('%Y' + '-' + '%m' + '-' + '%d')
+                     date_file_str = today.strftime(
+                             '%Y' + '-' + '%m' + '-' + '%d')
                      date_filename = date_file_str + '.csv'
                      today_path = os.path.join(
                              'd:\\JOHN TILLET\\episode_data\\csv\\' + date_filename)
-                     make_today_sec(today_path)
-#                    update_html()
+                     make_web_secretary(today_path)
+                     render_anaesthetic_report(anaesthetist)
+                if choice == 'm':
+                    nowtime = datetime.datetime.now()
+                    nowtime = nowtime.strftime('%H' + ':' + '%M')
+                    message = input('Message: ')
+                    today_path =  episode_to_csv(
+                            nowtime, endoscopist, anaesthetist, '','', '', '', message)
+                    make_web_secretary(today_path)
+                    webbrowser.open('d:\\Nobue\\today_new.html')
+                    
             except Exception as err:
                 logger.error(err)
                 sys.exit(1)
-
 
 if __name__ == '__main__':
     login_and_run('R2')

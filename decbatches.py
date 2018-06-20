@@ -5,27 +5,73 @@
 
 import csv
 from collections import defaultdict
+import datetime
 import math
 import os
 import sys
+import textwrap
 import time
 
 import docx
-from docx.shared import Mm
+from docx.shared import Mm, Pt
 
-from names_and_codes import FUND_FEES, BILLER
+from names_and_codes import FUND_FEES, BILLER, fund_string
+
+
+PAGE_NUMBER = 24
+today = datetime.datetime.now()
+today_for_summary = today.strftime('%d' + '-' + '%m' + '-' + '%Y')
+
+
+def clear():
+    print('\033[2J')  # clear screen
+    print('\033[1;1H')  # move to top left
+
+
+
+def print_page(anaesthetist,start, stop, data, doc):
+    table = doc.add_table(rows=1, cols=4)
+    heading_cells = table.rows[0].cells
+    heading_cells[0].text = anaesthetist
+    
+    for  i, episode in enumerate(data[start:stop]):
+        cells= table.add_row().cells
+        cells[0].text = episode[0]
+        cells[1].text = episode[1]
+        cells[2].text = episode[6]
+        cells[3].text = '\u2610'
+    doc.add_page_break()
+    return doc
+
+    
+def account_summary(anaesthetist):
+    doc = docx.Document()
+    style = doc.styles['Normal']
+    font = style.font
+    font.name = 'Verdana'
+    font.size = Pt(8)
+    surname = anaesthetist.split()[-1]
+    source = 'd:\\john tillet\\episode_data\\{}.csv'.format(surname)
+    with open(source, mode='rt') as f:
+        reader = csv.reader(f)
+        data = list(reader)
+        
+    start = 0
+    stop = PAGE_NUMBER
+    number_to_print = len(data)
+    while start < number_to_print:
+        print_page(anaesthetist, start, stop, data, doc)
+        start += PAGE_NUMBER
+        stop += PAGE_NUMBER
+
+
+    summaryfile = 'd:\\john tillet\\episode_data\\sedation\\summary.docx'
+    doc.save(summaryfile)
+    os.startfile(summaryfile)
 
 
 # %load ./helpers/printacc.py
 """Prints a single accout to a docx document and returns it"""
-def yes_no_decode(up ,low, age, asa):
-    if up in {'Yes', 'No'}:
-         up = 'upper_' + up
-         low = 'lower_' + low
-         age = 'age70_' + age
-         asa = 'asa3_' + asa
-    return up, low, age, asa
-
 
 def print_account(ep, doc, unit, consult_as_float,
                   time_fee, total_fee, biller):
@@ -80,31 +126,33 @@ def print_account(ep, doc, unit, consult_as_float,
     cons_str = cons_str.rjust(25)
     p_cons.add_run(cons_str)
     
-    ep['upper'], ep['lower'], ep['seventy'], ep['asa_3'] = yes_no_decode(
-            ep['upper'], ep['lower'], ep['seventy'], ep['asa_3']) 
-    
-    if ep['upper'] == 'upper_Yes':
+    if ep['upper'] in {'Yes', 'upper_Yes'}:
         p_endo = doc.add_paragraph('20740')
         endo_str = '%.2f' % (unit * 5)
         endo_str = endo_str.rjust(24)
         p_endo.add_run(endo_str)
-        if ep['lower'] == 'lower_Yes':
+        if ep['lower'] in { 'Yes', 'lower_Yes'}:
             p_col = doc.add_paragraph('20810')
             col_str = '%.2f' % 0.0
             col_str = col_str.rjust(26)
             p_col.add_run(col_str)
-    if ep['upper'] == 'upper_No' and ep['lower'] == 'lower_Yes':
+    if ep['upper'] in {'No', 'upper_No'} and ep['lower'] in {'Yes', 'lower_Yes'}:
         p_col = doc.add_paragraph('20810')
         col_str = '%.2f' % (unit * 4)
         col_str = col_str.rjust(24)
         p_col.add_run(col_str)
-    if ep['seventy'] == 'age70_Yes':
+    if ep['seventy'] in {'Yes', 'age70_Yes'}:
         p_age = doc.add_paragraph('25015')
         age_str = '%.2f' % unit
         age_str = age_str.rjust(25)
         p_age.add_run(age_str)
-    if ep['asa_3'] == 'asa3_Yes':
+    if ep['asa_3'] in {'Yes', 'asa3_Yes'}:
         p_sick = doc.add_paragraph('25000')
+        sick_str = '%.2f' % unit
+        sick_str = sick_str.rjust(25)
+        p_sick.add_run(sick_str)
+    if ep['asa_3'] in {'asa3_Four'}:
+        p_sick = doc.add_paragraph('25005')
         sick_str = '%.2f' % unit
         sick_str = sick_str.rjust(25)
         p_sick.add_run(sick_str)
@@ -185,14 +233,16 @@ def process_acc(grand_total, ep):
     # calculate total_fee, initialise total_fee with consult
     total_fee = consult_as_float
 
-    if ep['upper'] == 'Yes':
+    if ep['upper'] in {'Yes', 'upper_Yes'}:
         total_fee += (unit * 5)
-    if ep['upper'] == 'No' and ep['lower'] == 'Yes':
+    if ep['upper'] in {'No', 'upper_No'} and ep['lower'] in {'Yes', 'lower_Yes'}:
         total_fee += (unit * 4)
-    if ep['seventy'] == 'Yes':
+    if ep['seventy'] in {'Yes', 'age70_Yes'}:
         total_fee += unit
-    if ep['asa_3'] == 'Yes':
+    if ep['asa_3'] in {'Yes', 'asa3_Yes'}:
         total_fee += unit
+    if ep['asa_3'] in {'asa3_Four'}:
+        total_fee += (unit * 2)
 
     # add on time fees
     total_fee = total_fee + (time_length * unit)
@@ -208,12 +258,14 @@ def process_acc(grand_total, ep):
 """Close and delete files at end of script."""
 
 
-def cleanup(datafile, masterfile, summaryfile, printfile):
+def cleanup(datafile, masterfile, summaryfile, printfile, anaesthetist):
     """Close and delete files at end of script."""
     input('Press Enter to open accounts summary for printing')
     os.startfile(summaryfile)
     input('Press Enter to open accounts for printing')
     os.startfile(printfile)
+    input('Press Enter to print and open tick off summary.')
+    account_summary(anaesthetist)
     print()
     while True:
         merge = """When finished printing accounts, Press y to save these patients.
@@ -260,13 +312,13 @@ def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, 
 
 
 def main(biller):
-    """Print account in batches of funds with total fees."""
+    """Print accounts in batches of funds."""
 
     biller_surmame = biller.split()[-1]
-    summaryfile = 'D:\\JOHN TILLET\\episode_data\\accts_summary.txt'
-    printfile = 'D:\\JOHN TILLET\\episode_data\\accts.docx'
+    summaryfile = 'D:\\JOHN TILLET\\episode_data\\sedation\\accts_summary.txt'
+    printfile = 'D:\\JOHN TILLET\\episode_data\\sedation\\accts.docx'
     datafile = 'D:\\JOHN TILLET\\episode_data\\' + biller_surmame + '.csv'
-    masterfile = 'D:\\JOHN TILLET\\episode_data\\csv\\' + biller_surmame + '.csv'
+    masterfile = 'D:\\JOHN TILLET\\episode_data\\sedation\\' + biller_surmame + '_master.csv'
     
     headers = ["date", "name", "address", "dob", "medicare_no", "ref",
                "fund_name", "fund_number", "fund_code", "doctor",
@@ -284,8 +336,18 @@ def main(biller):
     except IOError:
         print('No csv file found.')
         sys.exit(1)
-
+    clear()
     print("Hi - printing Dr {}'s accounts".format(biller_surmame))
+    print()
+    while True:
+        fund_choice = input('Chose fund code\nor "a" for all or "q" to quit:  ')
+        if fund_choice in fund_string.split(' ') or fund_choice in {'a', 'q'}:
+            break
+        else:
+            clear()
+            print('Your choices are.')
+            print(textwrap.fill(fund_string, width=30))
+            input('Press Enter to try again: ')
     doc = docx.Document()
     style = doc.styles['Normal']
     font = style.font
@@ -295,25 +357,43 @@ def main(biller):
     # and values are a list of episodes
     pat_dict = defaultdict(list)
 
-    for episode in ep_list:
-        if episode['fund_code'] == 'ahsa':
-            fund_id = episode['fund_code'] + '_' + episode['fund_name']  # [:2]
-            pat_dict[fund_id].append(episode)
-        else:
-            fund_id = episode['fund_code']
-            pat_dict[fund_id].append(episode)
-
+    if fund_choice == 'a':
+        for episode in ep_list:
+            if episode['fund_code'] == 'ahsa':
+                fund_id = episode['fund_code'] + '_' + episode['fund_name']  # [:2]
+                pat_dict[fund_id].append(episode)
+            else:
+                fund_id = episode['fund_code']
+                pat_dict[fund_id].append(episode)
+    elif fund_choice == 'ahsa':
+        for episode in ep_list:
+            if episode['fund_code'] == 'ahsa':
+                fund_id = episode['fund_code'] + '_' + episode['fund_name']  # [:2]
+                pat_dict[fund_id].append(episode)
+    elif fund_choice == 'q':
+        return
+    else:
+        for episode in ep_list:
+            if episode['fund_code'] == fund_choice:
+                pat_dict['fund_code'].append(episode)
+        
     # for each fund in pat_dict get the list of episodes ep_list and print
     # them out in equal batches < 20
-    
-    length = len(ep_list)
+    length = 0
+    for fund in pat_dict:
+        length += len(pat_dict[fund])
+    if length == 0:
+        print('No accounts for {}! Hit enter to try again.'.format(fund_choice))
+        input()
+        return
     print(length)
     iteration = 0
-    printProgressBar(iteration, length, prefix = 'Progress:', suffix = 'Complete', length = 25)
+    printProgressBar(iteration, length, prefix = 'Progress:',
+                     suffix = 'Complete', length = 20)
     
-
     for fu in pat_dict.keys():
         ep_list = pat_dict[fu]
+        fund_for_batch = ep_list[0]['fund_name']
         fund_len = len(ep_list)
         fund_left = fund_len
         start = 0
@@ -336,17 +416,18 @@ def main(biller):
                 else:
                     file.write('%s -- %s\n ' % (np['fund_name'], num_p))
                 
-            acc = print_batch_header(doc, fu, num_p, grand_total)
+            acc = print_batch_header(doc, fund_for_batch, num_p, grand_total)
             fund_left -= num_p
             start += num_p
 
-            printProgressBar(iteration, length, prefix = 'Progress:', suffix = 'Complete', length = 25)
+            printProgressBar(iteration, length, prefix = 'Progress:',
+                             suffix = 'Complete', length = 20)
             time.sleep(0.1)
             if start >= fund_len:
                 break
     print()
     acc.save(printfile)
     print()
-    cleanup(datafile, masterfile, summaryfile, printfile)
+    cleanup(datafile, masterfile, summaryfile, printfile, biller)
 if __name__ == '__main__':
     main(False, False, False, biller='Dr S Vuong')

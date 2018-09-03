@@ -1,26 +1,19 @@
-
-# coding: utf-8
-
-# In[1]:
+"""Printing module."""
 
 import csv
 from collections import defaultdict
-import datetime
 import math
 import os
 import sys
-import textwrap
 import time
 
 import docx
-from docx.shared import Mm, Pt
+from docx.shared import Mm
 
-from names_and_codes import FUND_FEES, BILLER, fund_string
+from names_and_codes import FUND_FEES, BILLER
 
 
 PAGE_NUMBER = 24
-today = datetime.datetime.now()
-today_for_summary = today.strftime('%d' + '-' + '%m' + '-' + '%Y')
 
 
 def clear():
@@ -29,7 +22,7 @@ def clear():
 
 
 
-def print_page(anaesthetist,start, stop, data, doc):
+def make_tickbox_page(anaesthetist,start, stop, data, doc):
     table = doc.add_table(rows=1, cols=4)
     heading_cells = table.rows[0].cells
     heading_cells[0].text = anaesthetist
@@ -43,51 +36,29 @@ def print_page(anaesthetist,start, stop, data, doc):
     doc.add_page_break()
     return doc
 
-    
-def account_summary(anaesthetist):
-    doc = docx.Document()
-    style = doc.styles['Normal']
-    font = style.font
-    font.name = 'Verdana'
-    font.size = Pt(8)
-    surname = anaesthetist.split()[-1]
-    source = 'd:\\john tillet\\episode_data\\{}.csv'.format(surname)
-    with open(source, mode='rt') as f:
-        reader = csv.reader(f)
-        data = list(reader)
-        
-    start = 0
-    stop = PAGE_NUMBER
-    number_to_print = len(data)
-    while start < number_to_print:
-        print_page(anaesthetist, start, stop, data, doc)
-        start += PAGE_NUMBER
-        stop += PAGE_NUMBER
-
-
-    summaryfile = 'd:\\john tillet\\episode_data\\sedation\\summary.docx'
-    doc.save(summaryfile)
-    os.startfile(summaryfile)
-
-
-# %load ./helpers/printacc.py
-"""Prints a single accout to a docx document and returns it"""
 
 def print_account(ep, doc, unit, consult_as_float,
                   time_fee, total_fee, biller):
-
+    """Prints a single accout to a docx document and returns it"""
     biller = BILLER[biller]
 
     if ep['fund_code'] == 'ga':
         doc.add_heading('Account for Anaesthetic\nTo:'
                         ' Garrison Health Services, fax  1300 633 227',
                         level=1)
+    elif ep['fund_name'] == 'Overseas':
+        doc.add_heading('Receipt for Anaesthetic Fees Paid', level=0)
     else:
         doc.add_heading('Account for Anaesthetic', level=0)
 
     doc.add_heading(biller['name'], level=2)
     doc.add_heading(biller['address'], level=4)
-    doc.add_heading('Provider Number: ' + biller['provider'], level=5)
+    
+    if ep['fund_name'] == 'Overseas':
+        abn_str = 'ABN:  ' + (biller['abn'])
+        doc.add_heading('Provider Number: ' + biller['provider'] + '    ' + abn_str, level=5)
+    else:
+        doc.add_heading('Provider Number: ' + biller['provider'], level=5)
     doc.add_heading(biller['contact'], level=5)
     doc.add_paragraph('')
 
@@ -95,7 +66,8 @@ def print_account(ep, doc, unit, consult_as_float,
     inv_string = '%s%s%s' % (('  ' * 20), 'Invoice Number  ', ep['invoice'])
     h_head.add_run(inv_string)
     doc.add_paragraph('')
-    doc.add_paragraph('%s' % ep['name'])
+    a1 = doc.add_paragraph()
+    a1.add_run('%s' % ep['name']).bold = True
     doc.add_paragraph('%s' % ep['address'])
     doc.add_paragraph('Date of birth  %s' % ep['dob'])
     if ep['fund_code'] == 'ga':
@@ -165,7 +137,7 @@ def print_account(ep, doc, unit, consult_as_float,
     p_tot = doc.add_paragraph('Total Fee')
     tot_str = '$%.2f' % total_fee
     tot_str = tot_str.rjust(19)
-    p_tot.add_run(tot_str)
+    p_tot.add_run(tot_str).bold = True
 
     doc.add_paragraph('')
     p_gst = doc.add_paragraph('')
@@ -178,20 +150,11 @@ def print_account(ep, doc, unit, consult_as_float,
     return doc
 
 
-# In[ ]:
-
-# %load ./helpers/printcalc.py
-"""calculate number of invoices to print if there are more than 20."""
-
-
 def print_calc(n):
+    """calculate number of invoices to print if there are more than 20."""
     divisor = math.ceil(n / 20)
     return math.floor(n / divisor)
 
-
-# In[ ]:
-
-# %load ./helpers/printheader.py
 
 def print_batch_header(doc, fund, number_printed, total):
     if fund[:4] == 'ahsa':
@@ -206,12 +169,6 @@ def print_batch_header(doc, fund, number_printed, total):
     doc.add_page_break()
 
     return doc
-
-
-# In[ ]:
-
-# %load ./helpers/processacc.py
-"""Make calculations before printing account."""
 
 
 def process_acc(grand_total, ep):
@@ -249,13 +206,7 @@ def process_acc(grand_total, ep):
     grand_total += total_fee
 
     return (grand_total, consult_as_float, unit,
-            time_fee, total_fee, unit)
-
-
-# In[ ]:
-
-# %load ./helpers/cleanup.py
-"""Close and delete files at end of script."""
+            time_fee, total_fee)
 
 
 def cleanup(datafile, masterfile, summaryfile, printfile, anaesthetist):
@@ -264,8 +215,7 @@ def cleanup(datafile, masterfile, summaryfile, printfile, anaesthetist):
     os.startfile(summaryfile)
     input('Press Enter to open accounts for printing')
     os.startfile(printfile)
-    input('Press Enter to print and open tick off summary.')
-    account_summary(anaesthetist)
+
     print()
     while True:
         merge = """When finished printing accounts, Press y to save these patients.
@@ -317,7 +267,7 @@ def main(biller):
     biller_surmame = biller.split()[-1]
     summaryfile = 'D:\\JOHN TILLET\\episode_data\\sedation\\accts_summary.txt'
     printfile = 'D:\\JOHN TILLET\\episode_data\\sedation\\accts.docx'
-    datafile = 'D:\\JOHN TILLET\\episode_data\\' + biller_surmame + '.csv'
+    datafile = 'D:\\JOHN TILLET\\episode_data\\sedation\\' + biller_surmame + '.csv'
     masterfile = 'D:\\JOHN TILLET\\episode_data\\sedation\\' + biller_surmame + '_master.csv'
     
     headers = ["date", "name", "address", "dob", "medicare_no", "ref",
@@ -331,7 +281,7 @@ def main(biller):
     try:
         with open(datafile) as csvfile:
             reader = csv.DictReader(csvfile, headers)
-            ep_list = [_ for _ in reader]
+            ep_list = list(reader)
 
     except IOError:
         print('No csv file found.')
@@ -339,15 +289,7 @@ def main(biller):
     clear()
     print("Hi - printing Dr {}'s accounts".format(biller_surmame))
     print()
-    while True:
-        fund_choice = input('Chose fund code\nor "a" for all or "q" to quit:  ')
-        if fund_choice in fund_string.split(' ') or fund_choice in {'a', 'q'}:
-            break
-        else:
-            clear()
-            print('Your choices are.')
-            print(textwrap.fill(fund_string, width=30))
-            input('Press Enter to try again: ')
+
     doc = docx.Document()
     style = doc.styles['Normal']
     font = style.font
@@ -357,36 +299,22 @@ def main(biller):
     # and values are a list of episodes
     pat_dict = defaultdict(list)
 
-    if fund_choice == 'a':
-        for episode in ep_list:
-            if episode['fund_code'] == 'ahsa':
-                fund_id = episode['fund_code'] + '_' + episode['fund_name']  # [:2]
-                pat_dict[fund_id].append(episode)
-            else:
-                fund_id = episode['fund_code']
-                pat_dict[fund_id].append(episode)
-    elif fund_choice == 'ahsa':
-        for episode in ep_list:
-            if episode['fund_code'] == 'ahsa':
-                fund_id = episode['fund_code'] + '_' + episode['fund_name']  # [:2]
-                pat_dict[fund_id].append(episode)
-    elif fund_choice == 'q':
-        return
-    else:
-        for episode in ep_list:
-            if episode['fund_code'] == fund_choice:
-                pat_dict['fund_code'].append(episode)
+
+    for episode in ep_list:
+        if episode['fund_code'] == 'ahsa':
+            fund_id = episode['fund_code'] + '_' + episode['fund_name']  # [:2]
+            pat_dict[fund_id].append(episode)
+        else:
+            fund_id = episode['fund_code']
+            pat_dict[fund_id].append(episode)
+
         
     # for each fund in pat_dict get the list of episodes ep_list and print
     # them out in equal batches < 20
     length = 0
     for fund in pat_dict:
         length += len(pat_dict[fund])
-    if length == 0:
-        print('No accounts for {}! Hit enter to try again.'.format(fund_choice))
-        input()
-        return
-    print(length)
+
     iteration = 0
     printProgressBar(iteration, length, prefix = 'Progress:',
                      suffix = 'Complete', length = 20)
@@ -406,7 +334,7 @@ def main(biller):
             for np in ep_list[start: end]:
                 iteration += 1
                 processed = process_acc(grand_total, np)
-                grand_total, consult_as_float, unit, time_fee, total_fee, unit = processed
+                grand_total, consult_as_float, unit, time_fee, total_fee = processed
                 acc = print_account(np, doc, unit, consult_as_float,
                                     time_fee, total_fee, biller)
 
@@ -430,4 +358,4 @@ def main(biller):
     print()
     cleanup(datafile, masterfile, summaryfile, printfile, biller)
 if __name__ == '__main__':
-    main(False, False, False, biller='Dr S Vuong')
+    main('Dr S Vuong')

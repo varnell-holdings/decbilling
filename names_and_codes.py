@@ -162,6 +162,7 @@ BANDING_HELP = {'0': 'No anal procedure',
                 'b': 'Banding of haemorrhoids',
                 'a': 'Anal dilatation'}
 
+
 FUND_ABREVIATION = {'h': 'hcf',
                     'b': 'bup',
                     'm': 'mpl',

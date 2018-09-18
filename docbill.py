@@ -18,6 +18,7 @@ import webbrowser
 
 from tkinter import ttk, StringVar, Tk, W, E, N, S, Spinbox, FALSE, Menu
 
+import docx
 import pyautogui as pya
 import pyperclip
 
@@ -169,9 +170,9 @@ FUND_TO_CODE = {'HCF': 'hcf',
                 'Garrison Health': 'ga'}
 
 
-FUNDS = ['HCF',
+FUNDS = ['BUPA',
+             'HCF',
             'Medibank Private',
-            'BUPA',
             'NIB',           
             'Australian Health Management',
             'Pensioner',
@@ -180,7 +181,7 @@ FUNDS = ['HCF',
             'Overseas',
             'Garrison Health',
             "The Doctor's Fund",
-            '',
+            '++++++++++++++++',
             'Australian Unity Health',
             'CBHS Health',
             'Cessnock District Health',
@@ -203,6 +204,8 @@ FUNDS = ['HCF',
             'Teachers Federation Health',
             'Westfund']
 
+
+today = datetime.datetime.today()
 
 def in_and_out_calculater(time_in_theatre):
     """Calculate formatted in and out times given time in theatre."""
@@ -646,8 +649,6 @@ def to_watched():
 def render_anaesthetic_report(anaesthetist):
     """Make a web page if billing anaesthetist showing patients done today."""
     anaes_surname = anaesthetist.split()[-1]
-    if anaes_surname == "Tillett":
-        excess = jt_analysis()
     today_data = []
     count = 0
     csv_length = 0
@@ -669,8 +670,7 @@ def render_anaesthetic_report(anaesthetist):
                         today_date=today_date,
                         count=count,
                         anaes_surname=anaes_surname,
-                        csv_length=csv_length,
-                        excess=excess)
+                        csv_length=csv_length)
     with open('d:\\Nobue\\report_{}.html'.format(anaes_surname), 'w') as f:
         f.write(a)
 
@@ -684,7 +684,7 @@ def close_out(anaesthetist):
     time.sleep(1)
     pya.hotkey('alt', 'n')
     pya.moveTo(x=780, y=110)
-    if anaesthetist in nc.BILLING_ANAESTHETISTS:
+    if anaesthetist in BILLING_ANAESTHETISTS:
         webbrowser.open(
             'd:\\Nobue\\report_{}.html'.format(anaesthetist.split()[-1]))
 
@@ -844,11 +844,12 @@ def runner(*args):
     
         op_time = ot.get()
         op_time = int(op_time)
-    
-        fund = fu.get()
-        if fund == '':
-            pya.alert(text='No fund!')
-            raise BillingException
+
+        if anaesthetist in BILLING_ANAESTHETISTS:  
+            fund = fu.get()
+            if fund == '':
+                pya.alert(text='No fund!')
+                raise BillingException
         
         insur_code = FUND_TO_CODE.get(fund, 'ahsa')
         if insur_code == 'ga':
@@ -947,7 +948,7 @@ args = parser.parse_args()
 # Set up gui. Runs on program load.
 root = Tk()
 root.title('Dec Billing')
-root.geometry('350x550+900+100')
+root.geometry('350x450+900+100')
 root.option_add('*tearOff', FALSE)
 
 

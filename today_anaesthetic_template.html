@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <title>
-        Today's Procedures
+        {{ anaes_surname }} Summary
     </title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
@@ -21,13 +21,17 @@ $(document).ready(function(){
 .even {background-color: beige;}
 </style>
 </head>
-    <body>
+    <body> 
         <div class="w3-container">
-        <h3>DEC Patients for {{ today_date }}</h3>
+        <h3>Dr {{ anaes_surname }}'s  patients for {{ today_date }}</h3>
         {% set row_class = cycler('odd' ,'even') %}
 
         <table class="w3-table">
-            <tr><th>Time Out</th><th>Doctors</th><th>Patient</th><th>Consult</th><th>Upper</th><th>Colon</th><th>Message</th><th>Billed</th></tr>
+            <tr><th>Date</th><th>Name</th><th>Address</th><th>DOB</th>
+            <th>Medicare No</th><th>Ref</th><th>Fund</th><th>Fund Number</th>
+            <th>Fund Code</th><th>Endoscopist</th><th>Upper</th>
+            <th>Lower</th><th>Age</th><th>ASA</th><th>Time</th>
+            <th>Invoice</th></tr>
             {% for ep in today_data %}
             <tr class="{{row_class.next()}}">
                 <td>{{ep[0]}}</td>
@@ -37,15 +41,20 @@ $(document).ready(function(){
                 <td>{{ep[4]}}</td>
                 <td>{{ep[5]}}</td>
                 <td>{{ep[6]}}</td>
+                <td>{{ep[7]}}</td>
+                <td>{{ep[8]}}</td>
+                <td>{{ep[9]}}</td>
+                <td>{{ep[10]}}</td>
+                <td>{{ep[11]}}</td>
+                <td>{{ep[12]}}</td>
                 <td>{{ep[13]}}</td>
+                <td>{{ep[14]}}</td>
+                <td>{{ep[15]}}</td>
             </tr> {% endfor %}
         </table>
         </div>
         <p>
-        <a href="file:///D:/Nobue/anaesthetic_roster.html" target="_blank">Link to Roster</a>
-        <p>
-        <a href="file:///D:/Nobue/today_long.html" target="_blank">Link to Full Data</a>
-
-        
+        <h4>Number of patients today -> {{ count }}</h4>
+        <h4>Length of csv file -> {{ csv_length }}</h4>
     </body>
 </html>

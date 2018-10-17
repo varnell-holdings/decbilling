@@ -12,7 +12,6 @@ from jinja2 import Environment, FileSystemLoader
 import os
 import pickle
 import shelve
-import sys
 import time
 import webbrowser
 
@@ -61,6 +60,7 @@ NURSES = ['Belinda Plunkett',
           'Jacinta Goldenberg',
           'Jacqueline James',
           'Jacqueline Smith',
+          'Laine Perkuma',
           'Larissa Berman',
           'Lorae Tamayo',
           'Mary Halter',
@@ -129,7 +129,8 @@ COLONS = ['None',
           'Short Colon with polyp',
           'Cancel lower procedure',
           'Colon - Govt FOB screening',
-          'Colon with polyp - Govt FOB screening']
+          'Colon with polyp - Govt FOB screening',
+          'Colon dilation']
 
 COLON_DIC = {'None': None,
              'Cancel lower procedure': None,
@@ -140,7 +141,8 @@ COLON_DIC = {'None': None,
              'Colon with polyp - Govt FOB screening': '32089-00',
              'Short Colon': '32084-00',
              'Short Colon with bx': '32084-01',
-             'Short Colon with polyp': '32087-00'}
+             'Short Colon with polyp': '32087-00',
+             'Colon dilation': '32094-00'}
 
 BANDING = ['None',
            'Banding of haemorrhoids',
@@ -594,6 +596,118 @@ def episode_to_csv(outtime, endoscopist, anaesthetist, patient,
     return today_path
 
 
+def web_shelver(outtime, endoscopist, anaesthetist, patient,
+                   consult, upper, colon, message, intime,
+                   nurse, asa, banding, varix_lot, mrn):
+    """Write episode  data to a shelf.
+    Used to write short and long web pages.
+    """
+    a_surname = anaesthetist.split()[-1]
+    e_surname = endoscopist.split()[-1]
+    docs = e_surname + '/' + a_surname
+    today = datetime.datetime.today()
+    today_str = today.strftime("%Y-%m-%d")
+    today_path = os.path.join(
+        'd:\\JOHN TILLET\\episode_data\\webshelf\\' + today_str)
+    with shelve.open(today_path, writeback=True) as s:
+        s[mrn] = { 
+                'in_theatre': intime,
+                'out_theatre': outtime,
+                'doctors': docs,
+                'name': patient,
+                'asa': asa,
+                'consult': consult,
+                'upper': upper,
+                'colon': colon,
+                'banding': banding,
+                'nurse': nurse,
+                'varix_lot': varix_lot,
+                'message': message,
+                'billed': '',
+                }
+        return today_path
+
+def delete_record():
+    today = datetime.datetime.today()
+    today_str = today.strftime("%Y-%m-%d")
+    today_path = os.path.join(
+        'd:\\JOHN TILLET\\episode_data\\webshelf\\' + today_str)
+    mrn = pya.prompt(text='Enter mrn of record to delete.', title='' , default='')
+    with shelve.open(today_path) as s:
+        try:
+            del s[mrn]
+        except Exception:
+            pya.alert(text="Already deleted!", title="", button="OK")
+    update()
+    
+
+def web_shelver_new(outtime, endoscopist, anaesthetist, patient,
+                   consult, upper, colon, message, intime,
+                   nurse, asa, banding, varix_lot, mrn):
+    """Write episode  data to a shelf.
+    Used to write short and long web pages.
+    """
+    a_surname = anaesthetist.split()[-1]
+    e_surname = endoscopist.split()[-1]
+    docs = e_surname + '/' + a_surname
+    today = datetime.datetime.today()
+    today_str = today.strftime("%Y-%m-%d")
+    today_path = os.path.join(
+        'd:\\JOHN TILLET\\episode_data\\webshelf\\' + today_str)
+    with shelve.open(today_path, writeback=True) as s:
+        if mrn not in s:
+            s[mrn] = { 
+                    'in_theatre': intime,
+                    'out_theatre': outtime,
+                    'doctors': docs,
+                    'name': patient,
+                    'asa': asa,
+                    'consult': consult,
+                    'upper': upper,
+                    'colon': colon,
+                    'banding': banding,
+                    'nurse': nurse,
+                    'varix_lot': varix_lot,
+                    'message': message,
+                    'billed': '',
+                    }
+        else:
+            response = pya.confirm(text="Resending data. Keep original times?",
+                        title="",
+                        buttons=["Original", "New times"])
+            if response == "New times":
+                s[mrn] = { 
+                    'in_theatre': intime,
+                    'out_theatre': outtime,
+                    'doctors': docs,
+                    'name': patient,
+                    'asa': asa,
+                    'consult': consult,
+                    'upper': upper,
+                    'colon': colon,
+                    'banding': banding,
+                    'nurse': nurse,
+                    'varix_lot': varix_lot,
+                    'message': message,
+                    'billed': '',
+                    }
+
+                    
+            else:
+                s[mrn]['doctors'] = docs
+                s[mrn]['name']= patient
+                s[mrn]['asa'] = asa
+                s[mrn]['consult'] = consult
+                s[mrn]['upper'] = upper
+                s[mrn]['colon'] = colon
+                s[mrn]['banding'] = banding
+                s[mrn]['nurse'] = nurse
+                s[mrn]['varix_lot'] = varix_lot
+                s[mrn]['message'] = message
+                s[mrn]['billed'] = ''
+                                
+        return today_path
+
 def make_web_secretary(today_path):
     """Render jinja2 template
     and write to file for web page of today's patients
@@ -609,6 +723,29 @@ def make_web_secretary(today_path):
     loader = FileSystemLoader(os.path.dirname(path_to_template))
     env = Environment(loader=loader)
     template_name = 'today_sec_template.html'
+    template = env.get_template(template_name)
+    a = template.render(today_data=today_data, today_date=today_str)
+    with open('d:\\Nobue\\today_new.html', 'w') as f:
+        f.write(a)
+
+
+def make_web_secretary_from_shelf(today_path):
+    """Render jinja2 template
+    and write to file for web page of today's patients
+    from shelf data
+    """
+    today = datetime.datetime.today()
+    today_str = today.strftime(
+        '%A' + '  ' + '%d' + '-' + '%m' + '-' + '%Y')
+    with shelve.open(today_path) as s:
+        today_data = list(s.values())
+
+    today_data.sort(key=lambda x: x['out_theatre'], reverse=True)
+    
+    path_to_template = 'D:\\JOHN TILLET\\episode_data\\today_sec_shelf_template.html'
+    loader = FileSystemLoader(os.path.dirname(path_to_template))
+    env = Environment(loader=loader)
+    template_name = 'today_sec_shelf_template.html'
     template = env.get_template(template_name)
     a = template.render(today_data=today_data, today_date=today_str)
     with open('d:\\Nobue\\today_new.html', 'w') as f:
@@ -638,6 +775,32 @@ def make_long_web_secretary(today_path):
     file_str = 'D:\\JOHN TILLET\\episode_data\\html-backup\\' + file_date + '.html'
     with open(file_str, 'w') as f:
         f.write(a)
+
+
+def make_long_web_secretary_from_shelf(today_path):
+    """Render jinja2 template
+    and write to file for complete info on today's patients
+    """
+    today_str = today.strftime(
+        '%A' + '  ' + '%d' + '-' + '%m' + '-' + '%Y')
+    with shelve.open(today_path) as s:
+        today_data = list(s.values())
+
+    today_data.sort(key=lambda x: x['out_theatre'], reverse=True)
+
+    path_to_template = 'D:\\JOHN TILLET\\episode_data\\today_long_sec_shelf_template.html'
+    loader = FileSystemLoader(os.path.dirname(path_to_template))
+    env = Environment(loader=loader)
+    template_name = 'today_long_sec_shelf_template.html'
+    template = env.get_template(template_name)
+    a = template.render(today_data=today_data, today_date=today_str)
+    with open('d:\\Nobue\\today_long_shelf.html', 'w') as f:
+        f.write(a)
+    file_date = today.strftime('%Y' + '-' + '%m' + '-' + '%d')
+    file_str = 'D:\\JOHN TILLET\\episode_data\\html-backup\\' + file_date + '.html'
+    with open(file_str, 'w') as f:
+        f.write(a)
+
 
 
 def to_watched():
@@ -689,34 +852,6 @@ def close_out(anaesthetist):
             'd:\\Nobue\\report_{}.html'.format(anaesthetist.split()[-1]))
 
 
-def jt_analysis():
-    """Return difference from weekly target from first_date.
-    Counts entries in master and current csv files.
-    """
-    first_date = datetime.datetime(2018, 4, 5)
-    year = '2018'
-    today = datetime.datetime.now()
-#    first_date_lex = '20180401'
-    results = 4
-    with open('d:\\JOHN TILLET\\episode_data\\sedation\\Tillett_master.csv') as h:
-        reader = csv.reader(h)
-        for ep in reader:
-            if ep[0].split('-')[-1] == year:
-                results += 1
-
-    with open('d:\\JOHN TILLET\\episode_data\\sedation\\Tillett.csv') as h:
-        reader = csv.reader(h)
-        for ep in reader:
-            if ep[0].split('-')[-1] == year:
-                results += 1
-    a = today - first_date
-    days_diff = a.days
-    desired_weekly = 60
-    desired_number = int(days_diff * desired_weekly / 7)
-    excess = results - desired_number
-    return excess
-
-
 def print_receipt(anaesthetist, episode, message):
     """Print a receipt if overseas patient."""
     headers = ["date", "name", "address", "dob", "medicare_no", "ref",
@@ -766,14 +901,12 @@ def send_message():
 
 
 def update():
-    today = datetime.datetime.now()
-    date_file_str = today.strftime(
-                             '%Y' + '-' + '%m' + '-' + '%d')
-    date_filename = date_file_str + '.csv'
+    today = datetime.datetime.today()
+    today_str = today.strftime("%Y-%m-%d")
     today_path = os.path.join(
-             'd:\\JOHN TILLET\\episode_data\\csv\\' + date_filename)
-    make_web_secretary(today_path)
-    make_long_web_secretary(today_path)
+        'd:\\JOHN TILLET\\episode_data\\webshelf\\' + today_str)
+    make_web_secretary_from_shelf(today_path)
+    make_long_web_secretary_from_shelf(today_path)
     nob_today = 'd:\\Nobue\\today_new.html'
     webbrowser.open(nob_today)
 
@@ -795,8 +928,7 @@ def runner(*args):
         if asa == 'No Sedation':
             message += 'No sedation.'
         asa = ASA_DIC[asa]
-        
-    
+
         upper = up.get()
         if upper == 'Cancelled':
             message += 'Upper cancelled.'
@@ -916,14 +1048,20 @@ def runner(*args):
                         anaesthetist, anaesthetic_tuple, message)
      
         message = message_parse(message)
-        today_path = episode_to_csv(
-                out_theatre, endoscopist, anaesthetist, name,consult,
-                upper, colon, message, in_theatre,
-                nurse, asa, banding, varix_lot, mrn)
-        make_web_secretary(today_path)
-        make_long_web_secretary(today_path)
+#        today_path = episode_to_csv(
+#                out_theatre, endoscopist, anaesthetist, name,consult,
+#                upper, colon, message, in_theatre,
+#                nurse, asa, banding, varix_lot, mrn)
+#        make_web_secretary(today_path)
+#        make_long_web_secretary(today_path)
         to_watched()
-    
+
+        today_path = web_shelver_new(out_theatre, endoscopist, anaesthetist, name,
+                   consult, upper, colon, message, in_theatre,
+                   nurse, asa, banding, varix_lot, mrn)
+        make_web_secretary_from_shelf(today_path)
+        make_long_web_secretary_from_shelf(today_path)
+        
         time.sleep(2)
         if anaesthetist in BILLING_ANAESTHETISTS:
             render_anaesthetic_report(anaesthetist)
@@ -971,11 +1109,11 @@ menu_extras.add_command(label='Roster', command=open_roster)
 menu_extras.add_command(label='Web Page', command=open_today)
 menu_extras.add_command(label='Dox', command=open_dox)
 #menu_extras.add_command(label='Spyder', command=start_spyder)
-menu_extras.add_command(label='Message', command=send_message)
+#menu_extras.add_command(label='Message', command=send_message)
 
 menubar.add_cascade(menu=menu_admin, label='Admin')
-menu_admin.add_command(label='Update', command=update)
-menu_admin.add_command(label='Watcher', command=start_watcher)
+menu_admin.add_command(label='Delete Record', command=delete_record)
+#menu_admin.add_command(label='Watcher', command=start_watcher)
 
 menubar.add_cascade(menu=menu_accounts,  label='Accounts')
 menu_accounts.add_command(label='Receipt', command=open_receipt)

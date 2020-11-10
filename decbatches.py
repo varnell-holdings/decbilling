@@ -29,6 +29,7 @@ fees_config.read("d:\\john tillet\\episode_data\\FEES.ini")
 
 # value is a list of  two numbers - the consult fee and the unit fee
 # mbs july 2019 17610 $44.35   23010  $20.10
+# MUST fill this in FEES.INI !!! for fees_config
 FUND_FEES = {
     "hcf": [72.90, 34.70],
     "bup": [74.40, 33.60],
@@ -43,14 +44,14 @@ FUND_FEES = {
     "lt": [55.44, 25.13],
     "sl": [74.05, 34.80],
     "hh": [55.44, 30.15],
-    "va": [69.45, 32.70],
-    "bb": [33.30, 15.10],
+    "va": [72.75, 33.75],
+    "bb": [33.75, 15.30],
     "os": [70.00, 30.00],
     "u": [70.00, 35.00],
     "p": [33.30, 15.10],
     "send_bill": [74.40, 33.60],
     "paid": [70.00, 35.00],
-    "paid_ama": [160.00, 80.00]
+    "paid_ama": [160.00, 80.00],
 }
 
 
@@ -75,13 +76,20 @@ FUND_ADDRESSES = {
         "Queen Victoria Building",
         "NSW",
         "1230",
-    ], 
+    ],
     "Australian Unity Health": [
         "Australian Unity Health Ltd",
         "114 Albert Rd",
         "South Melbourne",
         "VIC",
         "3205",
+    ],
+    "ACA Health": [
+        "ACA Health Benefits Fund",
+        "148 Fox Valley Rd",
+        "Wahroonga",
+        "NSW",
+        "2076",
     ],
     "CBHS Health": [
         "CBHS Health Fund Limited",
@@ -128,7 +136,6 @@ FUND_ADDRESSES = {
         "NSW",
         "2500",
     ],
-
     "Teachers Health Fund": [
         "Teachers Health Fund",
         "GPO Box 9812",
@@ -136,15 +143,32 @@ FUND_ADDRESSES = {
         "NSW",
         "2001",
     ],
-    "Nurses & Midwives Health":["Nurses & Midwives Health", "Level 4/260 Elizabeth St", "Sydney", "NSW", "2000"],
-    "healthcare insurance": ["healthcare insurance", "PO Box 931", "Burnie", "TAS", "7320"],
+    "Nurses & Midwives Health": [
+        "Nurses & Midwives Health",
+        "Level 4/260 Elizabeth St",
+        "Sydney",
+        "NSW",
+        "2000",
+    ],
+    "healthcare insurance": [
+        "healthcare insurance",
+        "PO Box 931",
+        "Burnie",
+        "TAS",
+        "7320",
+    ],
     "Teachers Union or QTH": ["TUH  ", "PO Box 265", "Fortitude Valley", "QLD", "4006"],
     "Westfund": ["Westfund", "PO Box 235", "Lithgow", "NSW", "2790"],
     "lt": ["Latrobe Health", "Reply Paid 41", "Morell", "VIC", "3840"],
-    "hh": ["Hunter Health", "PO Box", "Cessnock", "NSW",  "2325"],
+    "hh": ["Hunter Health", "PO Box", "Cessnock", "NSW", "2325"],
     "sl": ["stlukeshealth", "PO Box 915", "Launceston", "TAS", "7250"],
-    "Queensland Country Health": ["Queensland Country Health", "1/333 Ross River Rd", "Aitkenvale", "QLD", "4814"],
-    
+    "Queensland Country Health": [
+        "Queensland Country Health",
+        "1/333 Ross River Rd",
+        "Aitkenvale",
+        "QLD",
+        "4814",
+    ],
 }
 
 BILLER = {
@@ -235,18 +259,17 @@ def print_account(ep, doc, unit, consult_as_float, time_fee, total_fee, biller):
         p_ga = doc.add_paragraph("Approval Number:")
         ga_str = "   %s" % ep["fund_number"]
         p_ga.add_run(ga_str)
-    elif ep["fund_code"] == "send_bill":
-        doc.add_paragraph(
-            "Fund:  %s   " % (ep["ref"])
-        )
-        doc.add_paragraph("Patient not registered with Medicare for this service.")
+
     else:
         doc.add_paragraph(
             "Fund:  %s   Number:  %s" % (ep["fund_name"], ep["fund_number"])
         )
-        p_mc = doc.add_paragraph("Medicare Number")
-        mc_str = "   %s    ref  %s" % (ep["medicare_no"], ep["ref"])
-        p_mc.add_run(mc_str)
+        if ep["fund_code"] == "send_bill":
+            doc.add_paragraph("Patient not registered with Medicare for this service.")
+        else:
+            p_mc = doc.add_paragraph("Medicare Number")
+            mc_str = "   %s    ref  %s" % (ep["medicare_no"], ep["ref"])
+            p_mc.add_run(mc_str)
     doc.add_paragraph("Date of Procedure:  %s" % ep["date"])
     doc.add_paragraph("Procedure performed by %s" % ep["doctor"])
     doc.add_paragraph("Diagnostic Endoscopy Centre, Darlinghurst, NSW 2010")
@@ -446,7 +469,7 @@ def batch_filler(name):
     mpl_today_str_d = today.strftime("%d")
     mpl_today_str_m = today.strftime("%m")
     mpl_today_str_y = today.strftime("%Y")
-#    gu_today_str = today.strftime("%d-%m-%Y")
+    #    gu_today_str = today.strftime("%d-%m-%Y")
 
     try:
         os.remove("d:\\Nobue\\headers.zip")
@@ -504,30 +527,31 @@ def batch_filler(name):
                 os.startfile(f)
                 time.sleep(4)
                 newzip, counter = print_save(newzip, counter)
-            
-#            elif batch[0] in {"gu"}:
-#                os.startfile(f)
-#                time.sleep(12)
-#                newzip, counter = print_save(newzip, counter)
 
-#            elif batch[0] == "gu":
-#                os.startfile(f)
-#                time.sleep(15)
-#                pya.typewrite(["tab"] * 10, interval=0.1)
-#                time.sleep(2)
-#                pya.typewrite(gu_today_str, interval=0.1)
-#                time.sleep(1)
-#                pya.press("tab")
-#                pya.typewrite(batch[1])
-#                time.sleep(1)
-#                pya.press("tab")
-#                pya.typewrite(batch[2])
-#                time.sleep(3)
-#                newzip, counter = print_save(newzip, counter)
+            #            elif batch[0] in {"gu"}:
+            #                os.startfile(f)
+            #                time.sleep(12)
+            #                newzip, counter = print_save(newzip, counter)
+
+            #            elif batch[0] == "gu":
+            #                os.startfile(f)
+            #                time.sleep(15)
+            #                pya.typewrite(["tab"] * 10, interval=0.1)
+            #                time.sleep(2)
+            #                pya.typewrite(gu_today_str, interval=0.1)
+            #                time.sleep(1)
+            #                pya.press("tab")
+            #                pya.typewrite(batch[1])
+            #                time.sleep(1)
+            #                pya.press("tab")
+            #                pya.typewrite(batch[2])
+            #                time.sleep(3)
+            #                newzip, counter = print_save(newzip, counter)
 
             elif batch[0] not in [
                 "send_bill",
                 "paid",
+                "paid_ama",
                 "bb",
                 "va",
                 "hcf",
@@ -625,7 +649,6 @@ def check_addresses(datafile):
                 sys.exit(0)
         else:
             print("All Good!")
-        
 
 
 def mail_and_backup(anaesthetist, file_type):
@@ -717,9 +740,9 @@ def process_acc(grand_total, ep):
     """
 
     # get fees from module depending on fund
-#    fee_package = FUND_FEES[ep["fund_code"]]
-#    consult_as_float = float(fee_package[0])
-#    unit = float(fee_package[1])
+    #    fee_package = FUND_FEES[ep["fund_code"]]
+    #    consult_as_float = float(fee_package[0])
+    #    unit = float(fee_package[1])
     consult_as_float = float(fees_config[ep["fund_code"]]["consult"])
     unit = float(fees_config[ep["fund_code"]]["unit"])
 
@@ -757,7 +780,7 @@ def cleanup(datafile, masterfile, summaryfile, printfile, anaesthetist):
     input("Press Enter to open accounts file.")
     os.startfile(printfile)
     time.sleep(3)
-    
+
     print()
     while True:
         merge = """All done!
@@ -830,28 +853,33 @@ def main():
 
     clear()
     while True:
-        print("Enter a to make accounts or b to make batch headers or hit x to exit now.")
+        print(
+            "Enter a to make accounts or b to make batch headers or hit x to exit now."
+        )
         print("")
         print("To do both - first choose a to make accounts then restart this program")
         print("and choose b to make batch headers")
-        
+
         b = input()
         if b == "b":
-            input("""Make sure to shrink the docbill screen before continuing.\n
+            input(
+                """Make sure to shrink the docbill screen before continuing.\n
                   Not able to print the GU header at this time - keeps crashing.\n
-                  Any key to continue.""")
-            
+                  R&T Health insisting on a separate header for each account. You will nedd to do this manually.\n
+                  Any key to continue."""
+            )
+            print("Printing the batch headers....")
             batch_filler(biller)
             print("Emailing the headers..")
             mail_and_backup(biller, "zip")
             sys.exit()
         elif b == "a":
             break
-        elif b == 'x':
+        elif b == "x":
             sys.exit()
         else:
             continue
-            
+
     biller_surmame = biller.split()[-1]
     base = "D:\\JOHN TILLET\\episode_data\\sedation\\"
     summaryfile = base + "accts_summary.txt"
@@ -897,7 +925,7 @@ def main():
         sys.exit(1)
 
     check_addresses(datafile)
-#    go = input
+    #    go = input
 
     clear()
     print("Printing Dr {}'s accounts".format(biller_surmame))

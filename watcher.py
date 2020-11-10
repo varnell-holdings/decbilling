@@ -16,9 +16,10 @@ from jinja2 import Environment, FileSystemLoader
 from watchdog.observers import Observer
 from watchdog.events import FileModifiedEvent, PatternMatchingEventHandler
 
-pya.PAUSE = 0.3
+pya.PAUSE = 0.6
 pya.FAILSAFE = True
 
+# coord of doctor field and disposibles i theatre tab in day surgery
 coords = {
     "John": ((100, 155), (100, 360)),
     "John2": ((100, 155), (100, 360)),
@@ -28,6 +29,7 @@ coords = {
     "Recept5": ((100, 160), (100, 350)),
     "Admin3": ((100, 163), (100, 345)),
     "Accounts": ((100, 165), (100, 352)),
+    "Regina": ((100, 160), (100, 352)),
 }
 
 observer = Observer()
@@ -56,15 +58,19 @@ class EpFullException(Exception):
 
 
 def episode_discharge(intime, outtime, anaesthetist, endoscopist):
-    pya.hotkey("alt", "i")
-    pya.typewrite(["enter"] * 4)
+    pya.hotkey("alt", "n")
+    pya.typewrite(["left"] * 8)
+    #    pya.typewrite(["enter"] * 4)
+    pya.typewrite(["tab"] * 5)
     pya.typewrite(intime)
     pya.typewrite(["enter"] * 2)
     pya.typewrite(outtime)
     pya.typewrite(["enter"] * 3)
-    pya.typewrite(["tab"] * 6)
+    pya.typewrite(["tab"] * 5)
     pya.typewrite(anaesthetist)
-    pya.typewrite("\n")
+    time.sleep(3)
+    pya.press("tab")
+    #    pya.typewrite("\n")
 
     pya.typewrite(endoscopist)
     time.sleep(1)
@@ -138,12 +144,15 @@ def episode_procedures(upper, lower, anal, asa, bupa_flag=False):
     return
 
 
-def episode_claim_b3():
+def episode_claim_b3(band3):
     pya.hotkey("alt", "s")
     pya.typewrite(["left"] * 2)
     for i in range(7):
         pya.hotkey("shift", "tab")
-    pya.press("3")
+    if band3:
+        pya.press("3")
+    else:
+        pya.press("1")
 
 
 def episode_theatre(endoscopist, nurse, clips, varix_lot):
@@ -169,8 +178,9 @@ def episode_theatre(endoscopist, nurse, clips, varix_lot):
         pya.typewrite(["tab"] * 2)
         pya.typewrite(["enter"] * 2)
 
-    pya.moveTo(doc_coord)
-    pya.click()
+    #    pya.moveTo(doc_coord)
+    #    pya.click()
+    pya.hotkey("shift", "tab")
     pya.typewrite(endoscopist)
     pya.typewrite(["enter", "e", "enter"])
     pya.moveRel(400, 0)
@@ -213,7 +223,7 @@ def episode_theatre(endoscopist, nurse, clips, varix_lot):
                 pya.typewrite(["tab"] * 2)
 
 
-#def write_as_billed(mrn):
+# def write_as_billed(mrn):
 #    today = datetime.datetime.now()
 #    date_file_str = today.strftime("%Y" + "-" + "%m" + "-" + "%d")
 #    date_filename = date_file_str + ".csv"
@@ -269,7 +279,7 @@ def make_web_secretary_from_shelf(today_path):
     template_name = "today_sec_shelf_template_19.html"
     template = env.get_template(template_name)
     a = template.render(today_data=today_data, today_date=today_str)
-    with open("d:\\Nobue\\today_new.html", "w", encoding='utf-8') as f:
+    with open("d:\\Nobue\\today_new.html", "w", encoding="utf-8") as f:
         f.write(a)
 
 
@@ -310,10 +320,10 @@ def dumper():
         or episode["colon"] in {"32093-00", "32094-00"}
         or episode["banding"] in {"32153-00"}
     )
-    if band3:
-        episode_claim_b3()
-    else:
-        pya.hotkey("alt", "c")
+
+    episode_claim_b3(band3)
+
+    pya.hotkey("alt", "c")
     episode_theatre(
         episode["endoscopist"], episode["nurse"], episode["clips"], episode["varix_lot"]
     )
@@ -323,6 +333,7 @@ def dumper():
         make_web_secretary_from_shelf(today_path)
     except:
         pass
+
 
 def open_help():
     webbrowser.open("d:\\Nobue\\watcher_help.html")

@@ -19,6 +19,8 @@ import logging
 import os
 import pickle
 import shelve
+
+# import sys
 import time
 import webbrowser
 
@@ -39,24 +41,48 @@ pya.FAILSAFE = False
 
 class BillingException(Exception):
     pass
+
+
 class MissingDoctorException(BillingException):
     pass
+
+
 class MissingNurseException(BillingException):
     pass
+
+
 class MissingProcedureException(BillingException):
     pass
+
+
 class MissingASAException(BillingException):
     pass
+
+
 class MissingPathologyException(BillingException):
     pass
+
+
 class NoBlueChipException(BillingException):
     pass
+
+
 class CaecumFailException(BillingException):
     pass
+
+
 class TestingException(BillingException):
     pass
+
+
 class NoNameException(BillingException):
     pass
+
+
+class WrongDocException(BillingException):
+    pass
+
+
 class NoDoubleException(BillingException):
     pass
 
@@ -70,35 +96,37 @@ logging.basicConfig(
 
 def pats_from_aws(date):
     try:
-        s3 = boto3.resource('s3',
-                            aws_access_key_id = aws_access_key_id,
-                            aws_secret_access_key = aws_secret_access_key,
-                            region_name = "ap-southeast-2")
+        s3 = boto3.resource(
+            "s3",
+            aws_access_key_id=aws_access_key_id,
+            aws_secret_access_key=aws_secret_access_key,
+            region_name="ap-southeast-2",
+        )
 
-        s3.Object('dec601', 'patients.csv').download_file('test_data.csv')
+        s3.Object("dec601", "patients.csv").download_file("aws_data.csv")
     except Exception as e:
         logging.error("Failed to get patients list.", exc_info=True)
         bookings_dic = {}
         mrn_dic = {}
         pya.alert("Failed to get patients list.")
         return bookings_dic, mrn_dic
-        
+
     #  bookings_dic maps endoscopists to a list of tuples of patient names and datestamps of data entry
     bookings_dic = {}
     mrn_dic = {}  #  this will map patient name to mrn
-    double_dic = {} # this will map mrn to double flag
-    pat_doc_dic = {}  # map patient to doctor for check if correct doctor selected in combobox
-    with open('test_data.csv', encoding='utf-8') as h:
+    double_dic = {}  # this will map mrn to double flag
+    pat_doc_dic = {}  # map patient mrn  to doctor for check if correct doctor selected in combobox
+    with open("aws_data.csv", encoding="utf-8") as h:
         reader = csv.reader(h)
         for patient in reader:
             doc = patient[1].lower()
             this_day = patient[0]
 
             if len(this_day) == 9:
-                this_day = '0' + this_day
-                
+                this_day = "0" + this_day
+
             if (this_day == date) or (this_day == "error"):
-#                print(patient)
+                #                print(patient)
                 if doc in bookings_dic:
                     bookings_dic[doc].append((patient[3], patient[6]))
                 else:
@@ -109,9 +137,10 @@ def pats_from_aws(date):
                 double_dic[patient[2]] = patient[5]
                 name_for_doc_dic = patient[3].split(", ")[0]
                 name_for_doc_dic = name_for_doc_dic.split()[-1].lower()
-#                print(name_for_doc_dic)
-                pat_doc_dic[name_for_doc_dic] = patient[1]
-    return bookings_dic, mrn_dic, double_dic , pat_doc_dic
+                #                print(name_for_doc_dic)
+                pat_doc_dic[patient[2]] = patient[1]
+    return bookings_dic, mrn_dic, double_dic, pat_doc_dic
+
 
 today = datetime.datetime.today()
 
@@ -133,6 +162,9 @@ PATIENTS = []
 selected_name = "error!"
 manual_mrn = ""
 manual_flag = False
+equip_flag = False
+overide_endoscopist = False
+
 
 BILLING_ANAESTHETISTS = ["Dr S Vuong", "Dr J Tillett"]
 
@@ -178,16 +210,17 @@ COLONS = [
     "Failure to reach caecum",
     "32222",
     "32223",
-    "32224",    
+    "32224",
     "32225",
     "32226",
     "32227",
     "32228",
-    
+    "Cancelled",
 ]
 
 COLON_DIC = {
     "No Lower": None,
+    "Cancelled": None,
     "32222": "32222",
     "32223": "32223",
     "32224": "32224",
@@ -208,7 +241,7 @@ BANDING_DIC = {
     "Anal dilatation": "32153-00",
 }
 
-CONSULT_DIC = {"No Consult": None, "Consult": "110"}
+CONSULT_DIC = {"No Consult": None, "Consult": "110", "None": None, "No need": None}
 
 FUND_TO_CODE = {
     "HCF": "hcf",
@@ -244,6 +277,7 @@ FUNDS = [
     "GU Health",
     "The Doctor's Health Fund",
     "+++++ ahsa funds ++++++++",
+    "ACA Health",
     "Australian Unity Health",
     "CBHS Health",
     "CUA Health",
@@ -273,6 +307,7 @@ FUNDS = [
     "Queensland Country Health",
 ]
 
+
 def in_and_out_calculater(time_in_theatre):
     """Calculate formatted in and out times given time in theatre."""
     time_in_theatre = int(time_in_theatre)
@@ -283,6 +318,18 @@ def in_and_out_calculater(time_in_theatre):
     in_formatted = intime.strftime("%H" + ":" + "%M")
 
     return (in_formatted, out_formatted)
+
+
+def find_bc(file_number):
+    pya.click(50, 450)
+    pya.hotkey("ctrl", "o")
+    time.sleep(2)
+    pya.hotkey("alt", "b")
+    pya.press("down")
+    pya.hotkey("alt", "s")
+    pya.typewrite(file_number)
+    time.sleep(2)
+    pya.press("enter")
 
 
 def front_scrape():
@@ -460,6 +507,45 @@ def episode_getfund(insur_code, fund, fund_number, ref):
     return (mcn, ref, fund, fund_number)
 
 
+def day_surgery_to_csv(
+    mrn,
+    in_theatre,
+    out_theatre,
+    anaesthetist,
+    endoscopist,
+    asa,
+    upper,
+    colon,
+    banding,
+    nurse,
+    clips,
+    varix_lot,
+    message,
+):
+    """Write day surgery data to csv."""
+
+    today_str = today.strftime("%d-%m-%Y")
+    data = (
+        today_str,
+        mrn,
+        in_theatre,
+        out_theatre,
+        anaesthetist,
+        endoscopist,
+        asa,
+        upper,
+        colon,
+        banding,
+        nurse,
+        clips,
+        varix_lot,
+        message,
+    )
+    with open("d:\\Nobue\\day_surgery.csv", mode="at") as handle:
+        datawriter = csv.writer(handle, dialect="excel", lineterminator="\n")
+        datawriter.writerow(data)
+
+
 def day_surgery_shelver(
     mrn,
     in_theatre,
@@ -609,6 +695,16 @@ def message_parse(message):
     return message
 
 
+def equip_write(proc, endoscopist, mrn):
+    """ takes procedure as a string and writes it and date to equipment file
+    for Nobue"""
+    today_str = today.strftime("%d-%m-%Y")
+    data = (today_str, proc, endoscopist, mrn)
+    with open("d:\\Nobue\\equipment.csv", mode="at") as handle:
+        datawriter = csv.writer(handle, dialect="excel", lineterminator="\n")
+        datawriter.writerow(data)
+
+
 def caecum_data(doctor, mrn, caecum_flag):
     """Write whether scope got to caecum."""
     doctor = doctor.split()[-1]
@@ -624,7 +720,6 @@ def caecum_data(doctor, mrn, caecum_flag):
     with open(csvfile, "a") as handle:
         datawriter = csv.writer(handle, dialect="excel", lineterminator="\n")
         datawriter.writerow(caecum_data)
-
 
 
 def to_anaesthetic_csv(new_ep_data, anaesthetist):
@@ -683,7 +778,9 @@ def web_shelver(
         colon = ""
 
     today_str = today.strftime("%Y-%m-%d")
-    today_path = os.path.join("d:\\JOHN TILLET\\episode_data\\webshelf\\" + today_str + "_19")
+    today_path = os.path.join(
+        "d:\\JOHN TILLET\\episode_data\\webshelf\\" + today_str + "_19"
+    )
     episode_dict = {
         "in_theatre": intime,
         "out_theatre": outtime,
@@ -723,7 +820,7 @@ def make_web_secretary_from_shelf(today_path):
     template_name = "today_sec_shelf_template_19.html"
     template = env.get_template(template_name)
     a = template.render(today_data=today_data, today_date=today_str)
-    with open("d:\\Nobue\\today_new.html", "w", encoding='utf-8') as f:
+    with open("d:\\Nobue\\today_new.html", "w", encoding="utf-8") as f:
         f.write(a)
 
 
@@ -745,22 +842,23 @@ def make_long_web_secretary_from_shelf(today_path):
     template_name = "today_long_sec_shelf_template_19.html"
     template = env.get_template(template_name)
     a = template.render(today_data=today_data, today_date=today_str)
-    with open("d:\\Nobue\\today_long.html", "w", encoding='utf-8') as f:
+    with open("d:\\Nobue\\today_long.html", "w", encoding="utf-8") as f:
         f.write(a)
     file_date = today.strftime("%Y" + "-" + "%m" + "-" + "%d")
     file_str = "D:\\JOHN TILLET\\episode_data\\html-backup\\" + file_date + ".html"
-    with open(file_str, "w", encoding='utf-8') as f:
+    with open(file_str, "w", encoding="utf-8") as f:
         f.write(a)
 
 
 def colon_to_csv(mrn, colon):
+    """Record evry patient who has colon with teir mrn date and colon code.
+    Possible basis for app later on to see if patient eligible for code."""
     today_str = today.strftime("%d" + "-" + "%m" + "-" + "%Y")
     data = (today_str, mrn, colon)
     with open("D:\\JOHN TILLET\\episode_data\\colon_csv", mode="at") as handle:
         datawriter = csv.writer(handle, dialect="excel", lineterminator="\n")
         if colon:
             datawriter.writerow(data)
-        
 
 
 def to_watched():
@@ -873,13 +971,15 @@ def open_weekends():
 def error_log():
     webbrowser.open("d:\\JOHN TILLET\\episode_data\\doclog.log")
 
+
 def add_message():
     mess_box.grid()
     mess_box.focus()
-    
+
 
 def open_dox():
     pya.hotkey("ctrl", "w")
+
 
 def change_fees():
     os.startfile("d:\\john tillet\\episode_data\\fees.ini")
@@ -933,7 +1033,7 @@ def open_help():
 
 def colon_combo_click(event):
     colon_proc = co.get()
-    if colon_proc !=  "No Lower":
+    if colon_proc != "No Lower":
         path_star_label.grid()
         path_box.grid()
         ba_box.grid()
@@ -942,8 +1042,7 @@ def colon_combo_click(event):
         ba.set("No Anal Procedure")
         path_box.grid_remove()
         ba_box.grid_remove()
-    
-    
+
     if colon_proc != "Failure to reach caecum":
         caecum_box.grid_remove()
         fail_text.set("")
@@ -951,26 +1050,37 @@ def colon_combo_click(event):
         caecum_box.grid()
         fail_text.set("Reason for Failure")
 
+
 def path_combo_click(event):
     path_star_label.grid_remove()
+
 
 def is_biller_endoscopist(event):
     global biller_endo_flag
     global PATIENTS
     biller_endo = end.get()
-    
+
     doctor = biller_endo.split()[-1].lower()
     PATIENTS = get_list_from_dic(doctor, booking_dic)
-    print(PATIENTS)
-        
-    if biller_endo in {"Dr A Wettstein", "Dr R Feller", "Dr C Vickers", "Dr S Vivekanandarajah"}:
+    #    print(PATIENTS)
+
+    if biller_endo in {
+        "Dr A Wettstein",
+        "Dr R Feller",
+        "Dr C Vickers",
+        "Dr S Vivekanandarajah",
+    }:
         biller_endo_flag = True
-        con.set("No Consult")
-        con_button.grid()
+        con.set("None")
+        con_label.grid()
+        con_button1.grid()
+        con_button2.grid()
     else:
         biller_endo_flag = False
-        con.set("No Consult")
-        con_button.grid_remove()
+        con.set("No need")
+        con_label.grid_remove()
+        con_button1.grid_remove()
+        con_button2.grid_remove()
 
 
 def pat_box_selected(event):
@@ -981,28 +1091,31 @@ def pat_box_selected(event):
     if selected_name == "Enter Manually":
         manual_flag = True
         while True:
-            selected_name = pya.prompt(text='Enter Patient Name - no problem if slight error!', title='Patient Name' , default='Jane Doe')
+            selected_name = pya.prompt(
+                text="Enter Patient Name - no problem if slight error!",
+                title="Patient Name",
+                default="Jane Doe",
+            )
             if selected_name is None:
                 raise BillingException
-            elif selected_name == 'Jane Doe':
+            elif selected_name == "Jane Doe":
                 continue
             else:
                 pat.set(selected_name)
                 break
         while True:
-            manual_mrn = pya.prompt(text='Enter MRN - MUST BE ACCURATE!', title='MRN' , default="00000")
+            manual_mrn = pya.prompt(
+                text="Enter MRN - MUST BE ACCURATE!", title="MRN", default="00000"
+            )
             if manual_mrn is None:
-               raise BillingException
+                raise BillingException
             elif manual_mrn == "00000":
                 continue
             else:
                 break
-        
+
     else:
         manual_flag = False
-
-def asa_selected(event):
-    asa_label.grid_remove()
 
 
 def is_biller_anaesthetist(event):
@@ -1021,32 +1134,89 @@ def is_biller_anaesthetist(event):
 
 def get_list_from_dic(doctor, booking_dic):
     if doctor not in booking_dic:
-        return ["Use Blue Chip", "Use Blue Chip Once", "Enter Manually", ""]
+        return ["Use Blue Chip", "Enter Manually", ""]
     else:
         lop = list(set(booking_dic[doctor]))
         lop = sorted(lop, key=lambda x: x[1])
-        return_list = ["Use Blue Chip",  "Use Blue Chip Once", "Enter Manually", ""]
+        return_list = ["Use Blue Chip", "Enter Manually", ""]
         for p in lop:
             return_list.append(p[0])
         return return_list
 
+
 def button_enable(*args):
+    """Toggle Send button when all data entered"""
     anas = an.get()
     endo = end.get()
     nurs = nur.get()
+    patient = pat.get()
+
     asa = asc.get()
+    consult = con.get()
+    print("cnosult {}".format(consult))
     upper = up.get()
     col = co.get()
     path = po.get()
+    fund = fu.get()
     top_line = anas != "Anaesthetist" and endo != "Endoscopist" and nurs != "Nurse"
-    second_line = upper != "No Upper" or col != "No Lower"
-    if  top_line and second_line and asa != "ASA": # and (col == "No Lower" or ( col != "No Lower" and path != "Colon Pathology")):
-        if col == "No Lower" or ( col != "No Lower" and path != "Colon Pathology"):
-            btn.config(state='normal')
-    else:
-        btn.config(state='disabled')
+    if not top_line:
+        btn.config(state="disabled")
+        btn_txt.set("")
+        feedback["text"] = "Missing staff  data"
         root.update_idletasks()
-        
+        return
+    if patient == "Click for patients" and anas not in BILLING_ANAESTHETISTS:
+        btn.config(state="disabled")
+        btn_txt.set("")
+        feedback["text"] = "Select patient"
+        root.update_idletasks()
+        return
+
+    if upper == "No Upper" and col == "No Lower":
+        btn.config(state="disabled")
+        btn_txt.set("")
+        feedback["text"] = "Procedure ?"
+        root.update_idletasks()
+        return
+
+    if asa == "ASA":
+        btn.config(state="disabled")
+        btn_txt.set("")
+        feedback["text"] = "ASA ?"
+        root.update_idletasks()
+        return
+    if consult == "None":
+        btn.config(state="disabled")
+        btn_txt.set("")
+        feedback["text"] = "Consult ?"
+        root.update_idletasks()
+        return
+
+    if anas in BILLING_ANAESTHETISTS and fund == "Fund":
+        btn.config(state="disabled")
+        btn_txt.set("")
+        feedback["text"] = "Fund!"
+        root.update_idletasks()
+        return
+    if upper != "No Upper" and col == "No Lower":
+        btn.config(state="normal")
+        btn_txt.set("Send")
+        feedback["text"] = "Check time and clips then Send!"
+        root.update_idletasks()
+        return
+    if col != "No Lower" and path == "Colon Pathology":
+        btn.config(state="disabled")
+        btn_txt.set("")
+        feedback["text"] = "Colon path?"
+        root.update_idletasks()
+
+        return
+    if col != "No Lower" and path != "Colon Pathology":
+        btn.config(state="normal")
+        btn_txt.set("Send")
+        feedback["text"] = "Check time and clips then Send!"
+        root.update_idletasks()
+        return
 
 
 def runner(*args):
@@ -1054,6 +1224,9 @@ def runner(*args):
     global selected_name
     global manual_flag
     global manual_mrn
+    global equip_flag
+    global overide_endoscopist
+
     logging.debug("started")
     btn_txt.set("Sending...")
     root.update_idletasks()
@@ -1089,6 +1262,17 @@ def runner(*args):
                 text='Type either "90" or "ultra".', title="Halo", default="90"
             )
             message += halo + "."
+
+        if upper in {
+            "Oesophageal diatation",
+            "Pe with APC",
+            "Pe with varix banding",
+            "BRAVO",
+            "HALO",
+        }:
+            equip_flag = True
+            proc = upper
+
         upper = UPPER_DIC[upper]
 
         if upper == "30475-00":
@@ -1099,13 +1283,13 @@ def runner(*args):
         colon = co.get()
 
         if colon == "Cancelled":
-            message += "Colon Cancelled."
+            message += "Colon cancelled."
         if colon == "Failure to reach caecum":
             caecum_flag = "fail"
         else:
             caecum_flag = "success"
         colon = COLON_DIC[colon]
-        
+
         if upper is None and colon is None:
             pya.alert(
                 text="You must enter either an upper or lower procedure!",
@@ -1114,9 +1298,9 @@ def runner(*args):
             )
             btn_txt.set("Try Again!")
             raise MissingProcedureException
-        
+
         banding = ba.get()
-     
+
         if banding == "Banding of haemorrhoids":
             message += "Banding haemorrhoids 32135."
             response_haem = pya.confirm(
@@ -1138,6 +1322,10 @@ def runner(*args):
             if response_pudendal == "Yes":
                 message += " Bill bilateral pudendal blocks."
 
+        if banding == "Banding of haemorrhoids":
+            equip_flag = True
+            proc = "Banding of haemorrhoids"
+        #            equip_write(banding, endoscopist)
         banding = BANDING_DIC[banding]
 
         if banding is not None and colon is None:
@@ -1157,7 +1345,7 @@ def runner(*args):
         if asa == "No Sedation":
             message += "No sedation."
         asa = ASA_DIC[asa]
-          
+
         polyp = po.get()
         if colon and polyp == "Colon Pathology":
             pya.alert("You must specify colon pathology.")
@@ -1173,14 +1361,18 @@ def runner(*args):
             colon = "32087-00"
             polyp = ""
 
-
-#        day surgery uses the old style codes
+        #        day surgery uses the old style codes
         if colon in {"32084-00", "32084-01", "32087-00"}:
             colon_for_daysurgery = colon
         elif colon == "32227":
-            dil_flag = pya.confirm(text="Was that a colonic dilatation?", buttons=["Dilatation", "Other"])
+            dil_flag = pya.confirm(
+                text="Was that a colonic dilatation?", buttons=["Dilatation", "Other"]
+            )
             if dil_flag == "Dilatation":
                 colon_for_daysurgery = "32094-00"
+                equip_flag = True
+                proc = "Colonic dilatation"
+            #                equip_write("Colonic dilatation", endoscopist)
             elif polyp == "32229":
                 colon_for_daysurgery = "32093"
             else:
@@ -1205,10 +1397,16 @@ def runner(*args):
             )
             btn_txt.set("Try Again!")
             raise MissingProcedureException
-            
+
         caecum_flag = caecum.get()
-        
-        if caecum_flag in ["Poor Prep", "Loopy", "Obstruction", "Diverticular Disease", "Other"] and colon not in {"32084-00", "32084-01", "32087-00"}:
+
+        if caecum_flag in [
+            "Poor Prep",
+            "Loopy",
+            "Obstruction",
+            "Diverticular Disease",
+            "Other",
+        ] and colon not in {"32084-00", "32084-01", "32087-00"}:
             pya.alert(
                 text="Failure to reach caecum must be billed as short colon.",
                 title="",
@@ -1216,7 +1414,7 @@ def runner(*args):
             )
             btn_txt.set("Try Again!")
             raise CaecumFailException
-        
+
         consult = con.get()
         consult = CONSULT_DIC[consult]
 
@@ -1252,7 +1450,9 @@ def runner(*args):
 
             insur_code = FUND_TO_CODE.get(fund, "ahsa")
             if insur_code == "send_bill":
-                fund = pya.prompt(text="Enter Fund Details", title="Pay Later", default=None)
+                fund = pya.prompt(
+                    text="Enter Fund Name", title="Pay Later", default=None
+                )
             if insur_code in {"ga", "adf"}:
                 ref = pya.prompt(text="Enter Episode Id", title="Ep Id", default=None)
                 fund_number = pya.prompt(
@@ -1263,9 +1463,10 @@ def runner(*args):
             if insur_code in {"bb", "paid", "bill"}:
                 fund = "no fund"
         (in_theatre, out_theatre) = in_and_out_calculater(op_time)
-    
-    
-        if (selected_name in("Use Blue Chip", "Use Blue Chip Once")) or (anaesthetist in BILLING_ANAESTHETISTS):
+
+        if (selected_name in ("Use Blue Chip")) or (
+            anaesthetist in BILLING_ANAESTHETISTS
+        ):
             pya.click(50, 450)
             # checking if patient's blue chip file is open
             # first check color strip then prescence of f8 button
@@ -1273,10 +1474,10 @@ def runner(*args):
                 if not pya.pixelMatchesColor(150, 630, (255, 0, 0)):
                     user = os.getenv("USERNAME")
                     if user == "John":
-                        pic = 'd:\\john tillet\\source\\active\\billing\\f8xr.png'
+                        pic = "d:\\john tillet\\source\\active\\billing\\f8xr.png"
                     elif user == "John2":
-                        pic = 'd:\\john tillet\\source\\active\\billing\\f8.png'
-                    if not pya.locateCenterOnScreen(pic, region=(0, 500, 150, 150)): 
+                        pic = "d:\\john tillet\\source\\active\\billing\\f8.png"
+                    if not pya.locateCenterOnScreen(pic, region=(0, 500, 150, 150)):
                         pya.alert(text="Can't find blue chip.")
                         btn_txt.set("Try Again!")
                         raise NoBlueChipException
@@ -1284,19 +1485,19 @@ def runner(*args):
                         break
                 else:
                     break
-    
-            mrn, name = front_scrape()
-#            name_for_check = name.split()[-1].lower()
-#                    
-#            if endoscopist.split()[-1].lower() != pat_doc_dic[name_for_check].lower():
-#                print(endoscopist.split()[-1].lower(), pat_doc_dic[name_for_check].lower(), "No match")
-#            else:
-#                print(endoscopist.split()[-1].lower(), pat_doc_dic[name_for_check].lower(), "Match")
 
-        elif selected_name == 'error!':
+            mrn, name = front_scrape()
+        #            name_for_check = name.split()[-1].lower()
+        #
+        #            if endoscopist.split()[-1].lower() != pat_doc_dic[name_for_check].lower():
+        #                print(endoscopist.split()[-1].lower(), pat_doc_dic[name_for_check].lower(), "No match")
+        #            else:
+        #                print(endoscopist.split()[-1].lower(), pat_doc_dic[name_for_check].lower(), "Match")
+
+        elif selected_name == "error!":
             pya.alert(text="Error with patient name.")
             btn_txt.set("Try Again!")
-            raise NoNameException    
+            raise NoNameException
         elif manual_flag is False:
             name = selected_name
             mrn = mrn_dic[selected_name]
@@ -1305,15 +1506,57 @@ def runner(*args):
             name = selected_name
             mrn = manual_mrn
 
-#        print(upper is None and (double_dic[mrn] == "True"))
-        if (upper is None and "Upper cancelled." not in message) and (double_dic.get(mrn) == "True"):
+        #       check that correct doctor and patient is selected
+        #       needed for billing anaesthetists using blue chip
+        if anaesthetist in BILLING_ANAESTHETISTS:
+            endoscopist_surname = endoscopist.split()[-1]
+            endoscopist_lowered = endoscopist_surname.lower().title()
+            endobase_endoscopist = pat_doc_dic.get(mrn, "absent")
+            endo_endoscopist_lowered = endobase_endoscopist.lower().title()
+
+            if (
+                endobase_endoscopist == "Absent"
+            ):  #  an absent mrn means patient not in list from endobase
+                no_mrn_string = "This patient not in the booked list. Click OK to continue or Cancel to go back"
+                mrn_check = pya.confirm(
+                    text=no_mrn_string,
+                    title="Patient not in list",
+                    buttons=["OK", "Cancel"],
+                )
+                if mrn_check != "OK":
+                    raise NoNameException
+            endoscopist_check = overide_endoscopist or (
+                endo_endoscopist_lowered == endoscopist_lowered
+            )
+            if not endoscopist_check:
+                wrong_doc_string = (
+                    "This patint was booked with Dr  %s, click OK to continue with Dr %s or cancel to change."
+                    % (endo_endoscopist_lowered, endoscopist_lowered)
+                )
+                doc_check = pya.confirm(
+                    text=wrong_doc_string,
+                    title="? Wrong endoscopist",
+                    buttons=["OK", "Cancel"],
+                )
+                if doc_check == "OK":
+                    overide_endoscopist = True
+                else:
+                    raise WrongDocException
+
+        #        print(upper is None and (double_dic[mrn] == "True"))
+        if ((upper is None or colon is None) and "cancelled." not in message) and (
+            double_dic.get(mrn) == "True"
+        ):
             pya.alert(
                 text="Patient booked for double. Choose Cancelled or a procedure in the upper list.",
                 title="",
-                button="OK")
+                button="OK",
+            )
             btn_txt.set("Try Again!")
             raise NoDoubleException
 
+        if equip_flag:
+            equip_write(proc, endoscopist, mrn)
 
         time.sleep(2)
         logging.debug(anaesthetist)
@@ -1333,10 +1576,26 @@ def runner(*args):
             message,
         )
 
+        day_surgery_to_csv(
+            mrn,
+            in_theatre,
+            out_theatre,
+            anaesthetist,
+            endoscopist,
+            asa,
+            upper,
+            colon,
+            banding,
+            nurse,
+            clips,
+            varix_lot,
+            message,
+        )
+
         message = message_parse(message)
 
         to_watched()
-        
+
         today_path = web_shelver(
             out_theatre,
             endoscopist,
@@ -1363,7 +1622,7 @@ def runner(*args):
         make_web_secretary_from_shelf(today_path)
 
         make_long_web_secretary_from_shelf(today_path)
-        
+
         colon_to_csv(mrn, colon)
 
         #        anaesthetic billing
@@ -1398,7 +1657,9 @@ def runner(*args):
         time.sleep(.5)
         if colon:
             caecum_data(endoscopist, mrn, caecum_flag)
-        if (selected_name in ("Use Blue Chip", "Use Blue Chip Once")) or (anaesthetist in BILLING_ANAESTHETISTS):
+        if (selected_name in ("Use Blue Chip")) or (
+            anaesthetist in BILLING_ANAESTHETISTS
+        ):
             close_out(anaesthetist)
 
         logging.debug("finished")
@@ -1433,6 +1694,9 @@ def runner(*args):
     except NoDoubleException:
         logging.error("NoDoubleException raised by %s", anaesthetist)
         return
+    except WrongDocException:
+        logging.error("WrongDocException raised by %s", anaesthetist)
+        return
     except BillingException:
         logging.error("BillingException raised by %s", anaesthetist)
         return
@@ -1450,6 +1714,7 @@ def runner(*args):
         selected_name = "error!"
 
     manual_flag = False
+    equip_flag = False
     asc.set("ASA")
     up.set("No Upper")
     co.set("No Lower")
@@ -1457,12 +1722,12 @@ def runner(*args):
     ba.set("No Anal Procedure")
     cl.set("0")
     caecum.set("")
-    con.set("No Consult")
+
     mes.set("")
     ot.set("15")
     fu.set("")
     fail_text.set("")
-    asa_label.grid()
+
     caecum_box.grid_remove()
     ba_box.grid_remove()
     path_star_label.grid_remove()
@@ -1470,17 +1735,23 @@ def runner(*args):
     btn.config(text="Send!")
     mess_box.grid_remove()
     if biller_endo_flag:
-        con_button.grid()    
+        con_label.grid()
+        con_button1.grid()
+        con_button2.grid()
+        con.set("None")
+    else:
+        con.set("No need")
     if biller_anaesthetist_flag:
         fund_box.grid()
         fu.set("Fund")
-    btn_txt.set("Send!")
-    btn.config(state='disabled')
+    btn_txt.set("Select patient")
+    btn.config(state="disabled")
+    feedback["text"] = "Select patient"
 
 
 root = Tk()
 root.title(datetime.datetime.today().strftime("%A  %d/%m/%Y"))
-root.geometry("470x450+840+100")
+root.geometry("470x500+840+100")
 root.option_add("*tearOff", FALSE)
 
 mainframe = ttk.Frame(root, padding="3 3 12 12")
@@ -1490,7 +1761,7 @@ mainframe.rowconfigure(0, weight=1)
 
 menubar = Menu(root)
 root.config(menu=menubar)
-menu_message= Menu(menubar)
+menu_message = Menu(menubar)
 menu_extras = Menu(menubar)
 menu_admin = Menu(menubar)
 menu_accounts = Menu(menubar)
@@ -1515,8 +1786,8 @@ menu_accounts.add_command(label="receipts folder", command=open_receipt)
 menu_accounts.add_command(label="sedation folder", command=open_sedation)
 menu_accounts.add_command(label="Start batches print", command=start_decbatches)
 
-#menubar.add_cascade(menu=menu_help, label="Help")
-#menu_help.add_command(label="Help Page", command=open_help)
+# menubar.add_cascade(menu=menu_help, label="Help")
+# menu_help.add_command(label="Help Page", command=open_help)
 
 an = StringVar()
 an.trace("w", button_enable)
@@ -1525,6 +1796,7 @@ end.trace("w", button_enable)
 nur = StringVar()
 nur.trace("w", button_enable)
 pat = StringVar()
+pat.trace("w", button_enable)
 asc = StringVar()
 asc.trace("w", button_enable)
 up = StringVar()
@@ -1537,11 +1809,13 @@ caecum = StringVar()
 ba = StringVar()
 cl = StringVar()
 con = StringVar()
+con.trace("w", button_enable)
 mes = StringVar()
 ot = StringVar()
 fu = StringVar()
+fu.trace("w", button_enable)
 fail_text = StringVar()
-btn_txt =StringVar()
+btn_txt = StringVar()
 
 topframe = Frame(mainframe, bg="green", pady=7)
 topframe.grid(column=0, row=0, sticky=(N, W, E, S))
@@ -1568,21 +1842,22 @@ end_box = ttk.Combobox(topframe, textvariable=end)
 end_box["values"] = ENDOSCOPISTS
 end_box["state"] = "readonly"
 end_box.grid(column=1, row=0, sticky=W)
-end_box.bind('<<ComboboxSelected>>', is_biller_endoscopist)
+end_box.bind("<<ComboboxSelected>>", is_biller_endoscopist)
 
 nur_box = ttk.Combobox(topframe, textvariable=nur)
 nur_box["values"] = NURSES
 nur_box["state"] = "readonly"
 nur_box.grid(column=2, row=0, sticky=W)
 
-pat_box = ttk.Combobox(topframe, textvariable=pat,
-                       postcommand=lambda: pat_box.configure(values=PATIENTS))
+pat_box = ttk.Combobox(
+    topframe, textvariable=pat, postcommand=lambda: pat_box.configure(values=PATIENTS)
+)
 pat_box["state"] = "readonly"
 pat_box.grid(column=0, row=1, sticky=W)
-pat_box.bind('<<ComboboxSelected>>', pat_box_selected)
+pat_box.bind("<<ComboboxSelected>>", pat_box_selected)
 
 space = "              " * 3
-ttk.Label(midframe, text=space).grid(column=2, row=0, sticky=E) # place holder
+ttk.Label(midframe, text=space).grid(column=2, row=0, sticky=E)  # place holder
 
 up_box = ttk.Combobox(midframe, textvariable=up, width=20)
 up_box["values"] = UPPERS
@@ -1600,27 +1875,27 @@ ba_box["values"] = BANDING
 ba_box["state"] = "readonly"
 ba_box.grid(column=2, row=1, sticky=W)
 
-asa_label = ttk.Label(midframe, text= "*")
-asa_label.grid(column= 0, row=2, sticky=W)
 
-
-#fontExample = ("Courier", 16, "bold")
+# fontExample = ("Courier", 16, "bold")
 asa_box = ttk.Combobox(midframe, textvariable=asc, width=14)
 asa_box["values"] = ASA
 asa_box["state"] = "readonly"
-#asa_box["font"] = fontExample
-asa_box.bind("<<ComboboxSelected>>", asa_selected)
-asa_box.grid(column=0, row=2, sticky=E)
-
-
+# asa_box["font"] = fontExample
+asa_box.grid(column=0, row=2, sticky=W)
 
 ttk.Label(midframe, text="     ").grid(column=1, row=2, sticky=W)
 
-path_star_label = ttk.Label(midframe, text= "*")
-path_star_label.grid(column= 1, row=2, sticky=E)
+path_star_label = ttk.Label(midframe, text="*")
+path_star_label.grid(column=1, row=2, sticky=E)
 
-con_button = ttk.Checkbutton(midframe, text="Consult", variable=con, onvalue="Consult", offvalue="No Consult")
-con_button.grid(column=1, row=2, sticky=W)
+con_label = ttk.Label(midframe, text="Consult")
+con_label.grid(column=1, row=2, sticky=W)
+
+con_button1 = ttk.Radiobutton(midframe, text="Yes", variable=con, value="Consult")
+con_button1.grid(column=1, row=2)
+
+con_button2 = ttk.Radiobutton(midframe, text="No", variable=con, value="No Consult")
+con_button2.grid(column=1, row=2, sticky=E)
 
 path_box = ttk.Combobox(midframe, textvariable=po, width=20)
 path_box["values"] = ["No colon pathology", "Biopsy", "Polypectomy"]
@@ -1641,12 +1916,19 @@ s_box.grid(column=1, row=3)
 ttk.Label(midframe, text="     ").grid(column=1, row=3, sticky=E)
 
 boldStyle = ttk.Style()
-boldStyle.configure ("Bold.TLabel", size = 20, weight = "bold")
+boldStyle.configure("Bold.TLabel", size=20, weight="bold")
 fail_label = ttk.Label(midframe, textvariable=fail_text, style="Bold.TLabel")
 fail_label.grid(column=2, row=3, sticky=W)
 
 caecum_box = ttk.Combobox(midframe, textvariable=caecum, width=20)
-caecum_box["values"] = ["", "Poor Prep", "Loopy", "Obstruction", "Diverticular Disease", "Other"]
+caecum_box["values"] = [
+    "",
+    "Poor Prep",
+    "Loopy",
+    "Obstruction",
+    "Diverticular Disease",
+    "Other",
+]
 caecum_box["state"] = "readonly"
 caecum_box.grid(column=2, row=4)
 
@@ -1659,8 +1941,14 @@ fund_box.grid(column=0, row=1, sticky=W)
 
 btn = ttk.Button(bottomframe, textvariable=btn_txt, command=runner)
 btn.grid(column=0, row=2, sticky=W)
-btn_txt.set("Send!")
-btn.config(state='disabled')
+btn_txt.set("Missimg data")
+btn.config(state="disabled")
+
+space = "              " * 3
+ttk.Label(bottomframe, text=space).grid(column=2, row=3, sticky=E)  # place holder
+
+feedback = ttk.Label(bottomframe, text="Missing staff  data")
+feedback.grid(column=0, row=4, sticky=W)
 
 
 for child in topframe.winfo_children():
@@ -1685,12 +1973,14 @@ po.set("Colon Pathology")
 ba.set("No Anal Procedure")
 caecum.set("")
 cl.set("0")
-con.set("No Consult")
+con.set("None")
 ot.set("15")
 fail_text.set("")
 path_star_label.grid_remove()
 path_box.grid_remove()
-con_button.grid_remove()
+con_label.grid_remove()
+con_button1.grid_remove()
+con_button2.grid_remove()
 caecum_box.grid_remove()
 ba_box.grid_remove()
 mess_box.grid_remove()

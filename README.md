@@ -4,4 +4,5 @@ The purpose of decbilling is to:
 2. Notify secretarial staff that a procedure has been done and automatically fill that data into the day surgery module - watcher.py
 3. Print accounts - decbatches.py
 4. Provide a simple analysis package to tell jrt how many patients he needs to do to reach a target - jt_target.py
-5. Collect data on equipment use and caecum success rate.
+5. Collect data on equipment use.
+6. Collect data on caecum success rate and provide a simple program to present that data - caecum.py

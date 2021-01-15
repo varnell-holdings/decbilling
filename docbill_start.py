@@ -14,20 +14,23 @@ import csv
 import datetime
 from dateutil.relativedelta import relativedelta
 from dateutil.parser import parse
-from jinja2 import Environment, FileSystemLoader
 import logging
 import os
 import pickle
 import shelve
-
-# import sys
+import sys
 import time
 import webbrowser
+import winsound
 
 from tkinter import ttk, StringVar, Tk, W, E, N, S, Spinbox, FALSE, Menu, Frame
 
+sys.path.append("C:\\Users\\John2\\Miniconda3\\lib\\site-packages\\urllib3\\util\\")
+
+
 import boto3
 import docx
+from jinja2 import Environment, FileSystemLoader
 import pyautogui as pya
 import pyperclip
 
@@ -39,15 +42,8 @@ pya.PAUSE = 0.4
 pya.FAILSAFE = False
 
 
+
 class BillingException(Exception):
-    pass
-
-
-class MissingDoctorException(BillingException):
-    pass
-
-
-class MissingNurseException(BillingException):
     pass
 
 
@@ -55,19 +51,7 @@ class MissingProcedureException(BillingException):
     pass
 
 
-class MissingASAException(BillingException):
-    pass
-
-
-class MissingPathologyException(BillingException):
-    pass
-
-
 class NoBlueChipException(BillingException):
-    pass
-
-
-class CaecumFailException(BillingException):
     pass
 
 
@@ -104,7 +88,7 @@ def pats_from_aws(date):
         )
 
         s3.Object("dec601", "patients.csv").download_file("aws_data.csv")
-    except Exception as e:
+    except Exception:
         logging.error("Failed to get patients list.", exc_info=True)
         bookings_dic = {}
         mrn_dic = {}
@@ -282,6 +266,7 @@ FUNDS = [
     "CBHS Health",
     "CUA Health",
     "Defence Health",
+    "Emergency Services Health",
     "Frank Health",
     "GMHBA",
     "health.com.au",
@@ -307,17 +292,49 @@ FUNDS = [
     "Queensland Country Health",
 ]
 
+def in_and_out_calculater(time_in_theatre, mrn):
+    """Calculate formatted in and out times given time in theatre.
+    Don't overwrite if a resend"""
 
-def in_and_out_calculater(time_in_theatre):
-    """Calculate formatted in and out times given time in theatre."""
-    time_in_theatre = int(time_in_theatre)
-    nowtime = datetime.datetime.now()
-    outtime = nowtime + relativedelta(minutes=+3)
-    intime = nowtime + relativedelta(minutes=-time_in_theatre)
-    out_formatted = outtime.strftime("%H" + ":" + "%M")
-    in_formatted = intime.strftime("%H" + ":" + "%M")
+    
+    today_str = today.strftime("%Y-%m-%d")
+    today_path = os.path.join(
+        "d:\\JOHN TILLET\\episode_data\\webshelf\\" + today_str + "_19"
+    )
+    
+    try:
+        with shelve.open(today_path) as s:
+            data = s[mrn]
+            overwrite_flag = False
+    except FileNotFoundError:
+        overwrite_flag = False
+    except KeyError:
+        overwrite_flag = True
+     
+    if not overwrite_flag:
+        in_formatted = data["in_theatre"]
+        out_formatted = data["out_theatre"]
+    else:
+        time_in_theatre = int(time_in_theatre)
+        nowtime = datetime.datetime.now()
+        outtime = nowtime + relativedelta(minutes=+1)
+        intime = nowtime + relativedelta(minutes=-time_in_theatre)
+        out_formatted = outtime.strftime("%H" + ":" + "%M")
+        in_formatted = intime.strftime("%H" + ":" + "%M")
 
     return (in_formatted, out_formatted)
+
+
+#def in_and_out_calculater(time_in_theatre):
+#    """Calculate formatted in and out times given time in theatre."""
+#    time_in_theatre = int(time_in_theatre)
+#    nowtime = datetime.datetime.now()
+#    outtime = nowtime + relativedelta(minutes=+1)
+#    intime = nowtime + relativedelta(minutes=-time_in_theatre)
+#    out_formatted = outtime.strftime("%H" + ":" + "%M")
+#    in_formatted = intime.strftime("%H" + ":" + "%M")
+#
+#    return (in_formatted, out_formatted)
 
 
 def find_bc(file_number):
@@ -393,11 +410,13 @@ def front_scrape():
 
     mrn = pyperclip.copy("na")
     pya.moveTo(570, 250, duration=0.1)
-    pya.dragTo(535, 250, duration=0.1)
-    pya.moveTo(570, 250, duration=0.1)
+    # pya.dragTo(535, 250, duration=0.1)
+    # pya.moveTo(570, 250, duration=0.1)
+    pya.doubleClick()
     pya.click(button="right")
     pya.moveRel(55, 65)
     pya.click()
+
     mrn = pyperclip.paste()
     if not mrn.isdigit():
         mrn = pya.prompt("Please enter this patient's MRN")
@@ -432,8 +451,9 @@ def address_scrape():
 
     postcode = pyperclip.copy("na")
     pya.moveTo(474, 285, duration=0.1)
-    pya.dragTo(450, 285, duration=0.1)
-    pya.moveTo(474, 285, duration=0.1)
+    # pya.dragTo(450, 285, duration=0.1)
+    # pya.moveTo(474, 285, duration=0.1)
+    pya.doubleClick()
     pya.click(button="right")
     pya.moveRel(55, 65)
     pya.click()
@@ -447,29 +467,33 @@ def address_scrape():
 def episode_get_mcn_and_ref():
     """Scrape mcn from blue chip."""
     mcn = pyperclip.copy("na")
-    pya.moveTo(424, 474, duration=0.1)
-    pya.dragTo(346, 474, duration=0.1)
+    pya.moveTo(345, 474, duration=0.1)
+    pya.dragTo(420, 474, duration=0.3)
     pya.hotkey("ctrl", "c")
-    mcn = pyperclip.paste()
-    pya.moveTo(424, 474, duration=0.1)
-    pya.click(button="right")
-    pya.moveTo(481, 268, duration=0.1)
-    pya.click()
-
-    mcn = pyperclip.paste()
+    mcn_left = pyperclip.paste()
+    # pya.moveTo(424, 474, duration=0.1)
+    # pya.click(button="right")
+    # pya.moveTo(481, 268, duration=0.1)
+    # pya.click()
+    pya.doubleClick()
+    pya.hotkey("ctrl", "c")
+    mcn_right = pyperclip.paste()
+    # mcn = pyperclip.paste()
+    mcn = mcn_left + mcn_right
     mcn = mcn.replace(" ", "")
     # get ref
     ref = pyperclip.copy("na")
     pya.moveTo(500, 475, duration=0.1)
-    pya.dragRel(-8, 0, duration=0.1)
+    # pya.dragRel(-8, 0, duration=0.1)
+    pya.doubleClick()
     pya.hotkey("ctrl", "c")
     ref = pyperclip.paste()
-    pya.moveRel(8, 0, duration=0.1)
-    pya.click(button="right")
-    pya.moveTo(577, 274, duration=0.1)
-    pya.click()
+    # pya.moveRel(8, 0, duration=0.1)
+    # pya.click(button="right")
+    # pya.moveTo(577, 274, duration=0.1)
+    # pya.click()
 
-    ref = pyperclip.paste()
+    # ref = pyperclip.paste()
     return mcn, ref
 
 
@@ -477,8 +501,9 @@ def episode_get_fund_number():
     """Scrape fund number from blue chip."""
     fund_number = pyperclip.copy("na")
     pya.moveTo(646, 545, duration=0.1)
-    pya.dragTo(543, 545, duration=0.1)
-    pya.moveTo(646, 545, duration=0.1)
+    # pya.dragTo(543, 545, duration=0.1)
+    # pya.moveTo(646, 545, duration=0.1)
+    pya.doubleClick()
     pya.click(button="right")
     pya.moveTo(692, 392, duration=0.1)
     pya.click()
@@ -1156,6 +1181,7 @@ def button_enable(*args):
     print("cnosult {}".format(consult))
     upper = up.get()
     col = co.get()
+    failure = caecum.get()
     path = po.get()
     fund = fu.get()
     top_line = anas != "Anaesthetist" and endo != "Endoscopist" and nurs != "Nurse"
@@ -1209,8 +1235,14 @@ def button_enable(*args):
         btn_txt.set("")
         feedback["text"] = "Colon path?"
         root.update_idletasks()
-
         return
+    if failure == "" and col == "Failure to reach caecum":
+        btn.config(state="disabled")
+        btn_txt.set("")
+        feedback["text"] = "Reason for failure?"
+        root.update_idletasks()
+        return
+        
     if col != "No Lower" and path != "Colon Pathology":
         btn.config(state="normal")
         btn_txt.set("Send")
@@ -1236,20 +1268,7 @@ def runner(*args):
 
         anaesthetist = an.get()
         endoscopist = end.get()
-        if anaesthetist == "Anaesthetist":
-            pya.alert(text="Missing anaesthetist!", title="", button="OK")
-            btn_txt.set("Try Again!")
-            raise MissingDoctorException
-        if endoscopist == "Endoscopist":
-            pya.alert(text="Missing endoscopist!", title="", button="OK")
-            btn_txt.set("Try Again!")
-            raise MissingDoctorException
-
         nurse = nur.get()
-        if nurse == "Nurse":
-            pya.alert(text="Missing nurse!", title="", button="OK")
-            btn_txt.set("Try Again!")
-            raise MissingNurseException
 
         upper = up.get()
         if upper == "Cancelled":
@@ -1258,6 +1277,7 @@ def runner(*args):
             message += "Bill varix bander. BS225"
             varix_lot += "v"
         if upper == "HALO":
+            winsound.PlaySound("*", winsound.SND_ALIAS)
             halo = pya.prompt(
                 text='Type either "90" or "ultra".', title="Halo", default="90"
             )
@@ -1290,25 +1310,18 @@ def runner(*args):
             caecum_flag = "success"
         colon = COLON_DIC[colon]
 
-        if upper is None and colon is None:
-            pya.alert(
-                text="You must enter either an upper or lower procedure!",
-                title="",
-                button="OK",
-            )
-            btn_txt.set("Try Again!")
-            raise MissingProcedureException
-
         banding = ba.get()
 
         if banding == "Banding of haemorrhoids":
             message += "Banding haemorrhoids 32135."
+            winsound.PlaySound("*", winsound.SND_ALIAS)
             response_haem = pya.confirm(
                 text="Haemoband used?", title="", buttons=["Yes", "No"]
             )
             if response_haem == "Yes":
                 message += "Haemoband used. HB001"
                 varix_lot += "h"
+            winsound.PlaySound("*", winsound.SND_ALIAS)
             response_pudendal = pya.confirm(
                 text="Pudendal Nerve Block?", title="", buttons=["Yes", "No"]
             )
@@ -1316,6 +1329,7 @@ def runner(*args):
                 message += "Bill bilateral pudendal blocks 18264."
         elif banding == "Anal dilatation":
             message += "Anal dilatation 32153."
+            winsound.PlaySound("*", winsound.SND_ALIAS)
             response_pudendal = pya.confirm(
                 text="Pudendal Nerve Block?", title="", buttons=["Yes", "No"]
             )
@@ -1328,31 +1342,15 @@ def runner(*args):
         #            equip_write(banding, endoscopist)
         banding = BANDING_DIC[banding]
 
-        if banding is not None and colon is None:
-            pya.alert(
-                text="Must enter a lower procedure with the anal procedure!",
-                title="",
-                button="OK",
-            )
-            btn_txt.set("Try Again!")
-            raise MissingProcedureException
 
         asa = asc.get()
-        if asa == "ASA":
-            pya.alert("You must specify the ASA.")
-            btn_txt.set("Try Again!")
-            raise MissingASAException
         if asa == "No Sedation":
             message += "No sedation."
         asa = ASA_DIC[asa]
 
         polyp = po.get()
-        if colon and polyp == "Colon Pathology":
-            pya.alert("You must specify colon pathology.")
-            btn_txt.set("Try Again!")
-            raise MissingPathologyException
 
-        elif polyp == "Biopsy" and colon == "32084-00":
+        if polyp == "Biopsy" and colon == "32084-00":
             colon = "32084-01"
         elif polyp == "Polypectomy":
             polyp = "32229"
@@ -1365,6 +1363,7 @@ def runner(*args):
         if colon in {"32084-00", "32084-01", "32087-00"}:
             colon_for_daysurgery = colon
         elif colon == "32227":
+            winsound.PlaySound("*", winsound.SND_ALIAS)
             dil_flag = pya.confirm(
                 text="Was that a colonic dilatation?", buttons=["Dilatation", "Other"]
             )
@@ -1389,31 +1388,7 @@ def runner(*args):
         if polyp in {"Colon Pathology", "No colon pathology", "Biopsy"}:
             polyp = ""
 
-        if colon is None and polyp:
-            pya.alert(
-                text="If polypectomy ticked you must enter a lower procedure!",
-                title="",
-                button="OK",
-            )
-            btn_txt.set("Try Again!")
-            raise MissingProcedureException
-
         caecum_flag = caecum.get()
-
-        if caecum_flag in [
-            "Poor Prep",
-            "Loopy",
-            "Obstruction",
-            "Diverticular Disease",
-            "Other",
-        ] and colon not in {"32084-00", "32084-01", "32087-00"}:
-            pya.alert(
-                text="Failure to reach caecum must be billed as short colon.",
-                title="",
-                button="OK",
-            )
-            btn_txt.set("Try Again!")
-            raise CaecumFailException
 
         consult = con.get()
         consult = CONSULT_DIC[consult]
@@ -1431,17 +1406,16 @@ def runner(*args):
         try:
             op_time = int(op_time)
         except:
+            winsound.PlaySound("*", winsound.SND_ALIAS)
             pya.alert(text="There was any error with the time in theatre.")
             btn_txt.set("Try Again!")
             raise BillingException
 
         if anaesthetist in BILLING_ANAESTHETISTS and asa:
             fund = fu.get()
-            if fund == "Fund":
-                pya.alert(text="No fund!")
-                btn_txt.set("Try Again!")
-                raise BillingException
+
             if fund == "Frank Health":
+                winsound.PlaySound("*", winsound.SND_ALIAS)
                 pya.alert(
                     text="Frank Health does not NoGap. Either bulk bill or charge as if no fund."
                 )
@@ -1450,11 +1424,14 @@ def runner(*args):
 
             insur_code = FUND_TO_CODE.get(fund, "ahsa")
             if insur_code == "send_bill":
+                winsound.PlaySound("*", winsound.SND_ALIAS)
                 fund = pya.prompt(
                     text="Enter Fund Name", title="Pay Later", default=None
                 )
             if insur_code in {"ga", "adf"}:
+                winsound.PlaySound("*", winsound.SND_ALIAS)
                 ref = pya.prompt(text="Enter Episode Id", title="Ep Id", default=None)
+                winsound.PlaySound("*", winsound.SND_ALIAS)
                 fund_number = pya.prompt(
                     text="Enter Approval Number", title="Approval Number", default=None
                 )
@@ -1462,7 +1439,7 @@ def runner(*args):
                 message += "sedation bulk bill"
             if insur_code in {"bb", "paid", "bill"}:
                 fund = "no fund"
-        (in_theatre, out_theatre) = in_and_out_calculater(op_time)
+
 
         if (selected_name in ("Use Blue Chip")) or (
             anaesthetist in BILLING_ANAESTHETISTS
@@ -1478,6 +1455,7 @@ def runner(*args):
                     elif user == "John2":
                         pic = "d:\\john tillet\\source\\active\\billing\\f8.png"
                     if not pya.locateCenterOnScreen(pic, region=(0, 500, 150, 150)):
+                        winsound.PlaySound("*", winsound.SND_ALIAS)
                         pya.alert(text="Can't find blue chip.")
                         btn_txt.set("Try Again!")
                         raise NoBlueChipException
@@ -1495,6 +1473,7 @@ def runner(*args):
         #                print(endoscopist.split()[-1].lower(), pat_doc_dic[name_for_check].lower(), "Match")
 
         elif selected_name == "error!":
+            winsound.PlaySound("*", winsound.SND_ALIAS)
             pya.alert(text="Error with patient name.")
             btn_txt.set("Try Again!")
             raise NoNameException
@@ -1518,6 +1497,7 @@ def runner(*args):
                 endobase_endoscopist == "Absent"
             ):  #  an absent mrn means patient not in list from endobase
                 no_mrn_string = "This patient not in the booked list. Click OK to continue or Cancel to go back"
+                winsound.PlaySound("*", winsound.SND_ALIAS)
                 mrn_check = pya.confirm(
                     text=no_mrn_string,
                     title="Patient not in list",
@@ -1533,6 +1513,7 @@ def runner(*args):
                     "This patint was booked with Dr  %s, click OK to continue with Dr %s or cancel to change."
                     % (endo_endoscopist_lowered, endoscopist_lowered)
                 )
+                winsound.PlaySound("*", winsound.SND_ALIAS)
                 doc_check = pya.confirm(
                     text=wrong_doc_string,
                     title="? Wrong endoscopist",
@@ -1547,6 +1528,7 @@ def runner(*args):
         if ((upper is None or colon is None) and "cancelled." not in message) and (
             double_dic.get(mrn) == "True"
         ):
+            winsound.PlaySound("*", winsound.SND_ALIAS)
             pya.alert(
                 text="Patient booked for double. Choose Cancelled or a procedure in the upper list.",
                 title="",
@@ -1560,6 +1542,9 @@ def runner(*args):
 
         time.sleep(2)
         logging.debug(anaesthetist)
+        
+        (in_theatre, out_theatre) = in_and_out_calculater(op_time, mrn)
+        
         day_surgery_shelver(
             mrn,
             in_theatre,
@@ -1664,26 +1649,12 @@ def runner(*args):
 
         logging.debug("finished")
 
-    except MissingDoctorException:
-        logging.error("MissingDoctorException raised by %s", anaesthetist)
-        return
-    except MissingNurseException:
-        logging.error("MissingNurseException raised by %s", anaesthetist)
-        return
+
     except MissingProcedureException:
         logging.error("MissingProcedureException raised by %s", anaesthetist)
         return
-    except MissingASAException:
-        logging.error("MissingASAException raised by %s", anaesthetist)
-        return
-    except MissingPathologyException:
-        logging.error("MissingPathologyException raised by %s", anaesthetist)
-        return
     except NoBlueChipException:
         logging.error("NoBlueChipException raised by %s", anaesthetist)
-        return
-    except CaecumFailException:
-        logging.error("CaecumFailException raised by %s", anaesthetist)
         return
     except TestingException:
         logging.error("TestingException raised by %s", anaesthetist)
@@ -1806,6 +1777,7 @@ co.trace("w", button_enable)
 po = StringVar()
 po.trace("w", button_enable)
 caecum = StringVar()
+caecum.trace("w", button_enable)
 ba = StringVar()
 cl = StringVar()
 con = StringVar()

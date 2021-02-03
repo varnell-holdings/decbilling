@@ -9,7 +9,7 @@ import os
 import shutil
 import sys
 import time
-import zipfile
+
 import colorama
 
 import docx
@@ -31,13 +31,13 @@ fees_config.read("d:\\john tillet\\episode_data\\FEES.ini")
 # mbs july 2019 17610 $44.35   23010  $20.10
 # MUST fill this in FEES.INI !!! for fees_config
 FUND_FEES = {
-    "hcf": [72.90, 34.70],
+    "hcf": [45.00, 34.70],
     "bup": [74.40, 33.60],
     "mpl": [71.05, 32.70],
     "adf": [90.56, 55.00],
     "ahsa": [71.00, 36.00],
     "ahm": [71.05, 32.70],
-    "nib": [74.40, 33.65],
+    "nib": [74.40, 32.45],
     "ama": [150.00, 84.00],
     "ga": [82.60, 45.00],
     "gu": [70.00, 35.50],
@@ -100,6 +100,7 @@ FUND_ADDRESSES = {
     ],
     "CUA Health": ["CUA Health Ltd", "GPO Box 100", "Brisbane", "QLD", "4001"],
     "Defence Health": ["Defence Health Ltd", "PO Box 7518", "Melbourne", "VIC", "3004"],
+    "Emergency Services Health": ["Emergency Services Health", "320 King William Street", "Adelaide", "SA", "5000"],
     "GMHBA": ["GMHBA Limited", "PO Box 761", "Geelong", "Vic", "3220"],
     "health.com.au": ["health.com.au", "Locked Bag 423", "Abbotsford", "VIC", "3067"],
     "Health Insurance Fund of Australia": [
@@ -441,70 +442,23 @@ def makebb(datafile):
 
 
 def batch_filler(name):
+
     surname = name.split()[-1]
-
-    def print_save(newzip, counter):
-        counter += 1
-        pya.hotkey("ctrl", "shift", "s")
-        time.sleep(3)
-        pya.typewrite(str(counter))
-        time.sleep(1)
-        pya.press("enter")
-        time.sleep(1)
-        pya.hotkey("alt", "f4")
-        #        time.sleep(1)
-        #        pya.press("n")
-        time.sleep(2)
-
-        file = "d:\\Nobue\\headers\\{}.pdf".format(counter)
-        newzip.write(file, compress_type=zipfile.ZIP_DEFLATED)
-        time.sleep(1)
-        os.remove(file)
-
-        return newzip, counter
-
     today = datetime.datetime.today()
     ahsa_today_str = today.strftime("%d-%m-%Y")
     #    bup_today_str = today.strftime("%d%m%y")
     mpl_today_str_d = today.strftime("%d")
     mpl_today_str_m = today.strftime("%m")
     mpl_today_str_y = today.strftime("%Y")
-    #    gu_today_str = today.strftime("%d-%m-%Y")
+    # gu_today_str = today.strftime("%d-%m-%Y")
 
-    try:
-        os.remove("d:\\Nobue\\headers.zip")
-
-    except IOError:
-        pass
-
-    newzip = zipfile.ZipFile("d:\\Nobue\\headers.zip", "a")
-
-    for folder_name, subfolders, filenames in os.walk("d:\\Nobue\\headers"):
-        for filename in filenames:
-            prefix = filename[:-4]
-            if prefix.isdigit():
-                try:
-                    os.remove("d:\\Nobue\\headers\\" + filename)
-                except:
-                    pass
 
     with open("d:\\Nobue\\headers\\batches.csv") as h:
         reader = csv.reader(h)
-        counter = 0
+
         for batch in reader:
             f = "d:\\Nobue\\headers\\{}_pre_{}.pdf".format(batch[0], surname)
-            #            if batch[0] == 'bup':
-            #                os.startfile(f)
-            #                time.sleep(3)
-            #                pya.typewrite(['tab'] * 6, interval= 0.4)
-            #                time.sleep(2)
-            #                pya.typewrite(bup_today_str, interval=0.1)
-            #                pya.typewrite(['tab'] * 2, interval= 0.4)
-            #                pya.typewrite(batch[1])
-            #                pya.typewrite(['tab'] * 6, interval= 0.4)
-            #                time.sleep(2)
-            #                pya.typewrite(bup_today_str, interval=0.1)
-            #                newzip, counter = print_save(newzip, counter)
+
 
             if batch[0] in {"mpl", "ahm"}:
                 os.startfile(f)
@@ -521,33 +475,28 @@ def batch_filler(name):
                 time.sleep(1)
                 pya.press("tab")
                 pya.typewrite(batch[1])
-                newzip, counter = print_save(newzip, counter)
+
+                pya.hotkey("ctrl", "p")
+                time.sleep(1)
+                pya.press("enter")
+                time.sleep(3)
+                pya.hotkey("alt", "f4")
+                time.sleep(1)
 
             elif batch[0] in {"bup", "nib", "lt", "hh", "sl"}:
                 os.startfile(f)
-                time.sleep(4)
-                newzip, counter = print_save(newzip, counter)
+                time.sleep(3)
 
-            #            elif batch[0] in {"gu"}:
-            #                os.startfile(f)
-            #                time.sleep(12)
-            #                newzip, counter = print_save(newzip, counter)
 
-            #            elif batch[0] == "gu":
-            #                os.startfile(f)
-            #                time.sleep(15)
-            #                pya.typewrite(["tab"] * 10, interval=0.1)
-            #                time.sleep(2)
-            #                pya.typewrite(gu_today_str, interval=0.1)
-            #                time.sleep(1)
-            #                pya.press("tab")
-            #                pya.typewrite(batch[1])
-            #                time.sleep(1)
-            #                pya.press("tab")
-            #                pya.typewrite(batch[2])
-            #                time.sleep(3)
-            #                newzip, counter = print_save(newzip, counter)
+                pya.hotkey("ctrl", "p")
+                time.sleep(1)
+                pya.press("enter")
+                time.sleep(3)
+                pya.hotkey("alt", "f4")
+                time.sleep(1)
 
+            elif batch[0] in {"gu"}:
+                pass
             elif batch[0] not in [
                 "send_bill",
                 "paid",
@@ -593,9 +542,13 @@ def batch_filler(name):
                 pya.typewrite(batch[1])
                 pya.press("tab")
                 pya.typewrite(str(batch[2]))
-                newzip, counter = print_save(newzip, counter)
-
-    newzip.close()
+                time.sleep(1)
+                pya.hotkey("ctrl", "p")
+                time.sleep(1)
+                pya.press("enter")
+                time.sleep(3)
+                pya.hotkey("alt", "f4")
+                time.sleep(1)
 
 
 FUND_CODES = [
@@ -672,7 +625,7 @@ def mail_and_backup(anaesthetist, file_type):
             FILE_STR, surname
         )
     elif file_type == "docx":
-        path = "d:/john tillet/episode_data/sedation/accts.docx".format(surname)
+        path = "d:/john tillet/episode_data/sedation/accts.docx"
         subject = "DEC accounts"
         body = "Attached are your acounts proccesed today"
         save_destination = "d:/john tillet/episode_data/sedation/backup/{}-{}-accts.docx".format(
@@ -870,8 +823,7 @@ def main():
             )
             print("Printing the batch headers....")
             batch_filler(biller)
-            print("Emailing the headers..")
-            mail_and_backup(biller, "zip")
+
             sys.exit()
         elif b == "a":
             break

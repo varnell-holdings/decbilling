@@ -292,6 +292,28 @@ FUNDS = [
     "Queensland Country Health",
 ]
 
+user = os.getenv("USERNAME")
+
+if user == "John":
+    RED_BAR_POS = (280,790)
+    TITLE_POS =(230, 170)
+    MRN_POS = (740, 315)
+    POST_CODE_POS = (610, 355)
+    DOB_POS = (750, 220)
+    FUND_NO_POS = (770, 684)
+    CLOSE_POS = (970, 115)
+elif user == "John2":
+    RED_BAR_POS = (160,630)
+    TITLE_POS = (200, 134)
+    MRN_POS = (600, 250)
+    POST_CODE_POS = (490, 284)
+    DOB_POS = (600, 174)
+    FUND_NO_POS = (620, 548)
+    CLOSE_POS = (774, 96)
+    
+    
+
+
 def in_and_out_calculater(time_in_theatre, mrn):
     """Calculate formatted in and out times given time in theatre.
     Don't overwrite if a resend"""
@@ -337,85 +359,56 @@ def in_and_out_calculater(time_in_theatre, mrn):
 #    return (in_formatted, out_formatted)
 
 
-def find_bc(file_number):
-    pya.click(50, 450)
-    pya.hotkey("ctrl", "o")
-    time.sleep(2)
-    pya.hotkey("alt", "b")
-    pya.press("down")
-    pya.hotkey("alt", "s")
-    pya.typewrite(file_number)
-    time.sleep(2)
-    pya.press("enter")
 
 
 def front_scrape():
     """Scrape name and mrn from blue chip."""
 
-    def get_title():
-        pya.hotkey("alt", "t")
-        title = pyperclip.copy("na")
-        pya.moveTo(190, 135, duration=0.1)
-        pya.click(button="right")
-        pya.moveRel(55, 65)
-        pya.click()
-        title = pyperclip.paste()
-        return title
-
-    pya.click(50, 450)
-    title = get_title()
-
-    if title == "na":
-        pya.press("alt")
-        pya.press("b")
-        pya.press("c")
-        title = get_title()
+    pya.moveTo(TITLE_POS, duration=0.1)
+    pya.doubleClick()
+    title = pyperclip.copy("na")
+    pya.hotkey("ctrl", "c")
+    title = pyperclip.paste()
 
     if title == "na":
         pya.alert("Error reading Blue Chip.\nTry again\n?Logged in with AST")
         raise BillingException
 
-    for i in range(4):
-        first_name = pyperclip.copy("na")
-        pya.moveTo(290, 135, duration=0.1)
-        pya.click(button="right")
-        pya.moveRel(55, 65)
-        pya.click()
-        first_name = pyperclip.paste()
-        if first_name != "na":
-            break
+
+    pya.press("tab")
+    
+    first_name = pyperclip.copy("na")
+    pya.hotkey("ctrl", "c")
+    first_name = pyperclip.paste()
+    
     if first_name == "na":
         first_name = pya.prompt(
             text="Please enter patient first name", title="First Name", default=""
         )
 
-    for i in range(4):
-        last_name = pyperclip.copy("na")
-        pya.moveTo(450, 135, duration=0.1)
-        pya.click(button="right")
-        pya.moveRel(55, 65)
-        pya.click()
-        last_name = pyperclip.paste()
-        if last_name != "na":
-            break
+    pya.press("tab")
+    pya.press("tab")
+    last_name = pyperclip.copy("na")
+    pya.hotkey("ctrl", "c")
+    last_name = pyperclip.paste()
     if last_name == "na":
         last_name = pya.prompt(
-            text="Please enter patient surname", title="Surame", default=""
+                        text="Please enter patient surname", title="Surame", default=""
         )
     try:
         print_name = title + " " + first_name + " " + last_name
+        print(print_name)
     except TypeError:
         pya.alert("Problem getting the name. Try again!")
         raise BillingException
 
     mrn = pyperclip.copy("na")
-    pya.moveTo(570, 250, duration=0.1)
-    # pya.dragTo(535, 250, duration=0.1)
-    # pya.moveTo(570, 250, duration=0.1)
+    pya.moveTo(MRN_POS, duration=0.1)
+
     pya.doubleClick()
-    pya.click(button="right")
-    pya.moveRel(55, 65)
-    pya.click()
+    pya.hotkey("ctrl", "c")
+    mrn = pyperclip.paste()
+    print(mrn)
 
     mrn = pyperclip.paste()
     if not mrn.isdigit():
@@ -424,39 +417,40 @@ def front_scrape():
     return (mrn, print_name)
 
 
+
 def address_scrape():
     """Scrape address and dob from blue chip.
     Used if billing anaesthetist.
     """
     dob = pyperclip.copy("na")
-    pya.moveTo(600, 175, duration=0.1)
-    pya.click(button="right")
-    pya.moveRel(55, 65)
-    pya.click()
+    pya.moveTo(DOB_POS, duration=0.1)
+
+    pya.doubleClick()
+    pya.hotkey("ctrl", "c")
     dob = pyperclip.paste()
 
+
+    pya.press("tab")
+    pya.press("tab")
     street = pyperclip.copy("na")
-    pya.moveTo(500, 240, duration=0.1)
-    pya.click(button="right")
-    pya.moveRel(55, 65)
-    pya.click()
+
+    pya.hotkey("ctrl", "c")
     street = pyperclip.paste()
 
+
+    pya.press("tab")
+    pya.press("tab")
     suburb = pyperclip.copy("na")
-    pya.moveTo(330, 285, duration=0.1)
-    pya.click(button="right")
-    pya.moveRel(55, 65)
-    pya.click()
+
+    pya.hotkey("ctrl", "c")
     suburb = pyperclip.paste()
 
     postcode = pyperclip.copy("na")
-    pya.moveTo(474, 285, duration=0.1)
-    # pya.dragTo(450, 285, duration=0.1)
-    # pya.moveTo(474, 285, duration=0.1)
+    pya.moveTo(POST_CODE_POS, duration=0.1)
+
     pya.doubleClick()
-    pya.click(button="right")
-    pya.moveRel(55, 65)
-    pya.click()
+
+    pya.hotkey("ctrl", "c")
     postcode = pyperclip.paste()
 
     address = street + " " + suburb + " " + postcode
@@ -467,47 +461,27 @@ def address_scrape():
 def episode_get_mcn_and_ref():
     """Scrape mcn from blue chip."""
     mcn = pyperclip.copy("na")
-    pya.moveTo(345, 474, duration=0.1)
-    pya.dragTo(420, 474, duration=0.3)
+    pya.press("tab", presses=11)
     pya.hotkey("ctrl", "c")
-    mcn_left = pyperclip.paste()
-    # pya.moveTo(424, 474, duration=0.1)
-    # pya.click(button="right")
-    # pya.moveTo(481, 268, duration=0.1)
-    # pya.click()
-    pya.doubleClick()
-    pya.hotkey("ctrl", "c")
-    mcn_right = pyperclip.paste()
-    # mcn = pyperclip.paste()
-    mcn = mcn_left + mcn_right
+    mcn = pyperclip.paste()
     mcn = mcn.replace(" ", "")
-    # get ref
+
     ref = pyperclip.copy("na")
-    pya.moveTo(500, 475, duration=0.1)
-    # pya.dragRel(-8, 0, duration=0.1)
-    pya.doubleClick()
+    pya.press("tab", presses=2)
     pya.hotkey("ctrl", "c")
     ref = pyperclip.paste()
-    # pya.moveRel(8, 0, duration=0.1)
-    # pya.click(button="right")
-    # pya.moveTo(577, 274, duration=0.1)
-    # pya.click()
-
-    # ref = pyperclip.paste()
     return mcn, ref
 
 
 def episode_get_fund_number():
     """Scrape fund number from blue chip."""
     fund_number = pyperclip.copy("na")
-    pya.moveTo(646, 545, duration=0.1)
-    # pya.dragTo(543, 545, duration=0.1)
-    # pya.moveTo(646, 545, duration=0.1)
+    pya.moveTo(FUND_NO_POS, duration=0.1)
+
     pya.doubleClick()
-    pya.click(button="right")
-    pya.moveTo(692, 392, duration=0.1)
-    pya.click()
+    pya.hotkey("ctrl", "c")
     fund_number = pyperclip.paste()
+
     if fund_number == "na":
         fund_number = pya.prompt(
             text="Please enter fund number!", title="Fund Number", default=""
@@ -526,8 +500,9 @@ def episode_getfund(insur_code, fund, fund_number, ref):
         fund_number = ""
         mcn, ref = episode_get_mcn_and_ref()
     else:
-        fund_number = episode_get_fund_number()
         mcn, ref = episode_get_mcn_and_ref()
+        fund_number = episode_get_fund_number()
+        
 
     return (mcn, ref, fund, fund_number)
 
@@ -927,7 +902,7 @@ def close_out(anaesthetist):
     """Close patient file with mouse click and display billing details
     if a billing anaesthetist."""
     time.sleep(.5)
-    pya.moveTo(x=780, y=90)
+    pya.moveTo(CLOSE_POS[0], CLOSE_POS[1])
     pya.click()
     time.sleep(.5)
     pya.hotkey("alt", "n")
@@ -1037,7 +1012,7 @@ def start_decbatches():
     if user == "John":
         os.startfile("c:\\Users\\John\\Miniconda3\\bccode\\start_decbatches.cmd")
     elif user == "John2":
-        os.startfile("c:\\Users\\John2\\Miniconda\\bccode\\start_decbatches.cmd")
+        os.startfile("c:\\Users\\John2\\Miniconda3\\bccode\\start_decbatches.cmd")
 
 
 def open_receipt():
@@ -1050,10 +1025,6 @@ def open_sedation():
     path = "d:/john tillet/episode_data/sedation"
     path = os.path.realpath(path)
     os.startfile(path)
-
-
-def open_help():
-    webbrowser.open("d:\\nobue\\help.html")
 
 
 def colon_combo_click(event):
@@ -1167,6 +1138,14 @@ def get_list_from_dic(doctor, booking_dic):
         for p in lop:
             return_list.append(p[0])
         return return_list
+
+def update_spin():
+    t = int(ot.get())
+    t += 1
+    t = str(t)
+    ot.set(t)
+    root.after(60000, update_spin)
+
 
 
 def button_enable(*args):
@@ -1444,34 +1423,33 @@ def runner(*args):
         if (selected_name in ("Use Blue Chip")) or (
             anaesthetist in BILLING_ANAESTHETISTS
         ):
-            pya.click(50, 450)
+            pya.click(TITLE_POS)
             # checking if patient's blue chip file is open
             # first check color strip then prescence of f8 button
-            while True:
-                if not pya.pixelMatchesColor(150, 630, (255, 0, 0)):
-                    user = os.getenv("USERNAME")
-                    if user == "John":
-                        pic = "d:\\john tillet\\source\\active\\billing\\f8xr.png"
-                    elif user == "John2":
-                        pic = "d:\\john tillet\\source\\active\\billing\\f8.png"
-                    if not pya.locateCenterOnScreen(pic, region=(0, 500, 150, 150)):
-                        winsound.PlaySound("*", winsound.SND_ALIAS)
-                        pya.alert(text="Can't find blue chip.")
-                        btn_txt.set("Try Again!")
-                        raise NoBlueChipException
-                    else:
-                        break
-                else:
-                    break
+            # while True:
+                
+            #     user = os.getenv("USERNAME")
+            #     if user == "John":
+            #         if  pya.pixelMatchesColor(RED_BAR_POS[0],RED_BAR_POS[1],(255, 0, 0)):
+            #             break
+            #         else:
+            #             pic = "d:\\john tillet\\source\\active\\billing\\f8xr.png"
+            #     elif user == "John2":
+            #         if  pya.pixelMatchesColor(RED_BAR_POS[0],RED_BAR_POS[1],(255,0,0)):
+            #                 break
+            #         else:
+            #             pic = "d:\\john tillet\\source\\active\\billing\\f8.png"
+            #     if not pya.locateCenterOnScreen(pic, region=(0, 500, 150, 150)):
+            #         winsound.PlaySound("*", winsound.SND_ALIAS)
+            #         pya.alert(text="Can't find blue chip.")
+            #         btn_txt.set("Try Again!")
+            #         raise NoBlueChipException
+            #     else:
+            #         break
+
 
             mrn, name = front_scrape()
-        #            name_for_check = name.split()[-1].lower()
-        #
-        #            if endoscopist.split()[-1].lower() != pat_doc_dic[name_for_check].lower():
-        #                print(endoscopist.split()[-1].lower(), pat_doc_dic[name_for_check].lower(), "No match")
-        #            else:
-        #                print(endoscopist.split()[-1].lower(), pat_doc_dic[name_for_check].lower(), "Match")
-
+        
         elif selected_name == "error!":
             winsound.PlaySound("*", winsound.SND_ALIAS)
             pya.alert(text="Error with patient name.")
@@ -1695,7 +1673,7 @@ def runner(*args):
     caecum.set("")
 
     mes.set("")
-    ot.set("15")
+    ot.set("-3")
     fu.set("")
     fail_text.set("")
 
@@ -1722,7 +1700,10 @@ def runner(*args):
 
 root = Tk()
 root.title(datetime.datetime.today().strftime("%A  %d/%m/%Y"))
-root.geometry("470x500+840+100")
+if user == "John2":
+    root.geometry("470x500+840+100")
+elif user == "John":
+    root.geometry("600x630+1160+180")
 root.option_add("*tearOff", FALSE)
 
 mainframe = ttk.Frame(root, padding="3 3 12 12")
@@ -1877,7 +1858,7 @@ path_box.grid(column=2, row=2)
 
 lti = ttk.Label(midframe, text="Time")
 lti.grid(column=0, row=3, sticky=W)
-ti = Spinbox(midframe, from_=0, to=90, textvariable=ot, width=5)
+ti = Spinbox(midframe, from_=0, to=120, textvariable=ot, width=5)
 ti.grid(column=0, row=3)
 lti2 = ttk.Label(midframe, text="    ")
 lti2.grid(column=0, row=3, sticky=E)
@@ -1946,7 +1927,7 @@ ba.set("No Anal Procedure")
 caecum.set("")
 cl.set("0")
 con.set("None")
-ot.set("15")
+ot.set("0")
 fail_text.set("")
 path_star_label.grid_remove()
 path_box.grid_remove()
@@ -1958,5 +1939,6 @@ ba_box.grid_remove()
 mess_box.grid_remove()
 fund_box.grid_remove()
 
+update_spin()
 root.attributes("-topmost", True)
 root.mainloop()

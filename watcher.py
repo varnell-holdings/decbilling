@@ -21,15 +21,15 @@ pya.FAILSAFE = True
 
 # coord of doctor field and disposibles i theatre tab in day surgery
 coords = {
-    "John": ((100, 155), (100, 360)),
-    "John2": ((100, 155), (100, 360)),
-    "Recept1": ((100, 160), (100, 350)),
-    "Recept2": ((100, 190), (100, 378)),
+    "John": ((510, 310), (100, 360)),
+    "John2": ((320, 245), (320, 430)),
+    "Recept1": ((320, 330), (320, 520)),
+    "Recept4": ((320, 245), (320, 435)),
     "Recept3": ((100, 165), (100, 352)),
-    "Recept5": ((100, 160), (100, 350)),
+    "Recept5": ((320, 330), (320, 520)),
     "Admin3": ((100, 163), (100, 345)),
-    "Accounts": ((100, 165), (100, 352)),
-    "Regina": ((100, 160), (100, 352)),
+    "Accounts": ((320, 245), (320, 430)),
+    "Regina": ((620, 350), (620, 540)),
 }
 
 observer = Observer()
@@ -67,13 +67,20 @@ def episode_discharge(intime, outtime, anaesthetist, endoscopist):
     pya.typewrite(outtime)
     pya.typewrite(["enter"] * 3)
     pya.typewrite(["tab"] * 5)
-    pya.typewrite(anaesthetist)
-    time.sleep(3)
-    pya.press("tab")
-    #    pya.typewrite("\n")
-
-    pya.typewrite(endoscopist)
     time.sleep(1)
+    # pya.typewrite(anaesthetist)
+    # time.sleep(1)
+    # pya.typewrite(anaesthetist + "\n")
+    # pyperclip.copy(anaesthetist)
+    # time.sleep(1)
+    # pyperclip.paste()
+    
+
+    #    pya.typewrite("\n")
+    # time.sleep(4)
+    # pya.press("tab")
+    # pya.typewrite(endoscopist)
+    # time.sleep(1)
 
 
 def episode_claim():
@@ -158,37 +165,30 @@ def episode_claim_b3(band3):
 def episode_theatre(endoscopist, nurse, clips, varix_lot):
     pya.hotkey("alt", "n")
     pya.typewrite(["left"] * 2)
-    #    if not pya.pixelMatchesColor(1100, 100, (240, 240, 240)):
-    #        pya.hotkey('ctrl', 'f1')
-    #        time.sleep(0.5)
+
     user = os.getenv("USERNAME")
-    doc_coord = coords.get(user, ((100, 155), (100, 360)))[0]
+    doc_coord = coords.get(user, ((320, 245), (320, 430)))[0]
 
-    pya.moveTo(doc_coord)
-    pya.click()
+    
     pya.press("tab")
-    doc_test = pyperclip.copy("empty")
-    pya.hotkey("ctrl", "c")
-    doc_test = pyperclip.paste()
-    if doc_test == "Endoscopist":
-        pya.press("tab")
-        pya.typewrite(["enter"] * 2)
-        pya.moveRel(400, 0)
-        pya.click()
-        pya.typewrite(["tab"] * 2)
-        pya.typewrite(["enter"] * 2)
+    pya.typewrite(nurse, interval=0.05)
+    pya.press("enter")
+    pya.press("e")
+    pya.press("enter")
 
-    #    pya.moveTo(doc_coord)
-    #    pya.click()
+
     pya.hotkey("shift", "tab")
-    pya.typewrite(endoscopist)
-    pya.typewrite(["enter", "e", "enter"])
-    pya.moveRel(400, 0)
+    pya.moveTo(doc_coord)
+    time.sleep(1)
     pya.click()
-    pya.typewrite(nurse)
-    pya.typewrite(["enter", "e", "enter"])
+    pya.typewrite(endoscopist, interval=0.05)
+    pya.press("enter")
+    pya.press("e")
+    pya.press("enter")
+    pya.hotkey("shift", "tab")
+
     if clips != 0 or varix_lot:
-        pros_coord = coords.get(user, ((100, 155), (100, 360)))[1]
+        pros_coord = coords.get(user, ((320, 245), (320, 245)))[1]
         pya.moveTo(pros_coord)
         pya.click()
         if "v" in varix_lot:
@@ -198,9 +198,7 @@ def episode_theatre(endoscopist, nurse, clips, varix_lot):
             time.sleep(0.5)
             pya.typewrite("M00542250")
             pya.press("enter")
-            #            pyperclip.copy('M00542250')
-            #            pya.hotkey('ctrl', 'v')
-            #            pya.press('enter')
+
             pya.typewrite(["tab"] * 2)
         if "h" in varix_lot:
             pyperclip.copy("HB Haemoband")
@@ -209,9 +207,7 @@ def episode_theatre(endoscopist, nurse, clips, varix_lot):
             time.sleep(0.5)
             pya.typewrite("BH001")
             pya.press("enter")
-            #            pyperclip.copy('M00542250')
-            #            pya.hotkey('ctrl', 'v')
-            #            pya.press('enter')
+
             pya.typewrite(["tab"] * 2)
         if clips != 0:
             pyperclip.copy("M00521230")
@@ -223,26 +219,7 @@ def episode_theatre(endoscopist, nurse, clips, varix_lot):
                 pya.typewrite(["tab"] * 2)
 
 
-# def write_as_billed(mrn):
-#    today = datetime.datetime.now()
-#    date_file_str = today.strftime("%Y" + "-" + "%m" + "-" + "%d")
-#    date_filename = date_file_str + ".csv"
-#    today_path = os.path.join("d:\\JOHN TILLET\\episode_data\\csv\\" + date_filename)
-#    temp_holder = []
-#    with open(today_path, "r") as f:
-#        reader = csv.reader(f, dialect="excel", lineterminator="\n")
-#        for line in reader:
-#            if line[12] == mrn:
-#                line[13] = "&#10004;"
-#                temp_holder.append(line)
-#            else:
-#                temp_holder.append(line)
-#    with open(today_path, "w") as handle:
-#        datawriter = csv.writer(handle, dialect="excel", lineterminator="\n")
-#        for line in temp_holder:
-#            datawriter.writerow(line)
-#
-#    return today_path
+
 
 
 def write_as_billed_shelf(mrn):

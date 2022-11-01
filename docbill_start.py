@@ -25,6 +25,7 @@ import winsound
 
 from tkinter import ttk, StringVar, Tk, W, E, N, S, Spinbox, FALSE, Menu, Frame
 
+# need this for boto3
 sys.path.append("C:\\Users\\John2\\Miniconda3\\lib\\site-packages\\urllib3\\util\\")
 
 
@@ -89,7 +90,7 @@ def pats_from_aws(date):
 
         s3.Object("dec601", "patients.csv").download_file("aws_data.csv")
     except Exception:
-        logging.error("Failed to get patients list.", exc_info=True)
+        logging.error("Failed to get patients list.", exc_info=False)
         bookings_dic = {}
         mrn_dic = {}
         pya.alert("Failed to get patients list.")
@@ -148,18 +149,18 @@ manual_mrn = ""
 manual_flag = False
 equip_flag = False
 overide_endoscopist = False
+finish_time = False
 
 
 BILLING_ANAESTHETISTS = ["Dr S Vuong", "Dr J Tillett"]
 
-ASA = ["No Sedation", "ASA 1", "ASA 2", "ASA 3", "ASA 4"]
+ASA = ["No Sedation", "ASA 1", "ASA 2", "ASA 3"]
 
 ASA_DIC = {
     "No Sedation": None,
     "ASA 1": "92515-19",
     "ASA 2": "92515-29",
     "ASA 3": "92515-39",
-    "ASA 4": "92515-49",
 }
 
 UPPERS = [
@@ -191,7 +192,9 @@ UPPER_DIC = {
 COLONS = [
     "No Lower",
     "Planned Short Colon",
+    "Exam via stoma",
     "Failure to reach caecum",
+    "Cancelled",
     "32222",
     "32223",
     "32224",
@@ -199,7 +202,6 @@ COLONS = [
     "32226",
     "32227",
     "32228",
-    "Cancelled",
 ]
 
 COLON_DIC = {
@@ -212,7 +214,9 @@ COLON_DIC = {
     "32226": "32226",
     "32227": "32227",
     "32228": "32228",
+    "32230": "32230",
     "Planned Short Colon": "32084-00",
+    "Exam via stoma": "32095-00",
     "Failure to reach caecum": "32084-00",
     "Short Colon with polyp": "32087-00",
 }
@@ -262,6 +266,7 @@ FUNDS = [
     "The Doctor's Health Fund",
     "+++++ ahsa funds ++++++++",
     "ACA Health",
+    "AIA Health",
     "Australian Unity Health",
     "CBHS Health",
     "CUA Health",
@@ -269,14 +274,12 @@ FUNDS = [
     "Emergency Services Health",
     "Frank Health",
     "GMHBA",
-    "health.com.au",
     "Health Insurance Fund of Australia",
     "Health Partners",
     "healthcare insurance",
     "HBF",
     "myOwn Health",
     "Navy Health Ltd",
-    "Nurses & Midwives Health",
     "Onemedifund",
     "Peoplecare Health",
     "Pheonix Health",
@@ -284,6 +287,7 @@ FUNDS = [
     "Reserve Bank",
     "Teachers Health Fund",
     "Teachers Union or QTH",
+    "UniHealth",
     "Westfund",
     "++++ regional funds ++++",
     "Latrobe Health",
@@ -317,6 +321,8 @@ elif user == "John2":
 def in_and_out_calculater(time_in_theatre, mrn):
     """Calculate formatted in and out times given time in theatre.
     Don't overwrite if a resend"""
+    
+    global finish_time
 
     
     today_str = today.strftime("%Y-%m-%d")
@@ -341,24 +347,13 @@ def in_and_out_calculater(time_in_theatre, mrn):
         nowtime = datetime.datetime.now()
         outtime = nowtime + relativedelta(minutes=+1)
         intime = nowtime + relativedelta(minutes=-time_in_theatre)
+        if finish_time and (finish_time > intime):
+            intime = finish_time + relativedelta(minutes=+3)
+        finish_time = outtime
         out_formatted = outtime.strftime("%H" + ":" + "%M")
         in_formatted = intime.strftime("%H" + ":" + "%M")
 
     return (in_formatted, out_formatted)
-
-
-#def in_and_out_calculater(time_in_theatre):
-#    """Calculate formatted in and out times given time in theatre."""
-#    time_in_theatre = int(time_in_theatre)
-#    nowtime = datetime.datetime.now()
-#    outtime = nowtime + relativedelta(minutes=+1)
-#    intime = nowtime + relativedelta(minutes=-time_in_theatre)
-#    out_formatted = outtime.strftime("%H" + ":" + "%M")
-#    in_formatted = intime.strftime("%H" + ":" + "%M")
-#
-#    return (in_formatted, out_formatted)
-
-
 
 
 def front_scrape():
@@ -372,7 +367,8 @@ def front_scrape():
 
     if title == "na":
         pya.alert("Error reading Blue Chip.\nTry again\n?Logged in with AST")
-        raise BillingException
+        btn_txt.set("Try Again!")
+        raise NoBlueChipException
 
 
     pya.press("tab")
@@ -491,7 +487,7 @@ def episode_get_fund_number():
 
 def episode_getfund(insur_code, fund, fund_number, ref):
     """Controller function for scraping fund and medicare details.
-    ref may contain garrison episode id.
+    ref may contain ADF episode id.
     """
 
     if insur_code in {"ga", "adf"}:
@@ -942,7 +938,7 @@ def print_receipt(anaesthetist, episode):
     font = style.font
     font.name = "Verdana"
     acc = decbatches.print_account(
-        episode, doc, unit, consult_as_float, time_fee, total_fee, anaesthetist
+        episode, doc, unit, consult_as_float, time_fee, total_fee, anaesthetist, page_break=False
     )
     name = episode["name"]
     name = name.split()[-1]
@@ -1026,11 +1022,17 @@ def open_sedation():
     path = os.path.realpath(path)
     os.startfile(path)
 
+def asa_click(event):
+    as1 = asc.get()
+    if as1 == "No Sedation":
+        fund_box.grid_remove()
+    else:
+        if biller_anaesthetist_flag:
+            fund_box.grid()
 
 def colon_combo_click(event):
     colon_proc = co.get()
-    if colon_proc != "No Lower":
-        path_star_label.grid()
+    if colon_proc not in {"No Lower", "Cancelled"}:
         path_box.grid()
         ba_box.grid()
     else:
@@ -1047,10 +1049,6 @@ def colon_combo_click(event):
         fail_text.set("Reason for Failure")
 
 
-def path_combo_click(event):
-    path_star_label.grid_remove()
-
-
 def is_biller_endoscopist(event):
     global biller_endo_flag
     global PATIENTS
@@ -1062,7 +1060,7 @@ def is_biller_endoscopist(event):
 
     if biller_endo in {
         "Dr A Wettstein",
-        "Dr R Feller",
+        "A/Prof R Feller",
         "Dr C Vickers",
         "Dr S Vivekanandarajah",
     }:
@@ -1130,11 +1128,11 @@ def is_biller_anaesthetist(event):
 
 def get_list_from_dic(doctor, booking_dic):
     if doctor not in booking_dic:
-        return ["Use Blue Chip", "Enter Manually", ""]
+        return ["Enter Manually", ""]
     else:
         lop = list(set(booking_dic[doctor]))
         lop = sorted(lop, key=lambda x: x[1])
-        return_list = ["Use Blue Chip", "Enter Manually", ""]
+        return_list = ["Enter Manually", ""]
         for p in lop:
             return_list.append(p[0])
         return return_list
@@ -1197,13 +1195,13 @@ def button_enable(*args):
         root.update_idletasks()
         return
 
-    if anas in BILLING_ANAESTHETISTS and fund == "Fund":
+    if (anas in BILLING_ANAESTHETISTS) and (fund == "Fund") and (asa != "No Sedation"):
         btn.config(state="disabled")
         btn_txt.set("")
         feedback["text"] = "Fund!"
         root.update_idletasks()
         return
-    if upper != "No Upper" and col == "No Lower":
+    if upper != "No Upper" and col in {"No Lower", "Cancelled"}:
         btn.config(state="normal")
         btn_txt.set("Send")
         feedback["text"] = "Check time and clips then Send!"
@@ -1237,9 +1235,11 @@ def runner(*args):
     global manual_mrn
     global equip_flag
     global overide_endoscopist
+    global finish_time
 
     logging.debug("started")
     btn_txt.set("Sending...")
+    feedback["text"] = "Sending data" + ("  " * 20)
     root.update_idletasks()
     try:
         insur_code, fund, ref, fund_number, message = "", "", "", "", ""
@@ -1285,6 +1285,7 @@ def runner(*args):
             message += "Colon cancelled."
         if colon == "Failure to reach caecum":
             caecum_flag = "fail"
+            message += "Short colon only"
         else:
             caecum_flag = "success"
         colon = COLON_DIC[colon]
@@ -1325,7 +1326,10 @@ def runner(*args):
         asa = asc.get()
         if asa == "No Sedation":
             message += "No sedation."
-        asa = ASA_DIC[asa]
+        try:
+            asa = ASA_DIC[asa]
+        except KeyError:
+            asa = "92515-19"
 
         polyp = po.get()
 
@@ -1333,13 +1337,16 @@ def runner(*args):
             colon = "32084-01"
         elif polyp == "Polypectomy":
             polyp = "32229"
+        elif polyp == "emr":
+            polyp = "32230"
 
         if colon == "32084-00" and polyp == "32229":
             colon = "32087-00"
             polyp = ""
+        
 
         #        day surgery uses the old style codes
-        if colon in {"32084-00", "32084-01", "32087-00"}:
+        if colon in {"32084-00", "32084-01", "32087-00", "32095-00"}:
             colon_for_daysurgery = colon
         elif colon == "32227":
             winsound.PlaySound("*", winsound.SND_ALIAS)
@@ -1351,7 +1358,7 @@ def runner(*args):
                 equip_flag = True
                 proc = "Colonic dilatation"
             #                equip_write("Colonic dilatation", endoscopist)
-            elif polyp == "32229":
+            elif polyp in {"32229", "32230"}:
                 colon_for_daysurgery = "32093"
             else:
                 colon_for_daysurgery = "32090-00"
@@ -1393,14 +1400,6 @@ def runner(*args):
         if anaesthetist in BILLING_ANAESTHETISTS and asa:
             fund = fu.get()
 
-            if fund == "Frank Health":
-                winsound.PlaySound("*", winsound.SND_ALIAS)
-                pya.alert(
-                    text="Frank Health does not NoGap. Either bulk bill or charge as if no fund."
-                )
-                btn_txt.set("Try Again!")
-                raise BillingException
-
             insur_code = FUND_TO_CODE.get(fund, "ahsa")
             if insur_code == "send_bill":
                 winsound.PlaySound("*", winsound.SND_ALIAS)
@@ -1420,34 +1419,8 @@ def runner(*args):
                 fund = "no fund"
 
 
-        if (selected_name in ("Use Blue Chip")) or (
-            anaesthetist in BILLING_ANAESTHETISTS
-        ):
+        if anaesthetist in BILLING_ANAESTHETISTS:
             pya.click(TITLE_POS)
-            # checking if patient's blue chip file is open
-            # first check color strip then prescence of f8 button
-            # while True:
-                
-            #     user = os.getenv("USERNAME")
-            #     if user == "John":
-            #         if  pya.pixelMatchesColor(RED_BAR_POS[0],RED_BAR_POS[1],(255, 0, 0)):
-            #             break
-            #         else:
-            #             pic = "d:\\john tillet\\source\\active\\billing\\f8xr.png"
-            #     elif user == "John2":
-            #         if  pya.pixelMatchesColor(RED_BAR_POS[0],RED_BAR_POS[1],(255,0,0)):
-            #                 break
-            #         else:
-            #             pic = "d:\\john tillet\\source\\active\\billing\\f8.png"
-            #     if not pya.locateCenterOnScreen(pic, region=(0, 500, 150, 150)):
-            #         winsound.PlaySound("*", winsound.SND_ALIAS)
-            #         pya.alert(text="Can't find blue chip.")
-            #         btn_txt.set("Try Again!")
-            #         raise NoBlueChipException
-            #     else:
-            #         break
-
-
             mrn, name = front_scrape()
         
         elif selected_name == "error!":
@@ -1474,7 +1447,7 @@ def runner(*args):
             if (
                 endobase_endoscopist == "Absent"
             ):  #  an absent mrn means patient not in list from endobase
-                no_mrn_string = "This patient not in the booked list. Click OK to continue or Cancel to go back"
+                no_mrn_string = "CAREFUL!! /nThis patient not in the booked list. Click OK to continue or Cancel to go back"
                 winsound.PlaySound("*", winsound.SND_ALIAS)
                 mrn_check = pya.confirm(
                     text=no_mrn_string,
@@ -1620,9 +1593,7 @@ def runner(*args):
         time.sleep(.5)
         if colon:
             caecum_data(endoscopist, mrn, caecum_flag)
-        if (selected_name in ("Use Blue Chip")) or (
-            anaesthetist in BILLING_ANAESTHETISTS
-        ):
+        if anaesthetist in BILLING_ANAESTHETISTS:
             close_out(anaesthetist)
 
         logging.debug("finished")
@@ -1642,6 +1613,8 @@ def runner(*args):
         return
     except NoDoubleException:
         logging.error("NoDoubleException raised by %s", anaesthetist)
+        # btn_txt.set("Resend")
+        # feedback["text"] = "Choose Cancelled or a procedure from the upper list."
         return
     except WrongDocException:
         logging.error("WrongDocException raised by %s", anaesthetist)
@@ -1655,12 +1628,9 @@ def runner(*args):
         return
 
     # reset variables in gui
-    if selected_name in ("Use Blue Chip"):
-        pat.set("Use Blue Chip")
-        selected_name = "Use Blue Chip"
-    else:
-        pat.set("Click for patients")
-        selected_name = "error!"
+
+    pat.set("Click for patients")
+    selected_name = "error!"
 
     manual_flag = False
     equip_flag = False
@@ -1679,7 +1649,6 @@ def runner(*args):
 
     caecum_box.grid_remove()
     ba_box.grid_remove()
-    path_star_label.grid_remove()
     path_box.grid_remove()
     btn.config(text="Send!")
     mess_box.grid_remove()
@@ -1696,6 +1665,7 @@ def runner(*args):
     btn_txt.set("Select patient")
     btn.config(state="disabled")
     feedback["text"] = "Select patient"
+
 
 
 root = Tk()
@@ -1723,7 +1693,7 @@ menu_message.add_command(label="Add Message", command=add_message)
 
 menubar.add_cascade(menu=menu_extras, label="Extras")
 menu_extras.add_command(label="Roster", command=open_roster)
-menu_extras.add_command(label="Web Page", command=open_today)
+menu_extras.add_command(label="Patients Done Today", command=open_today)
 menu_extras.add_command(label="Dox", command=open_dox)
 menu_extras.add_command(label="Saturdays", command=open_weekends)
 
@@ -1833,13 +1803,10 @@ ba_box.grid(column=2, row=1, sticky=W)
 asa_box = ttk.Combobox(midframe, textvariable=asc, width=14)
 asa_box["values"] = ASA
 asa_box["state"] = "readonly"
-# asa_box["font"] = fontExample
+asa_box.bind("<<ComboboxSelected>>", asa_click)
 asa_box.grid(column=0, row=2, sticky=W)
 
 ttk.Label(midframe, text="     ").grid(column=1, row=2, sticky=W)
-
-path_star_label = ttk.Label(midframe, text="*")
-path_star_label.grid(column=1, row=2, sticky=E)
 
 con_label = ttk.Label(midframe, text="Consult")
 con_label.grid(column=1, row=2, sticky=W)
@@ -1851,9 +1818,8 @@ con_button2 = ttk.Radiobutton(midframe, text="No", variable=con, value="No Consu
 con_button2.grid(column=1, row=2, sticky=E)
 
 path_box = ttk.Combobox(midframe, textvariable=po, width=20)
-path_box["values"] = ["No colon pathology", "Biopsy", "Polypectomy"]
+path_box["values"] = ["No colon pathology", "Biopsy", "Polypectomy", "emr"]
 path_box["state"] = "readonly"
-path_box.bind("<<ComboboxSelected>>", path_combo_click)
 path_box.grid(column=2, row=2)
 
 lti = ttk.Label(midframe, text="Time")
@@ -1912,7 +1878,6 @@ for child in midframe.winfo_children():
 
 for child in bottomframe.winfo_children():
     child.grid_configure(padx=5, pady=15)
-root.bind("<Return>", runner)
 
 an.set("Anaesthetist")
 end.set("Endoscopist")
@@ -1929,7 +1894,6 @@ cl.set("0")
 con.set("None")
 ot.set("0")
 fail_text.set("")
-path_star_label.grid_remove()
 path_box.grid_remove()
 con_label.grid_remove()
 con_button1.grid_remove()

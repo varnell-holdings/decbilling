@@ -27,32 +27,6 @@ pya.FAILSAFE = True
 fees_config = configparser.ConfigParser()
 fees_config.read("d:\\john tillet\\episode_data\\FEES.ini")
 
-# value is a list of  two numbers - the consult fee and the unit fee
-# mbs july 2019 17610 $44.35   23010  $20.10
-# MUST fill this in FEES.INI !!! for fees_config
-FUND_FEES = {
-    "hcf": [45.00, 34.70],
-    "bup": [74.40, 33.60],
-    "mpl": [71.05, 32.70],
-    "adf": [90.56, 55.00],
-    "ahsa": [71.00, 36.00],
-    "ahm": [71.05, 32.70],
-    "nib": [74.40, 32.45],
-    "ama": [150.00, 84.00],
-    "ga": [82.60, 45.00],
-    "gu": [70.00, 35.50],
-    "lt": [55.44, 25.13],
-    "sl": [74.05, 34.80],
-    "hh": [55.44, 30.15],
-    "va": [72.75, 33.75],
-    "bb": [33.75, 15.30],
-    "os": [70.00, 30.00],
-    "u": [70.00, 35.00],
-    "p": [33.30, 15.10],
-    "send_bill": [74.40, 33.60],
-    "paid": [70.00, 35.00],
-    "paid_ama": [160.00, 80.00],
-}
 
 
 FUND_ADDRESSES = {
@@ -91,6 +65,13 @@ FUND_ADDRESSES = {
         "NSW",
         "2076",
     ],
+    "AIA Health": [
+        "AIA Health",
+        "PO Box 7302",
+        "Melbourne",
+        "VIC",
+        "3004",
+        ],
     "CBHS Health": [
         "CBHS Health Fund Limited",
         "Locked Bag 5014",
@@ -102,7 +83,6 @@ FUND_ADDRESSES = {
     "Defence Health": ["Defence Health Ltd", "PO Box 7518", "Melbourne", "VIC", "3004"],
     "Emergency Services Health": ["Emergency Services Health", "320 King William Street", "Adelaide", "SA", "5000"],
     "GMHBA": ["GMHBA Limited", "PO Box 761", "Geelong", "Vic", "3220"],
-    "health.com.au": ["health.com.au", "Locked Bag 423", "Abbotsford", "VIC", "3067"],
     "Health Insurance Fund of Australia": [
         "Health Insurance Fund of Australia",
         "GPO Box X2221",
@@ -158,7 +138,9 @@ FUND_ADDRESSES = {
         "TAS",
         "7320",
     ],
+    "Frank Health":["Frank Health Insurance","64 Moorabool St", "Geelong", "VIC", "3220"],
     "Teachers Union or QTH": ["TUH  ", "PO Box 265", "Fortitude Valley", "QLD", "4006"],
+    "UniHealth": ["UniHealth", "GPO Box 9812", "Sydney", "NSW", "2001"],
     "Westfund": ["Westfund", "PO Box 235", "Lithgow", "NSW", "2790"],
     "lt": ["Latrobe Health", "Reply Paid 41", "Morell", "VIC", "3840"],
     "hh": ["Hunter Health", "PO Box", "Cessnock", "NSW", "2325"],
@@ -223,7 +205,7 @@ def clear():
     print("\033[1;1H")  # move to top left
 
 
-def print_account(ep, doc, unit, consult_as_float, time_fee, total_fee, biller):
+def print_account(ep, doc, unit, consult_as_float, time_fee, total_fee, biller, page_break=True):
     """Prints a single accout to a docx document and returns it"""
     biller = BILLER[biller]
 
@@ -327,7 +309,8 @@ def print_account(ep, doc, unit, consult_as_float, time_fee, total_fee, biller):
     doc.add_paragraph("")
     p_gst = doc.add_paragraph("")
     p_gst.add_run("No item on this invoice attracts GST").italic = True
-    doc.add_page_break()
+    if page_break:
+        doc.add_page_break()
 
     section = doc.sections[0]
     section.page_height = Mm(297)
@@ -383,7 +366,12 @@ def print_batch_header(
         doc.add_paragraph("Garrison does not require a batch header.")
         doc.add_paragraph("Either post to below address or fax to 1300 633 227")
     elif fund == "adf":
-        doc.add_paragraph("Keep these accounts until BUPA tells us what to do.")
+        doc.add_paragraph("JOHN WILL SEND THESE ACCOUNTS")
+    elif fund =="va":
+        doc.add_paragraph("JOHN WILL SEND THESE ACCOUNTS")
+    elif afund == "Railway & Transport Health":
+        doc.add_paragraph("R&T Health requires a separate batch header for each account. These have been printed without fees.")
+        
 
     doc.add_paragraph("")
     doc.add_paragraph("")
@@ -456,7 +444,10 @@ def batch_filler(name):
     with open("d:\\Nobue\\headers\\batches.csv") as h:
         reader = csv.reader(h)
 
+
         for batch in reader:
+            if batch[0] == "send_bill":
+                batch[0] = "bup"
             f = "d:\\Nobue\\headers\\{}_pre_{}.pdf".format(batch[0], surname)
 
 
@@ -482,8 +473,13 @@ def batch_filler(name):
                 time.sleep(3)
                 pya.hotkey("alt", "f4")
                 time.sleep(1)
+                time.sleep(2)
+                pya.press("n")
+                time.sleep(2)
 
-            elif batch[0] in {"bup", "nib", "lt", "hh", "sl"}:
+            elif batch[0] in {"bup", "nib"}:
+                
+                
                 os.startfile(f)
                 time.sleep(3)
 
@@ -496,7 +492,61 @@ def batch_filler(name):
                 time.sleep(1)
 
             elif batch[0] in {"gu"}:
-                pass
+                f = "d:\\Nobue\\headers\\gu.pdf"
+                os.startfile(f)
+                time.sleep(3)
+
+
+                # pya.hotkey("ctrl", "p")
+                # time.sleep(1)
+                # pya.press("enter")
+                # time.sleep(3)
+                # pya.hotkey("alt", "f4")
+                # time.sleep(1)
+            
+            elif batch[0] in {"lt"}:
+                f = "d:\\Nobue\\headers\\latrobe.pdf"
+                os.startfile(f)
+                time.sleep(3)
+
+
+
+            elif batch[0] == "Railway & Transport Health":
+                for n in range(int(batch[1])):
+                    f = "d:\\Nobue\\headers\\ahsa_pre_{}.pdf".format(surname)
+                    os.startfile(f)
+                    time.sleep(3)
+                    pya.typewrite(["tab"] * 2, interval=0.4)
+                    time.sleep(2)
+                    pya.typewrite(FUND_ADDRESSES[batch[0]][0], interval=0.1)
+                    time.sleep(1)
+                    pya.press("tab")
+    
+                    pya.typewrite(
+                        FUND_ADDRESSES[batch[0]][1] + " " + FUND_ADDRESSES[batch[0]][2],
+                        interval=0.1,
+                    )
+                    time.sleep(1)
+                    pya.press("tab")
+                    #            add a space on back of state to avoid bug
+                    state = FUND_ADDRESSES[batch[0]][3]
+                    state = state + " "
+                    pya.typewrite(state, interval=0.4)
+    
+                    pya.press("tab")
+                    pya.typewrite(FUND_ADDRESSES[batch[0]][4], interval=0.1)
+                    
+                    time.sleep(1)
+                    pya.hotkey("ctrl", "p")
+                    time.sleep(1)
+                    pya.press("enter")
+                    time.sleep(3)
+                    pya.hotkey("alt", "f4")
+                    time.sleep(2)
+                    pya.press("n")
+                    time.sleep(2)
+                
+                    
             elif batch[0] not in [
                 "send_bill",
                 "paid",
@@ -511,6 +561,9 @@ def batch_filler(name):
                 "ga",
                 "gu",
                 "adf",
+                "hh",
+                "lt",
+                "sl",
             ]:
                 f = "d:\\Nobue\\headers\\ahsa_pre_{}.pdf".format(surname)
                 os.startfile(f)
@@ -534,6 +587,10 @@ def batch_filler(name):
 
                 pya.press("tab")
                 pya.typewrite(FUND_ADDRESSES[batch[0]][4], interval=0.1)
+                
+                
+                
+                
                 pya.typewrite(["tab"] * 5, interval=0.4)
                 pya.typewrite(ahsa_today_str, interval=0.1)
                 pya.press("tab")
@@ -542,13 +599,17 @@ def batch_filler(name):
                 pya.typewrite(batch[1])
                 pya.press("tab")
                 pya.typewrite(str(batch[2]))
+                
+                
                 time.sleep(1)
                 pya.hotkey("ctrl", "p")
                 time.sleep(1)
                 pya.press("enter")
                 time.sleep(3)
                 pya.hotkey("alt", "f4")
-                time.sleep(1)
+                time.sleep(2)
+                pya.press("n")
+                time.sleep(2)
 
 
 FUND_CODES = [
@@ -606,7 +667,7 @@ def check_addresses(datafile):
 
 def mail_and_backup(anaesthetist, file_type):
     surname = anaesthetist.split()[-1]
-    yag = yagmail.SMTP("john.lamia@gmail.com", "qayfyowgkhdnbwdz")
+    yag = yagmail.SMTP("john.lamia@gmail.com", "amjteytpugcrmuhw")
     to = BILLER[anaesthetist]["email"]
 
     body = "body test"
@@ -645,6 +706,14 @@ def mail_and_backup(anaesthetist, file_type):
         save_destination = "d:/john tillet/episode_data/sedation/backup/{}-{}-bb.csv".format(
             FILE_STR, surname
         )
+    
+    elif file_type == "batch":
+        path = "d:/nobue/headers/batches.csv"
+        subject = "Batches csv"
+        body = "Attached is your batches headers csv proccesed today"
+        save_destination = "d:/john tillet/episode_data/sedation/backup/{}-{}-bb.csv".format(
+            FILE_STR, surname
+        )
 
     path = os.path.realpath(path)
     save_path = os.path.realpath(save_destination)
@@ -677,11 +746,11 @@ def sort_funds(x):
     elif x == "ga":
         return 100
     elif x == "gu":
-        return 105
+        return 175
     elif x == "ama":
         return 110
     elif x in {"lt", "hh", "sl"}:
-        return 115
+        return 165
     else:
         return 150
 
@@ -816,9 +885,10 @@ def main():
         b = input()
         if b == "b":
             input(
-                """Make sure to shrink the docbill screen before continuing.\n
-                  Not able to print the GU header at this time - keeps crashing.\n
-                  R&T Health insisting on a separate header for each account. You will nedd to do this manually.\n
+                """Make sure to Minimizes the docbill screen before continuing.\n
+                  
+                  R&T Health insisting on a separate header for each account.\n
+                  
                   Any key to continue."""
             )
             print("Printing the batch headers....")
@@ -975,6 +1045,9 @@ def main():
         makebb(datafile)
         print("Emailing the bb.csv file.")
         mail_and_backup(biller, "bb")
+    if biller == "Dr J Tillett":
+        print("Emailing the batches.csv file.")
+        mail_and_backup(biller, "batch")
     print()
     print()
 

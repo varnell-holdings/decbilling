@@ -28,7 +28,6 @@ from tkinter import ttk, StringVar, Tk, W, E, N, S, Spinbox, FALSE, Menu, Frame
 # need this for boto3
 sys.path.append("C:\\Users\\John2\\Miniconda3\\lib\\site-packages\\urllib3\\util\\")
 
-
 import boto3
 import docx
 from jinja2 import Environment, FileSystemLoader
@@ -41,7 +40,6 @@ import decbatches
 
 pya.PAUSE = 0.4
 pya.FAILSAFE = False
-
 
 
 class BillingException(Exception):
@@ -100,7 +98,9 @@ def pats_from_aws(date):
     bookings_dic = {}
     mrn_dic = {}  #  this will map patient name to mrn
     double_dic = {}  # this will map mrn to double flag
-    pat_doc_dic = {}  # map patient mrn  to doctor for check if correct doctor selected in combobox
+    pat_doc_dic = (
+        {}
+    )  # map patient mrn  to doctor for check if correct doctor selected in combobox
     with open("aws_data.csv", encoding="utf-8") as h:
         reader = csv.reader(h)
         for patient in reader:
@@ -206,6 +206,9 @@ COLONS = [
 
 COLON_DIC = {
     "No Lower": None,
+    "Planned Short Colon": "32084-00",
+    "Exam via stoma": "32095-00",
+    "Failure to reach caecum": "32084-00",
     "Cancelled": None,
     "32222": "32222",
     "32223": "32223",
@@ -214,11 +217,6 @@ COLON_DIC = {
     "32226": "32226",
     "32227": "32227",
     "32228": "32228",
-    "32230": "32230",
-    "Planned Short Colon": "32084-00",
-    "Exam via stoma": "32095-00",
-    "Failure to reach caecum": "32084-00",
-    "Short Colon with polyp": "32087-00",
 }
 
 BANDING = ["No Anal Procedure", "Banding of haemorrhoids", "Anal dilatation"]
@@ -229,7 +227,7 @@ BANDING_DIC = {
     "Anal dilatation": "32153-00",
 }
 
-CONSULT_DIC = {"No Consult": None, "Consult": "110", "None": None, "No need": None}
+CONSULT_DIC = {"No Consult": None, "Consult": "110", "No need": None}
 
 FUND_TO_CODE = {
     "HCF": "hcf",
@@ -299,37 +297,34 @@ FUNDS = [
 user = os.getenv("USERNAME")
 
 if user == "John":
-    RED_BAR_POS = (280,790)
-    TITLE_POS =(230, 170)
+    RED_BAR_POS = (280, 790)
+    TITLE_POS = (230, 170)
     MRN_POS = (740, 315)
     POST_CODE_POS = (610, 355)
     DOB_POS = (750, 220)
     FUND_NO_POS = (770, 684)
     CLOSE_POS = (970, 115)
 elif user == "John2":
-    RED_BAR_POS = (160,630)
+    RED_BAR_POS = (160, 630)
     TITLE_POS = (200, 134)
     MRN_POS = (600, 250)
     POST_CODE_POS = (490, 284)
     DOB_POS = (600, 174)
     FUND_NO_POS = (620, 548)
     CLOSE_POS = (774, 96)
-    
-    
 
 
 def in_and_out_calculater(time_in_theatre, mrn):
     """Calculate formatted in and out times given time in theatre.
     Don't overwrite if a resend"""
-    
+
     global finish_time
 
-    
     today_str = today.strftime("%Y-%m-%d")
     today_path = os.path.join(
         "d:\\JOHN TILLET\\episode_data\\webshelf\\" + today_str + "_19"
     )
-    
+
     try:
         with shelve.open(today_path) as s:
             data = s[mrn]
@@ -338,7 +333,7 @@ def in_and_out_calculater(time_in_theatre, mrn):
         overwrite_flag = False
     except KeyError:
         overwrite_flag = True
-     
+
     if not overwrite_flag:
         in_formatted = data["in_theatre"]
         out_formatted = data["out_theatre"]
@@ -370,13 +365,12 @@ def front_scrape():
         btn_txt.set("Try Again!")
         raise NoBlueChipException
 
-
     pya.press("tab")
-    
+
     first_name = pyperclip.copy("na")
     pya.hotkey("ctrl", "c")
     first_name = pyperclip.paste()
-    
+
     if first_name == "na":
         first_name = pya.prompt(
             text="Please enter patient first name", title="First Name", default=""
@@ -389,7 +383,7 @@ def front_scrape():
     last_name = pyperclip.paste()
     if last_name == "na":
         last_name = pya.prompt(
-                        text="Please enter patient surname", title="Surame", default=""
+            text="Please enter patient surname", title="Surame", default=""
         )
     try:
         print_name = title + " " + first_name + " " + last_name
@@ -413,7 +407,6 @@ def front_scrape():
     return (mrn, print_name)
 
 
-
 def address_scrape():
     """Scrape address and dob from blue chip.
     Used if billing anaesthetist.
@@ -425,14 +418,12 @@ def address_scrape():
     pya.hotkey("ctrl", "c")
     dob = pyperclip.paste()
 
-
     pya.press("tab")
     pya.press("tab")
     street = pyperclip.copy("na")
 
     pya.hotkey("ctrl", "c")
     street = pyperclip.paste()
-
 
     pya.press("tab")
     pya.press("tab")
@@ -498,7 +489,6 @@ def episode_getfund(insur_code, fund, fund_number, ref):
     else:
         mcn, ref = episode_get_mcn_and_ref()
         fund_number = episode_get_fund_number()
-        
 
     return (mcn, ref, fund, fund_number)
 
@@ -692,7 +682,7 @@ def message_parse(message):
 
 
 def equip_write(proc, endoscopist, mrn):
-    """ takes procedure as a string and writes it and date to equipment file
+    """takes procedure as a string and writes it and date to equipment file
     for Nobue"""
     today_str = today.strftime("%d-%m-%Y")
     data = (today_str, proc, endoscopist, mrn)
@@ -897,10 +887,10 @@ def render_anaesthetic_report(anaesthetist):
 def close_out(anaesthetist):
     """Close patient file with mouse click and display billing details
     if a billing anaesthetist."""
-    time.sleep(.5)
+    time.sleep(0.5)
     pya.moveTo(CLOSE_POS[0], CLOSE_POS[1])
     pya.click()
-    time.sleep(.5)
+    time.sleep(0.5)
     pya.hotkey("alt", "n")
     pya.moveTo(x=780, y=110)
     if anaesthetist in BILLING_ANAESTHETISTS:
@@ -938,7 +928,14 @@ def print_receipt(anaesthetist, episode):
     font = style.font
     font.name = "Verdana"
     acc = decbatches.print_account(
-        episode, doc, unit, consult_as_float, time_fee, total_fee, anaesthetist, page_break=False
+        episode,
+        doc,
+        unit,
+        consult_as_float,
+        time_fee,
+        total_fee,
+        anaesthetist,
+        page_break=False,
     )
     name = episode["name"]
     name = name.split()[-1]
@@ -1003,7 +1000,7 @@ def delete_record():
 
 def start_decbatches():
     """Because system is set to use pythonw need to write cmd file
-        to fire up python for terminal programs"""
+    to fire up python for terminal programs"""
     user = os.getenv("USERNAME")
     if user == "John":
         os.startfile("c:\\Users\\John\\Miniconda3\\bccode\\start_decbatches.cmd")
@@ -1022,6 +1019,7 @@ def open_sedation():
     path = os.path.realpath(path)
     os.startfile(path)
 
+
 def asa_click(event):
     as1 = asc.get()
     if as1 == "No Sedation":
@@ -1029,6 +1027,7 @@ def asa_click(event):
     else:
         if biller_anaesthetist_flag:
             fund_box.grid()
+
 
 def colon_combo_click(event):
     colon_proc = co.get()
@@ -1137,13 +1136,13 @@ def get_list_from_dic(doctor, booking_dic):
             return_list.append(p[0])
         return return_list
 
+
 def update_spin():
     t = int(ot.get())
     t += 1
     t = str(t)
     ot.set(t)
     root.after(60000, update_spin)
-
 
 
 def button_enable(*args):
@@ -1219,7 +1218,7 @@ def button_enable(*args):
         feedback["text"] = "Reason for failure?"
         root.update_idletasks()
         return
-        
+
     if col != "No Lower" and path != "Colon Pathology":
         btn.config(state="normal")
         btn_txt.set("Send")
@@ -1294,34 +1293,12 @@ def runner(*args):
 
         if banding == "Banding of haemorrhoids":
             message += "Banding haemorrhoids 32135."
-            winsound.PlaySound("*", winsound.SND_ALIAS)
-            response_haem = pya.confirm(
-                text="Haemoband used?", title="", buttons=["Yes", "No"]
-            )
-            if response_haem == "Yes":
-                message += "Haemoband used. HB001"
-                varix_lot += "h"
-            winsound.PlaySound("*", winsound.SND_ALIAS)
-            response_pudendal = pya.confirm(
-                text="Pudendal Nerve Block?", title="", buttons=["Yes", "No"]
-            )
-            if response_pudendal == "Yes":
-                message += "Bill bilateral pudendal blocks 18264."
-        elif banding == "Anal dilatation":
-            message += "Anal dilatation 32153."
-            winsound.PlaySound("*", winsound.SND_ALIAS)
-            response_pudendal = pya.confirm(
-                text="Pudendal Nerve Block?", title="", buttons=["Yes", "No"]
-            )
-            if response_pudendal == "Yes":
-                message += " Bill bilateral pudendal blocks."
 
         if banding == "Banding of haemorrhoids":
             equip_flag = True
             proc = "Banding of haemorrhoids"
         #            equip_write(banding, endoscopist)
         banding = BANDING_DIC[banding]
-
 
         asa = asc.get()
         if asa == "No Sedation":
@@ -1343,7 +1320,6 @@ def runner(*args):
         if colon == "32084-00" and polyp == "32229":
             colon = "32087-00"
             polyp = ""
-        
 
         #        day surgery uses the old style codes
         if colon in {"32084-00", "32084-01", "32087-00", "32095-00"}:
@@ -1418,11 +1394,10 @@ def runner(*args):
             if insur_code in {"bb", "paid", "bill"}:
                 fund = "no fund"
 
-
         if anaesthetist in BILLING_ANAESTHETISTS:
             pya.click(TITLE_POS)
             mrn, name = front_scrape()
-        
+
         elif selected_name == "error!":
             winsound.PlaySound("*", winsound.SND_ALIAS)
             pya.alert(text="Error with patient name.")
@@ -1493,9 +1468,9 @@ def runner(*args):
 
         time.sleep(2)
         logging.debug(anaesthetist)
-        
+
         (in_theatre, out_theatre) = in_and_out_calculater(op_time, mrn)
-        
+
         day_surgery_shelver(
             mrn,
             in_theatre,
@@ -1590,14 +1565,13 @@ def runner(*args):
             if insur_code in {"paid", "paid_ama"}:
                 print_receipt(anaesthetist, anaesthetic_tuple)
 
-        time.sleep(.5)
+        time.sleep(0.5)
         if colon:
             caecum_data(endoscopist, mrn, caecum_flag)
         if anaesthetist in BILLING_ANAESTHETISTS:
             close_out(anaesthetist)
 
         logging.debug("finished")
-
 
     except MissingProcedureException:
         logging.error("MissingProcedureException raised by %s", anaesthetist)
@@ -1665,7 +1639,6 @@ def runner(*args):
     btn_txt.set("Select patient")
     btn.config(state="disabled")
     feedback["text"] = "Select patient"
-
 
 
 root = Tk()

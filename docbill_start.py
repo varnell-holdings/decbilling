@@ -21,7 +21,6 @@ import shelve
 import sys
 import time
 import webbrowser
-import winsound
 
 from tkinter import ttk, StringVar, Tk, W, E, N, S, Spinbox, FALSE, Menu, Frame
 
@@ -77,61 +76,7 @@ logging.basicConfig(
 )
 
 
-def pats_from_aws(date):
-    try:
-        s3 = boto3.resource(
-            "s3",
-            aws_access_key_id=aws_access_key_id,
-            aws_secret_access_key=aws_secret_access_key,
-            region_name="ap-southeast-2",
-        )
-
-        s3.Object("dec601", "patients.csv").download_file("aws_data.csv")
-    except Exception:
-        logging.error("Failed to get patients list.", exc_info=False)
-        bookings_dic = {}
-        mrn_dic = {}
-        pya.alert("Failed to get patients list.")
-        return bookings_dic, mrn_dic
-
-    #  bookings_dic maps endoscopists to a list of tuples of patient names and datestamps of data entry
-    bookings_dic = {}
-    mrn_dic = {}  #  this will map patient name to mrn
-    double_dic = {}  # this will map mrn to double flag
-    pat_doc_dic = (
-        {}
-    )  # map patient mrn  to doctor for check if correct doctor selected in combobox
-    with open("aws_data.csv", encoding="utf-8") as h:
-        reader = csv.reader(h)
-        for patient in reader:
-            doc = patient[1].lower()
-            this_day = patient[0]
-
-            if len(this_day) == 9:
-                this_day = "0" + this_day
-
-            if (this_day == date) or (this_day == "error"):
-                #                print(patient)
-                if doc in bookings_dic:
-                    bookings_dic[doc].append((patient[3], patient[6]))
-                else:
-                    bookings_dic[doc] = []
-                    bookings_dic[doc].append((patient[3], patient[6]))
-
-                mrn_dic[patient[3]] = patient[2]
-                double_dic[patient[2]] = patient[5]
-                name_for_doc_dic = patient[3].split(", ")[0]
-                name_for_doc_dic = name_for_doc_dic.split()[-1].lower()
-                #                print(name_for_doc_dic)
-                pat_doc_dic[patient[2]] = patient[1]
-    return bookings_dic, mrn_dic, double_dic, pat_doc_dic
-
-
 today = datetime.datetime.today()
-
-with concurrent.futures.ThreadPoolExecutor() as executor:
-    future = executor.submit(pats_from_aws, today.strftime("%d/%m/%Y"))
-    booking_dic, mrn_dic, double_dic, pat_doc_dic = future.result()
 
 config_parser = ConfigParser(allow_no_value=True)
 config_parser.read("d:\\john tillet\\episode_data\\STAFF.ini")
@@ -312,6 +257,56 @@ elif user == "John2":
     DOB_POS = (600, 174)
     FUND_NO_POS = (620, 548)
     CLOSE_POS = (774, 96)
+
+
+def pats_from_aws(date):
+    try:
+        s3 = boto3.resource(
+            "s3",
+            aws_access_key_id=aws_access_key_id,
+            aws_secret_access_key=aws_secret_access_key,
+            region_name="ap-southeast-2",
+        )
+
+        s3.Object("dec601", "patients.csv").download_file("aws_data.csv")
+    except Exception:
+        logging.error("Failed to get patients list.", exc_info=False)
+        bookings_dic = {}
+        mrn_dic = {}
+        pya.alert("Failed to get patients list.")
+        return bookings_dic, mrn_dic
+
+    #  bookings_dic maps endoscopists to a list of tuples of patient names and datestamps of data entry
+    bookings_dic = {}
+    mrn_dic = {}  #  this will map patient name to mrn
+    double_dic = {}  # this will map mrn to double flag
+    pat_doc_dic = (
+        {}
+    )  # map patient mrn  to doctor for check if correct doctor selected in combobox
+    with open("aws_data.csv", encoding="utf-8") as h:
+        reader = csv.reader(h)
+        for patient in reader:
+            doc = patient[1].lower()
+            this_day = patient[0]
+
+            if len(this_day) == 9:
+                this_day = "0" + this_day
+
+            if (this_day == date) or (this_day == "error"):
+                #                print(patient)
+                if doc in bookings_dic:
+                    bookings_dic[doc].append((patient[3], patient[6]))
+                else:
+                    bookings_dic[doc] = []
+                    bookings_dic[doc].append((patient[3], patient[6]))
+
+                mrn_dic[patient[3]] = patient[2]
+                double_dic[patient[2]] = patient[5]
+                name_for_doc_dic = patient[3].split(", ")[0]
+                name_for_doc_dic = name_for_doc_dic.split()[-1].lower()
+                #                print(name_for_doc_dic)
+                pat_doc_dic[patient[2]] = patient[1]
+    return bookings_dic, mrn_dic, double_dic, pat_doc_dic
 
 
 def in_and_out_calculater(time_in_theatre, mrn):
@@ -1255,7 +1250,6 @@ def runner(*args):
             message += "Bill varix bander. BS225"
             varix_lot += "v"
         if upper == "HALO":
-            winsound.PlaySound("*", winsound.SND_ALIAS)
             halo = pya.prompt(
                 text='Type either "90" or "ultra".', title="Halo", default="90"
             )
@@ -1325,7 +1319,6 @@ def runner(*args):
         if colon in {"32084-00", "32084-01", "32087-00", "32095-00"}:
             colon_for_daysurgery = colon
         elif colon == "32227":
-            winsound.PlaySound("*", winsound.SND_ALIAS)
             dil_flag = pya.confirm(
                 text="Was that a colonic dilatation?", buttons=["Dilatation", "Other"]
             )
@@ -1368,7 +1361,6 @@ def runner(*args):
         try:
             op_time = int(op_time)
         except:
-            winsound.PlaySound("*", winsound.SND_ALIAS)
             pya.alert(text="There was any error with the time in theatre.")
             btn_txt.set("Try Again!")
             raise BillingException
@@ -1378,14 +1370,11 @@ def runner(*args):
 
             insur_code = FUND_TO_CODE.get(fund, "ahsa")
             if insur_code == "send_bill":
-                winsound.PlaySound("*", winsound.SND_ALIAS)
                 fund = pya.prompt(
                     text="Enter Fund Name", title="Pay Later", default=None
                 )
             if insur_code in {"ga", "adf"}:
-                winsound.PlaySound("*", winsound.SND_ALIAS)
                 ref = pya.prompt(text="Enter Episode Id", title="Ep Id", default=None)
-                winsound.PlaySound("*", winsound.SND_ALIAS)
                 fund_number = pya.prompt(
                     text="Enter Approval Number", title="Approval Number", default=None
                 )
@@ -1399,7 +1388,6 @@ def runner(*args):
             mrn, name = front_scrape()
 
         elif selected_name == "error!":
-            winsound.PlaySound("*", winsound.SND_ALIAS)
             pya.alert(text="Error with patient name.")
             btn_txt.set("Try Again!")
             raise NoNameException
@@ -1423,7 +1411,6 @@ def runner(*args):
                 endobase_endoscopist == "Absent"
             ):  #  an absent mrn means patient not in list from endobase
                 no_mrn_string = "CAREFUL!! /nThis patient not in the booked list. Click OK to continue or Cancel to go back"
-                winsound.PlaySound("*", winsound.SND_ALIAS)
                 mrn_check = pya.confirm(
                     text=no_mrn_string,
                     title="Patient not in list",
@@ -1439,7 +1426,6 @@ def runner(*args):
                     "This patint was booked with Dr  %s, click OK to continue with Dr %s or cancel to change."
                     % (endo_endoscopist_lowered, endoscopist_lowered)
                 )
-                winsound.PlaySound("*", winsound.SND_ALIAS)
                 doc_check = pya.confirm(
                     text=wrong_doc_string,
                     title="? Wrong endoscopist",
@@ -1454,7 +1440,6 @@ def runner(*args):
         if ((upper is None or colon is None) and "cancelled." not in message) and (
             double_dic.get(mrn) == "True"
         ):
-            winsound.PlaySound("*", winsound.SND_ALIAS)
             pya.alert(
                 text="Patient booked for double. Choose Cancelled or a procedure in the upper list.",
                 title="",
@@ -1640,7 +1625,11 @@ def runner(*args):
     btn.config(state="disabled")
     feedback["text"] = "Select patient"
 
-
+with concurrent.futures.ThreadPoolExecutor() as executor:
+    future = executor.submit(pats_from_aws, today.strftime("%d/%m/%Y"))
+    booking_dic, mrn_dic, double_dic, pat_doc_dic = future.result()
+    
+    
 root = Tk()
 root.title(datetime.datetime.today().strftime("%A  %d/%m/%Y"))
 if user == "John2":

@@ -247,15 +247,15 @@ if user == "John":
     MRN_POS = (740, 315)
     POST_CODE_POS = (610, 355)
     DOB_POS = (750, 220)
-    FUND_NO_POS = (770, 684)
-    CLOSE_POS = (970, 115)
+    FUND_NO_POS = (770, 703)
+    CLOSE_POS = (1020, 120)
 elif user == "John2":
     RED_BAR_POS = (160, 630)
     TITLE_POS = (200, 134)
     MRN_POS = (600, 250)
     POST_CODE_POS = (490, 284)
     DOB_POS = (600, 174)
-    FUND_NO_POS = (620, 548)
+    FUND_NO_POS = (580, 548)
     CLOSE_POS = (774, 96)
 
 

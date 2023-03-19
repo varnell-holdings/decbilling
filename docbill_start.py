@@ -164,11 +164,12 @@ COLON_DIC = {
     "32228": "32228",
 }
 
-BANDING = ["No Anal Procedure", "Banding of haemorrhoids", "Anal dilatation"]
+BANDING = ["No Anal Procedure", "Banding", "Banding + Pudendal", "Anal dilatation"]
 
 BANDING_DIC = {
     "No Anal Procedure": None,
-    "Banding of haemorrhoids": "32135-00",
+    "Banding": "32135-00",
+    "Banding + Pudendal": "32135-00",
     "Anal dilatation": "32153-00",
 }
 
@@ -1285,13 +1286,15 @@ def runner(*args):
 
         banding = ba.get()
 
-        if banding == "Banding of haemorrhoids":
+        if banding in {"Banding", "Banding + Pudendal"}:
             message += "Banding haemorrhoids 32135."
-
-        if banding == "Banding of haemorrhoids":
             equip_flag = True
             proc = "Banding of haemorrhoids"
-        #            equip_write(banding, endoscopist)
+        if banding == "Banding + Pudendal":
+            message += "Bill Pudendal Block."
+        if banding == "Anal dilatation":
+            message += "Anal dilatation"
+
         banding = BANDING_DIC[banding]
 
         asa = asc.get()

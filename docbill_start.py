@@ -68,6 +68,9 @@ class WrongDocException(BillingException):
 class NoDoubleException(BillingException):
     pass
 
+class TooSoonException(BaseException):
+    pass
+
 
 logging.basicConfig(
     filename="D:\\JOHN TILLET\\episode_data\\doclog.log",
@@ -687,6 +690,45 @@ def equip_write(proc, endoscopist, mrn):
         datawriter.writerow(data)
 
 
+def update_and_verify_last_colon(mrn, colon, endoscopist):
+    """
+    If no long colon done it just returns None
+    check if dates and codes are in conflict with Medicare rules - note exact date 1,3,5 years ago passes
+    update shelf  record to today's date and return None
+    note: shelf is a dictionary of keys - mrn as string, values - date of last colon as datetime.date object
+    note: in docbill the global 'today' is a datetime.datetime object and has to be converted to a datetime.date object 
+    for comparisons to work properly
+    """
+    if colon[0:3] != '322':
+        return
+    address = "D:\\Nobue\\last_colon_date"
+    with shelve.open(address) as s:
+        try:
+            last_colon_date = s[mrn]  #this is a datetime.date object
+        except KeyError:
+            last_colon_date = None
+
+        if last_colon_date and (last_colon_date != today.date()):  # second test is in case this is a resend today
+
+            time_sep = relativedelta(today.date(), last_colon_date).years
+            last_colon_date_printed = last_colon_date.strftime('%d-%m-%Y')
+
+            if (colon == '32226') and time_sep < 1:
+                reply = pya.confirm(text=f'Last colon performed less than one year ago ({last_colon_date_printed}).\nCheck colon code with Dr {endoscopist}.', title='Colon Code Confirm', buttons=['Proceed anyway', 'Go Back to change'])
+                if reply == "Go Back to change":
+                    raise TooSoonException
+            elif (colon == '32224') and time_sep < 3:
+                reply = pya.confirm(text=f'Last colon performed less than three years ago ({last_colon_date_printed}).\nCheck colon code with Dr {endoscopist}.', title='Colon Code Confirm', buttons=['Proceed anyway', 'Go Back to change'])
+                if reply == "Go Back to change":
+                    raise TooSoonException
+            elif (colon == '32223') and time_sep < 5:
+                reply = pya.confirm(text=f'Last colon performed less than five years ago ({last_colon_date_printed}).\nCheck colon code with Dr {endoscopist}.', title='Colon Code Confirm', buttons=['Proceed anyway', 'Go Back to change'])
+                if reply == "Go Back to change":
+                    raise TooSoonException
+
+        s[mrn] = today.date()
+
+
 def caecum_data(doctor, mrn, caecum_flag):
     """Write whether scope got to caecum."""
     doctor = doctor.split()[-1]
@@ -1284,6 +1326,8 @@ def runner(*args):
             caecum_flag = "success"
         colon = COLON_DIC[colon]
 
+        update_and_verify_last_colon(mrn, colon, endoscopist)
+
         banding = ba.get()
 
         if banding in {"Banding", "Banding + Pudendal"}:
@@ -1559,10 +1603,12 @@ def runner(*args):
         if anaesthetist in BILLING_ANAESTHETISTS:
             close_out(anaesthetist)
 
-        logging.debug("finished")
 
     except MissingProcedureException:
         logging.error("MissingProcedureException raised by %s", anaesthetist)
+        return
+    except TooSoonException:
+        logging.error("TooSoonException raised by %s", anaesthetist)
         return
     except NoBlueChipException:
         logging.error("NoBlueChipException raised by %s", anaesthetist)

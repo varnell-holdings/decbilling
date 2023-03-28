@@ -699,6 +699,8 @@ def update_and_verify_last_colon(mrn, colon, endoscopist):
     note: in docbill the global 'today' is a datetime.datetime object and has to be converted to a datetime.date object 
     for comparisons to work properly
     """
+    if not colon:
+        return
     if colon[0:3] != '322':
         return
     address = "D:\\Nobue\\last_colon_date"

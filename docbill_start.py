@@ -1326,7 +1326,7 @@ def runner(*args):
             caecum_flag = "success"
         colon = COLON_DIC[colon]
 
-        update_and_verify_last_colon(mrn, colon, endoscopist)
+
 
         banding = ba.get()
 
@@ -1495,6 +1495,8 @@ def runner(*args):
             btn_txt.set("Try Again!")
             raise NoDoubleException
 
+        update_and_verify_last_colon(mrn, colon, endoscopist)
+        
         if equip_flag:
             equip_write(proc, endoscopist, mrn)
 

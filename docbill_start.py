@@ -716,15 +716,15 @@ def update_and_verify_last_colon(mrn, colon, endoscopist):
             last_colon_date_printed = last_colon_date.strftime('%d-%m-%Y')
 
             if (colon == '32226') and time_sep < 1:
-                reply = pya.confirm(text=f'Last colon performed less than one year ago ({last_colon_date_printed}).\nCheck colon code with Dr {endoscopist}.', title='Colon Code Confirm', buttons=['Proceed anyway', 'Go Back to change'])
+                reply = pya.confirm(text=f'Last colon performed less than one year ago ({last_colon_date_printed}).\nCheck colon code with {endoscopist}.', title='Colon Code Confirm', buttons=['Proceed anyway', 'Go Back to change'])
                 if reply == "Go Back to change":
                     raise TooSoonException
             elif (colon == '32224') and time_sep < 3:
-                reply = pya.confirm(text=f'Last colon performed less than three years ago ({last_colon_date_printed}).\nCheck colon code with Dr {endoscopist}.', title='Colon Code Confirm', buttons=['Proceed anyway', 'Go Back to change'])
+                reply = pya.confirm(text=f'Last colon performed less than three years ago ({last_colon_date_printed}).\nCheck colon code with {endoscopist}.', title='Colon Code Confirm', buttons=['Proceed anyway', 'Go Back to change'])
                 if reply == "Go Back to change":
                     raise TooSoonException
             elif (colon == '32223') and time_sep < 5:
-                reply = pya.confirm(text=f'Last colon performed less than five years ago ({last_colon_date_printed}).\nCheck colon code with Dr {endoscopist}.', title='Colon Code Confirm', buttons=['Proceed anyway', 'Go Back to change'])
+                reply = pya.confirm(text=f'Last colon performed less than five years ago ({last_colon_date_printed}).\nCheck colon code with {endoscopist}.', title='Colon Code Confirm', buttons=['Proceed anyway', 'Go Back to change'])
                 if reply == "Go Back to change":
                     raise TooSoonException
 

@@ -778,7 +778,7 @@ def medtitrust_process(
         fund = ''
         fund_number =''
 
-    elif insur_code in {'adf', 'paid', 'send_bill', 'va'}: # unsure about adf - meditrust wants mcn but I don't have it
+    elif insur_code in {'adf', 'paid', 'send_bill', 'va'}:
         if insur_code == 'va':
             veterans_no = mcn
         bill_type = 'NO_GAP_FEE'
@@ -786,6 +786,15 @@ def medtitrust_process(
         ref = ''
         fund = ''
         fund_number =''
+
+    elif insur_code =='adf':
+        bill_type = 'NO_GAP_FEE'
+        fund = 'ADF BUPA STANDARD RATES'
+        fund_number_string = "EPID: " + ref + " APN: " + mcn
+        fund_number = fund_number_string
+        mcn = '0000000000'
+        ref = '0'
+        
         
     else:
         bill_type = 'NO_GAP_FEE'

@@ -179,8 +179,8 @@ BANDING_DIC = {
 CONSULT_DIC = {"No Consult": None, "Consult": "110", "No need": None}
 
 FUND_TO_CODE = {
-    "HCF": "hcf",
-    "BUPA": "bup",
+    "HCF (NG scheme)": "hcf",
+    "BUPA - NO GAP": "bup",
     "Medibank Private": "mpl",
     "NIB": "nib",
     "The Doctor's Health Fund": "ama",
@@ -203,14 +203,14 @@ FUNDS = [
     "Pay Today AMA",
     "Bulk Bill",
     "Veterans Affairs",
-    "HCF",
-    "BUPA",
+    "HCF (NG scheme)",
+    "BUPA - NO GAP",
     "Medibank Private",
     "NIB",
     "Australian Health Management",
     "ADF HSC",
-    "GU Health",
-    "The Doctor's Health Fund",
+    "Grand United Corporate Health",
+    "Doctor's Health Fund",
     "+++++ ahsa funds ++++++++",
     "ACA Health",
     "AIA Health",
@@ -223,7 +223,7 @@ FUNDS = [
     "GMHBA",
     "Health Insurance Fund of Australia",
     "Health Partners",
-    "healthcare insurance",
+    "Health Care Insurance",
     "HBF",
     "myOwn Health",
     "Navy Health Ltd",
@@ -778,7 +778,7 @@ def medtitrust_process(
         fund = ''
         fund_number =''
 
-    elif insur_code in {'adf', 'paid', 'send_bill', 'va'}:
+    elif insur_code in {'adf', 'paid', 'send_bill', 'va'}: # unsure about adf - meditrust wants mcn but I don't have it
         if insur_code == 'va':
             veterans_no = mcn
         bill_type = 'NO_GAP_FEE'
@@ -786,15 +786,6 @@ def medtitrust_process(
         ref = ''
         fund = ''
         fund_number =''
-
-    elif insur_code =='adf':
-        bill_type = 'NO_GAP_FEE'
-        fund = 'ADF BUPA STANDARD RATES'
-        fund_number_string = "EPID: " + ref + " APN: " + mcn
-        fund_number = fund_number_string
-        mcn = '0000000000'
-        ref = '0'
-        
         
     else:
         bill_type = 'NO_GAP_FEE'

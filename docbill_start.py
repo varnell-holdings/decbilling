@@ -179,11 +179,11 @@ BANDING_DIC = {
 CONSULT_DIC = {"No Consult": None, "Consult": "110", "No need": None}
 
 FUND_TO_CODE = {
-    "HCF (NG scheme)": "hcf",
-    "BUPA - NO GAP": "bup",
+    "HCF": "hcf",
+    "BUPA": "bup",
     "Medibank Private": "mpl",
     "NIB": "nib",
-    "The Doctor's Health Fund": "ama",
+    "Doctor's Health Fund": "ama",
     "Australian Health Management": "ahm",
     "Bulk Bill": "bb",
     "Pay Today NG": "paid",
@@ -191,7 +191,7 @@ FUND_TO_CODE = {
     "Veterans Affairs": "va",
     "Pay Later": "send_bill",
     "ADF HSC": "adf",
-    "GU Health": "gu",
+    "Grand United Corporate Health": "gu",
     "Latrobe Health": "lt",
     "Cessnock District or Hunter Health": "hh",
     "stlukeshealth": "sl",
@@ -203,8 +203,8 @@ FUNDS = [
     "Pay Today AMA",
     "Bulk Bill",
     "Veterans Affairs",
-    "HCF (NG scheme)",
-    "BUPA - NO GAP",
+    "HCF",
+    "BUPA",
     "Medibank Private",
     "NIB",
     "Australian Health Management",
@@ -759,6 +759,12 @@ def medtitrust_process(
     else:
         asa3 = False
 
+    if fund == "BUPA":
+        fund = "BUPA - NO GAP"
+    elif fund == "HCF":
+        fund = "HCF (NG scheme)"
+
+
     if upper and not colon and not asa3:
         procedure = 'Panendoscopy'
     elif upper and not colon and asa3:
@@ -967,9 +973,23 @@ def meditrust_writer(anaesthetist, endoscopist_lowered, today, meditrust_csv):
         a_surname = anaesthetist.split()[-1]
         filename = today_str + "-" + endoscopist_lowered
         csvfile = "d:\\JOHN TILLET\\episode_data\\meditrust\\{}\\{}.csv".format(a_surname, filename)
-        with open(csvfile, "a") as handle:
+        temp_list = []
+        try:
+            with open(csvfile, mode="r") as handle:
+                datareader = csv.reader(handle, dialect="excel", lineterminator="\n")
+                for old_data in datareader:
+                    if old_data[11] == meditrust_csv[11]:
+                        continue
+                    else:
+                        temp_list.append(old_data)
+                temp_list.append(meditrust_csv)
+        except:
+            temp_list.append(meditrust_csv)
+
+        with open(csvfile, "w") as handle:
             datawriter = csv.writer(handle, dialect="excel", lineterminator="\n")
-            datawriter.writerow(meditrust_csv)
+            for ep_data in temp_list:
+                datawriter.writerow(meditrust_csv)
 
 
 def to_anaesthetic_csv(new_ep_data, anaesthetist):

@@ -733,7 +733,7 @@ def medtitrust_process(
     first_name,
     last_name,
     dob,
-    address,
+    street,
     suburb,
     state,
     postcode,
@@ -801,7 +801,7 @@ def medtitrust_process(
         first_name,
         last_name,
         dob,
-        address,
+        street,
         suburb,
         state,
         postcode,
@@ -989,7 +989,7 @@ def meditrust_writer(anaesthetist, endoscopist_lowered, today, meditrust_csv):
         with open(csvfile, "w") as handle:
             datawriter = csv.writer(handle, dialect="excel", lineterminator="\n")
             for ep_data in temp_list:
-                datawriter.writerow(meditrust_csv)
+                datawriter.writerow(ep_data)
 
 
 def to_anaesthetic_csv(new_ep_data, anaesthetist):
@@ -1829,7 +1829,7 @@ def runner(*args):
                 first_name,
                 last_name,
                 dob,
-                address,
+                street,
                 suburb,
                 state,
                 postcode,

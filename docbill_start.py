@@ -747,8 +747,12 @@ def medtitrust_process(
     insur_code,
     fund,
     fund_number,
+    anaesthetist,
 ):
     """Turn raw data into stuff ready to go into meditrust csv file."""
+    if insur_code in {'adf', 'paid', 'send_bill'} and anaesthetist == "Dr J Tillett":
+        return None
+
     phone = ""
     email = ""
     workcover_name = ""
@@ -819,7 +823,7 @@ def medtitrust_process(
         workcover_claim_no,
         veterans_no,
 )
-    logging.info(f"Data returned by medtitrust_process {meditrust_csv}")
+
     return meditrust_csv
 
 
@@ -1843,8 +1847,10 @@ def runner(*args):
                 insur_code,
                 fund,
                 fund_number,
+                anaesthetist,
             )
-            meditrust_writer(anaesthetist, endoscopist_lowered, today, meditrust_csv)
+            if meditrust_csv:
+                meditrust_writer(anaesthetist, endoscopist_lowered, today, meditrust_csv)
             
             anaesthetic_tuple = bill_process(
                 dob,

@@ -507,6 +507,7 @@ def address_scrape():
 
     pya.hotkey("ctrl", "c")
     street = pyperclip.paste()
+    street = street.replace(",", "")
 
     pya.press("tab")
     pya.press("tab")

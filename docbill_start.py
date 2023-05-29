@@ -183,7 +183,7 @@ FUND_TO_CODE = {
     "BUPA": "bup",
     "Medibank Private": "mpl",
     "NIB": "nib",
-    "Doctor's Health Fund": "ama",
+    "Doctors' Health Fund": "ama",
     "Australian Health Management": "ahm",
     "Bulk Bill": "bb",
     "Pay Today NG": "paid",
@@ -983,7 +983,7 @@ def meditrust_writer(anaesthetist, endoscopist_lowered, today, meditrust_csv):
             with open(csvfile, mode="r") as handle:
                 datareader = csv.reader(handle, dialect="excel", lineterminator="\n")
                 for old_data in datareader:
-                    if old_data[11] == meditrust_csv[11]:
+                    if (old_data[11] == meditrust_csv[11]) and (old_data[12] == meditrust_csv[12]):
                         continue
                     else:
                         temp_list.append(old_data)

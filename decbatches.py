@@ -14,7 +14,7 @@ import colorama
 
 import docx
 from docx.shared import Mm
-from docx.shared import Pt
+
 
 import pyautogui as pya
 
@@ -26,133 +26,6 @@ pya.FAILSAFE = True
 
 fees_config = configparser.ConfigParser()
 fees_config.read("d:\\john tillet\\episode_data\\FEES.ini")
-
-
-
-FUND_ADDRESSES = {
-    "hcf": ["HCF", "GPO Box 4242", "Sydney", "NSW", "2001"],
-    "bup": ["Bupa Medical Claims", "GPO Box 9809", "BRISBANE", "QLD", "4001"],
-    "mpl": ["Medibank Private GapCover", "GPO Box 1288K", "Melbourne", "VIC", "3001"],
-    "nib": ["nib MediGap Department", "Reply Paid 62208", "NEWCASTLE", "NSW", "2300"],
-    "ahm": ["ahm GapCover", "Locked Bag 4", "Wetherill Park BC", "NSW", "2164"],
-    "adf": ["ADF HSC", "Unknown", "", "", ""],
-    "ga": [
-        "Garrison Health Services\nC/- Medibank Health Solutions",
-        "PO Box 9999",
-        "MELBOURNE",
-        "VIC",
-        "3001",
-    ],
-    "gu": ["GU Health", "Reply Paid 2988", "Melbourne", "Vic", "8060"],
-    "ama": [
-        "The Doctors Health Fund",
-        "PO Box Q1749",
-        "Queen Victoria Building",
-        "NSW",
-        "1230",
-    ],
-    "Australian Unity Health": [
-        "Australian Unity Health Ltd",
-        "114 Albert Rd",
-        "South Melbourne",
-        "VIC",
-        "3205",
-    ],
-    "ACA Health": [
-        "ACA Health Benefits Fund",
-        "148 Fox Valley Rd",
-        "Wahroonga",
-        "NSW",
-        "2076",
-    ],
-    "AIA Health": [
-        "AIA Health",
-        "PO Box 7302",
-        "Melbourne",
-        "VIC",
-        "3004",
-        ],
-    "CBHS Health": [
-        "CBHS Health Fund Limited",
-        "Locked Bag 5014",
-        "Parramatta",
-        "NSW",
-        "2124",
-    ],
-    "CUA Health": ["CUA Health Ltd", "GPO Box 100", "Brisbane", "QLD", "4001"],
-    "Defence Health": ["Defence Health Ltd", "PO Box 7518", "Melbourne", "VIC", "3004"],
-    "Emergency Services Health": ["Emergency Services Health", "320 King William Street", "Adelaide", "SA", "5000"],
-    "GMHBA": ["GMHBA Limited", "PO Box 761", "Geelong", "Vic", "3220"],
-    "Health Insurance Fund of Australia": [
-        "Health Insurance Fund of Australia",
-        "GPO Box X2221",
-        "Perth",
-        "WA",
-        "6847",
-    ],
-    "Health Partners": ["Health Partners", "GPO Box 1493", "Adelaide", "SA", "5001"],
-    "HBF": ["HBF Health Limited", "GPO Box S1440", "Perth", "WA", "6845"],
-    "myOwn Health": ["myOwn", "PO Box 7302", "Melbourne", "VIC", "3004"],
-    "Navy Health Ltd": ["Navy Health Ltd", "PO Box 172", "Box Hill", "VIC", "3128"],
-    "Onemedifund": ["Onemedifund", "Locked Bag 25", "Wollongong DC", "NSW", "2500"],
-    "Peoplecare Health": [
-        "Peoplecare Health",
-        "Locked Bag 33",
-        "Wollongong DC",
-        "NSW",
-        "2500",
-    ],
-    "Pheonix Health": ["Pheonix Health Fund", "PO Box 156", "Newcastle", "NSW", "2300"],
-    "Railway & Transport Health": [
-        "rt health fund",
-        "PO Box 545",
-        "Strawberry Hills",
-        "NSW",
-        "2012",
-    ],
-    "Reserve Bank": [
-        "Reserve Bank Health Society",
-        "Locked Bag 23",
-        "Wollongong DC",
-        "NSW",
-        "2500",
-    ],
-    "Teachers Health Fund": [
-        "Teachers Health Fund",
-        "GPO Box 9812",
-        "Sydney",
-        "NSW",
-        "2001",
-    ],
-    "Nurses & Midwives Health": [
-        "Nurses & Midwives Health",
-        "Level 4/260 Elizabeth St",
-        "Sydney",
-        "NSW",
-        "2000",
-    ],
-    "healthcare insurance": [
-        "healthcare insurance",
-        "PO Box 931",
-        "Burnie",
-        "TAS",
-        "7320",
-    ],
-    "Frank Health":["Frank Health Insurance","64 Moorabool St", "Geelong", "VIC", "3220"],
-    "Teachers Union or QTH": ["TUH  ", "PO Box 265", "Fortitude Valley", "QLD", "4006"],
-    "UniHealth": ["UniHealth", "GPO Box 9812", "Sydney", "NSW", "2001"],
-    "Westfund": ["Westfund", "PO Box 235", "Lithgow", "NSW", "2790"],
-    "lt": ["Latrobe Health", "Reply Paid 41", "Morell", "VIC", "3840"],
-    "hh": ["Hunter Health", "PO Box", "Cessnock", "NSW", "2325"],
-    "sl": ["stlukeshealth", "PO Box 915", "Launceston", "TAS", "7250"],
-    "Queensland Country Health": [
-        "Queensland Country Health",
-        "1/333 Ross River Rd",
-        "Aitkenvale",
-        "QLD",
-        "4814",
-    ],
-}
 
 BILLER = {
     "Dr J Tillett": {
@@ -174,25 +47,6 @@ BILLER = {
 }
 
 
-headers = [
-    "date",
-    "name",
-    "address",
-    "dob",
-    "medicare_no",
-    "ref",
-    "fund_name",
-    "fund_number",
-    "fund_code",
-    "doctor",
-    "upper",
-    "lower",
-    "seventy",
-    "asa_3",
-    "time",
-    "invoice",
-]
-
 
 PAGE_NUMBER = 24
 
@@ -210,7 +64,7 @@ def print_account(ep, doc, unit, consult_as_float, time_fee, total_fee, biller, 
     biller = BILLER[biller]
 
     if ep["fund_code"] == "paid":
-        doc.add_heading("Tax Invoice for Anaesthetic Fees Paid", level=0)
+        doc.add_heading("Tax Receipt for Anaesthetic Fees Paid", level=0)
     else:
         doc.add_heading("Account for Anaesthetic", level=0)
 
@@ -243,12 +97,16 @@ def print_account(ep, doc, unit, consult_as_float, time_fee, total_fee, biller, 
         ga_str = "   %s" % ep["fund_number"]
         p_ga.add_run(ga_str)
 
+    elif ep["fund_code"] == "paid":
+        pass
     else:
         doc.add_paragraph(
             "Fund:  %s   Number:  %s" % (ep["fund_name"], ep["fund_number"])
         )
         if ep["fund_code"] == "send_bill":
             doc.add_paragraph("Patient not registered with Medicare for this service.")
+        elif ep["fund_code"] == "paid":
+            pass
         else:
             p_mc = doc.add_paragraph("Medicare Number")
             mc_str = "   %s    ref  %s" % (ep["medicare_no"], ep["ref"])
@@ -305,7 +163,19 @@ def print_account(ep, doc, unit, consult_as_float, time_fee, total_fee, biller, 
     tot_str = "$%.2f" % total_fee
     tot_str = tot_str.rjust(19)
     p_tot.add_run(tot_str).bold = True
+    
+    if ep["fund_code"] == "paid":
+        p_tot = doc.add_paragraph("Paid")
+        tot_str = "$%.2f" % total_fee
+        tot_str = tot_str.rjust(26)
+        p_tot.add_run(tot_str).bold = True
 
+    if ep["fund_code"] == "paid":
+        p_tot = doc.add_paragraph("Owing")
+        tot_str = "$0.00"
+        tot_str = tot_str.rjust(25)
+        p_tot.add_run(tot_str).bold = True
+        
     doc.add_paragraph("")
     p_gst = doc.add_paragraph("")
     p_gst.add_run("No item on this invoice attracts GST").italic = True
@@ -324,310 +194,22 @@ def print_calc(n):
     return math.floor(n / divisor)
 
 
-def print_batch_header(
-    doc, fund, number_printed, total, headers_datafile
-):  # fund is fu in loop
-    if fund[:4] == "ahsa":
-        afund = fund[5:]
-    else:
-        afund = fund
-    doc.add_heading("Batch Header", level=0)
-    doc.add_paragraph("")
-    if afund == "bb":
-        doc.add_paragraph("Bulk Bill")
-    elif afund == "va":
-        doc.add_paragraph("Veterans's Affairs")
-    elif afund == "paid":
-        doc.add_paragraph("Paid on day")
-    else:
-        doc.add_paragraph("Fund:  %s" % (FUND_ADDRESSES.get(afund, list(afund))[0]))
-    doc.add_paragraph("")
-    doc.add_paragraph("Number in batch:  %d" % number_printed)
-    doc.add_paragraph("")
-    doc.add_paragraph("Total fees:  %.2f" % total)
-    doc.add_paragraph("")
-    if fund == "paid":
-        doc.add_paragraph("These patients should have paid on the day of procedure.")
-        doc.add_paragraph("The amounts on these invoices may not be correct.")
-        doc.add_paragraph(
-            "Correct invoices will be in sedation\\accounts folder on work computers"
-        )
-    elif fund == "send_bill":
-        doc.add_paragraph("These patients have not paid")
-    elif fund == "gu":
-        doc.add_paragraph("GU nw has its own batch header.")
-    elif fund == "hcf":
-        doc.add_paragraph(
-            "HCF does not require batch header form but wants less than 20 accounts per envelope."
-        )
-    elif fund == "ama":
-        doc.add_paragraph("The Doctors Fund uses AHSA batch header form.")
-    elif fund == "ga":
-        doc.add_paragraph("Garrison does not require a batch header.")
-        doc.add_paragraph("Either post to below address or fax to 1300 633 227")
-    elif fund == "adf":
-        doc.add_paragraph("JOHN WILL SEND THESE ACCOUNTS")
-    elif fund =="va":
-        doc.add_paragraph("JOHN WILL SEND THESE ACCOUNTS")
-    elif afund == "Railway & Transport Health":
-        doc.add_paragraph("R&T Health requires a separate batch header for each account. These have been printed without fees.")
-        
-
-    doc.add_paragraph("")
-    doc.add_paragraph("")
-
-    address = FUND_ADDRESSES.get(afund, "na")
-    if address == "na":
-        pass
-    else:
-        run = doc.add_paragraph().add_run(address[0])
-        font = run.font
-        font.size = Pt(14)
-        run = doc.add_paragraph().add_run(address[1])
-        font = run.font
-        font.size = Pt(14)
-        run = doc.add_paragraph().add_run(
-            address[2] + "  " + address[3] + "  " + address[4]
-        )
-        font = run.font
-        font.size = Pt(14)
-
-    doc.add_paragraph("")
-    doc.add_paragraph("")
-    if afund in {"gu", "lt"}:
-        doc.add_heading("No stamp needed!", level=1)
-
-    doc.add_page_break()
-
-    with open(headers_datafile, mode="a") as handler:
-        filewriter = csv.writer(handler, dialect="excel", lineterminator="\n")
-        total = "%.2f" % total
-        batch_data = (afund, str(number_printed), total)
-        filewriter.writerow(batch_data)
-
-    return doc
-
-
-def makebb(datafile):
-    """
-    Write bb patients to a separate bb.csv file for hposentry
-    """
-    try:
-        with open(datafile) as csvfile:
-            reader = csv.DictReader(csvfile, headers)
-            ep_list = [_ for _ in reader]
-
-    except IOError:
-        print("No datafile file found.")
-        sys.exit(1)
-
-    with open("d:\\john tillet\\episode_data\\bb.csv", "w") as f:
-        writer = csv.DictWriter(f, fieldnames=headers)
-        writer.writeheader()
-        for episode in ep_list:
-            if episode["fund_code"] == "bb":
-                writer.writerow(episode)
-
-
-def batch_filler(name):
-
-    surname = name.split()[-1]
-    today = datetime.datetime.today()
-    ahsa_today_str = today.strftime("%d-%m-%Y")
-    #    bup_today_str = today.strftime("%d%m%y")
-    mpl_today_str_d = today.strftime("%d")
-    mpl_today_str_m = today.strftime("%m")
-    mpl_today_str_y = today.strftime("%Y")
-    # gu_today_str = today.strftime("%d-%m-%Y")
-
-
-    with open("d:\\Nobue\\headers\\batches.csv") as h:
-        reader = csv.reader(h)
-
-
-        for batch in reader:
-            if batch[0] == "send_bill":
-                batch[0] = "bup"
-            f = "d:\\Nobue\\headers\\{}_pre_{}.pdf".format(batch[0], surname)
-
-
-            if batch[0] in {"mpl", "ahm"}:
-                os.startfile(f)
-                time.sleep(3)
-                pya.typewrite(["tab"] * 4, interval=0.3)
-                time.sleep(1)
-                pya.typewrite(mpl_today_str_d, interval=0.4)
-                time.sleep(1)
-                pya.press("tab")
-                pya.typewrite(mpl_today_str_m, interval=0.4)
-                time.sleep(1)
-                pya.press("tab")
-                pya.typewrite(mpl_today_str_y, interval=0.4)
-                time.sleep(1)
-                pya.press("tab")
-                pya.typewrite(batch[1])
-
-                pya.hotkey("ctrl", "p")
-                time.sleep(1)
-                pya.press("enter")
-                time.sleep(3)
-                pya.hotkey("alt", "f4")
-                time.sleep(1)
-                time.sleep(2)
-                pya.press("n")
-                time.sleep(2)
-
-            elif batch[0] in {"bup", "nib"}:
-                
-                
-                os.startfile(f)
-                time.sleep(3)
-
-
-                pya.hotkey("ctrl", "p")
-                time.sleep(1)
-                pya.press("enter")
-                time.sleep(3)
-                pya.hotkey("alt", "f4")
-                time.sleep(1)
-
-            elif batch[0] in {"gu"}:
-                f = "d:\\Nobue\\headers\\gu.pdf"
-                os.startfile(f)
-                time.sleep(3)
-
-
-                # pya.hotkey("ctrl", "p")
-                # time.sleep(1)
-                # pya.press("enter")
-                # time.sleep(3)
-                # pya.hotkey("alt", "f4")
-                # time.sleep(1)
-            
-            elif batch[0] in {"lt"}:
-                f = "d:\\Nobue\\headers\\latrobe.pdf"
-                os.startfile(f)
-                time.sleep(3)
-
-
-
-            elif batch[0] == "Railway & Transport Health":
-                for n in range(int(batch[1])):
-                    f = "d:\\Nobue\\headers\\ahsa_pre_{}.pdf".format(surname)
-                    os.startfile(f)
-                    time.sleep(3)
-                    pya.typewrite(["tab"] * 2, interval=0.4)
-                    time.sleep(2)
-                    pya.typewrite(FUND_ADDRESSES[batch[0]][0], interval=0.1)
-                    time.sleep(1)
-                    pya.press("tab")
-    
-                    pya.typewrite(
-                        FUND_ADDRESSES[batch[0]][1] + " " + FUND_ADDRESSES[batch[0]][2],
-                        interval=0.1,
-                    )
-                    time.sleep(1)
-                    pya.press("tab")
-                    #            add a space on back of state to avoid bug
-                    state = FUND_ADDRESSES[batch[0]][3]
-                    state = state + " "
-                    pya.typewrite(state, interval=0.4)
-    
-                    pya.press("tab")
-                    pya.typewrite(FUND_ADDRESSES[batch[0]][4], interval=0.1)
-                    
-                    time.sleep(1)
-                    pya.hotkey("ctrl", "p")
-                    time.sleep(1)
-                    pya.press("enter")
-                    time.sleep(3)
-                    pya.hotkey("alt", "f4")
-                    time.sleep(2)
-                    pya.press("n")
-                    time.sleep(2)
-                
-                    
-            elif batch[0] not in [
-                "send_bill",
-                "paid",
-                "paid_ama",
-                "bb",
-                "va",
-                "hcf",
-                "bup",
-                "mpl",
-                "nib",
-                "ahm",
-                "ga",
-                "gu",
-                "adf",
-                "hh",
-                "lt",
-                "sl",
-            ]:
-                f = "d:\\Nobue\\headers\\ahsa_pre_{}.pdf".format(surname)
-                os.startfile(f)
-                time.sleep(3)
-                pya.typewrite(["tab"] * 2, interval=0.4)
-                time.sleep(2)
-                pya.typewrite(FUND_ADDRESSES[batch[0]][0], interval=0.1)
-                time.sleep(1)
-                pya.press("tab")
-
-                pya.typewrite(
-                    FUND_ADDRESSES[batch[0]][1] + " " + FUND_ADDRESSES[batch[0]][2],
-                    interval=0.1,
-                )
-                time.sleep(1)
-                pya.press("tab")
-                #            add a space on back of state to avoid bug
-                state = FUND_ADDRESSES[batch[0]][3]
-                state = state + " "
-                pya.typewrite(state, interval=0.4)
-
-                pya.press("tab")
-                pya.typewrite(FUND_ADDRESSES[batch[0]][4], interval=0.1)
-                
-                
-                
-                
-                pya.typewrite(["tab"] * 5, interval=0.4)
-                pya.typewrite(ahsa_today_str, interval=0.1)
-                pya.press("tab")
-                pya.typewrite(str(batch[2]))
-                pya.press("tab")
-                pya.typewrite(batch[1])
-                pya.press("tab")
-                pya.typewrite(str(batch[2]))
-                
-                
-                time.sleep(1)
-                pya.hotkey("ctrl", "p")
-                time.sleep(1)
-                pya.press("enter")
-                time.sleep(3)
-                pya.hotkey("alt", "f4")
-                time.sleep(2)
-                pya.press("n")
-                time.sleep(2)
-
-
-FUND_CODES = [
-    "Pay Later",
-    "paid",
-    "send_bill",
-    "va",
-    "bb",
-    "hcf",
-    "bup",
-    "mpl",
-    "nib",
-    "ahm",
-    "ga",
-    "gu",
-    "ama",
-    "ahsa",
-]
+# FUND_CODES = [
+#     "Pay Later",
+#     "paid",
+#     "send_bill",
+#     "va",
+#     "bb",
+#     "hcf",
+#     "bup",
+#     "mpl",
+#     "nib",
+#     "ahm",
+#     "ga",
+#     "gu",
+#     "ama",
+#     "ahsa",
+# ]
 
 
 def format_fixed_width(rows):
@@ -639,30 +221,6 @@ def format_fixed_width(rows):
             output += column.ljust(length + 2)
         output = output.rstrip() + "\n"
     return output.rstrip()
-
-
-def check_addresses(datafile):
-    """Print a list of funds in csv that are not in FUND_ADDRESSES dictionary"""
-    with open(datafile) as handler:
-        csv_handler = csv.reader(handler)
-        flag = False
-        clear()
-        print()
-        print("***  Checking fund address list  ***")
-        print("")
-        for entry in csv_handler:
-            if entry[8] == "ahsa" and entry[6] not in FUND_ADDRESSES:
-                print("{} not in fund address list".format(entry[6]))
-                flag = True
-        if flag:
-            print()
-            print("The above funds need to be added to address book - ask JT")
-            print()
-            answer = input("Hit x to quit or any other key to continue")
-            if answer == "x".lower():
-                sys.exit(0)
-        else:
-            print("All Good!")
 
 
 def mail_and_backup(anaesthetist, file_type):
@@ -692,29 +250,8 @@ def mail_and_backup(anaesthetist, file_type):
         save_destination = "d:/john tillet/episode_data/sedation/backup/{}-{}-accts.docx".format(
             FILE_STR, surname
         )
-    elif file_type == "zip":
-        path = "d:/Nobue/headers.zip"
-        subject = "DEC batch headers"
-        body = "Attached are your batch headers proccesed today"
-        save_destination = "d:/john tillet/episode_data/sedation/backup/{}-{}-headers.zip".format(
-            FILE_STR, surname
-        )
-    elif file_type == "bb":
-        path = "d:/john tillet/episode_data/bb.csv"
-        subject = "Bulk Bill csv"
-        body = "Attached is your bulk bill csv proccesed today"
-        save_destination = "d:/john tillet/episode_data/sedation/backup/{}-{}-bb.csv".format(
-            FILE_STR, surname
-        )
-    
-    elif file_type == "batch":
-        path = "d:/nobue/headers/batches.csv"
-        subject = "Batches csv"
-        body = "Attached is your batches headers csv proccesed today"
-        save_destination = "d:/john tillet/episode_data/sedation/backup/{}-{}-bb.csv".format(
-            FILE_STR, surname
-        )
 
+    
     path = os.path.realpath(path)
     save_path = os.path.realpath(save_destination)
     content = [path]
@@ -811,7 +348,6 @@ Press y to merge csv with masterfile.
 
 Press n to just exit (current csv file will stay in place.)
 
-Neither of these actions will affect making batch headers.
 """
         flag = input(merge)
         if flag in {"y", "n"}:
@@ -859,56 +395,19 @@ def printProgressBar(
 def main():
     """Print accounts in batches of funds."""
 
-    clear()
-    while True:
-        a = input("Enter 1 for SV or 2 for JT  ")
-        if a == str(2):
-            biller = "Dr J Tillett"
-            omit_set = {"bb", "paid"}
-            break
-        elif a == str(1):
-            biller = "Dr S Vuong"
-            omit_set = {}
-            break
-        else:
-            continue
+
+    biller = "Dr J Tillett"
+
 
     clear()
-    while True:
-        print(
-            "Enter a to make accounts or b to make batch headers or hit x to exit now."
-        )
-        print("")
-        print("To do both - first choose a to make accounts then restart this program")
-        print("and choose b to make batch headers")
-
-        b = input()
-        if b == "b":
-            input(
-                """Make sure to Minimizes the docbill screen before continuing.\n
-                  
-                  R&T Health insisting on a separate header for each account.\n
-                  
-                  Any key to continue."""
-            )
-            print("Printing the batch headers....")
-            batch_filler(biller)
-
-            sys.exit()
-        elif b == "a":
-            break
-        elif b == "x":
-            sys.exit()
-        else:
-            continue
-
+    print_set ={"adf", "send_bill"}
     biller_surmame = biller.split()[-1]
     base = "D:\\JOHN TILLET\\episode_data\\sedation\\"
     summaryfile = base + "accts_summary.txt"
     printfile = base + "accts.docx"
     datafile = base + biller_surmame + ".csv"
     masterfile = base + biller_surmame + "_master.csv"
-    headers_datafile = "D:\\Nobue\\headers\\batches.csv"
+
 
     headers = [
         "date",
@@ -932,10 +431,7 @@ def main():
         os.remove(summaryfile)
     except IOError:
         pass
-    try:
-        os.remove(headers_datafile)
-    except IOError:
-        pass
+
 
     try:
         with open(datafile) as csvfile:
@@ -945,9 +441,6 @@ def main():
     except IOError:
         print("No csv file found.")
         sys.exit(1)
-
-    check_addresses(datafile)
-    #    go = input
 
     clear()
     print("Printing Dr {}'s accounts".format(biller_surmame))
@@ -963,10 +456,7 @@ def main():
     pat_dict = defaultdict(list)
 
     for episode in ep_list:
-        if episode["fund_code"] == "ahsa":
-            fund_id = episode["fund_code"] + "_" + episode["fund_name"]  # [:2]
-            pat_dict[fund_id].append(episode)
-        elif episode["fund_code"] not in omit_set:
+        if episode["fund_code"]  in print_set:
             fund_id = episode["fund_code"]
             pat_dict[fund_id].append(episode)
 
@@ -1017,7 +507,7 @@ def main():
 
             summary_list.append(list([summary_name, str(num_p)]))
 
-            acc = print_batch_header(doc, fu, num_p, grand_total, headers_datafile)
+            # acc = print_batch_header(doc, fu, num_p, grand_total, headers_datafile)
             fund_left -= num_p
             start += num_p
 
@@ -1031,25 +521,13 @@ def main():
         file.write(format_fixed_width(summary_list))
     acc.save(printfile)
     print()
-    print("Emailing the summary..")
-    print("Please wait till the prompt reappears!")
+
     mail_and_backup(biller, "summary")
     print()
     print("Emailing the accounts..")
     mail_and_backup(biller, "docx")
     print()
-    print("Emailing the csv file..")
-    mail_and_backup(biller, "csv")
-    print()
-    if biller == "Dr J Tillett":
-        makebb(datafile)
-        print("Emailing the bb.csv file.")
-        mail_and_backup(biller, "bb")
-    if biller == "Dr J Tillett":
-        print("Emailing the batches.csv file.")
-        mail_and_backup(biller, "batch")
-    print()
-    print()
+
 
     cleanup(datafile, masterfile, summaryfile, printfile, biller)
 

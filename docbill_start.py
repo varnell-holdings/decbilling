@@ -183,7 +183,7 @@ FUND_TO_CODE = {
     "BUPA": "bup",
     "Medibank Private": "mpl",
     "NIB": "nib",
-    "Doctors' Health Fund": "ama",
+    "Doctor's Health Fund": "ama",
     "Australian Health Management": "ahm",
     "Bulk Bill": "bb",
     "Pay Today NG": "paid",
@@ -221,7 +221,7 @@ FUNDS = [
     "Emergency Services Health",
     "Frank Health",
     "GMHBA",
-    "Health Insurance Fund of Australia",
+    "HIF of WA",
     "Health Partners",
     "Health Care Insurance",
     "HBF",
@@ -229,7 +229,7 @@ FUNDS = [
     "Navy Health Ltd",
     "Onemedifund",
     "Peoplecare Health",
-    "Pheonix Health",
+    "Phoenix Health",
     "Police Health",
     "Railway & Transport Health",
     "Reserve Bank",
@@ -278,7 +278,7 @@ def pats_from_aws(date):
         logging.error("Failed to get patients list.", exc_info=False)
         bookings_dic = {}
         mrn_dic = {}
-        pya.alert("Failed to get patients list.")
+#       pya.alert("Failed to get patients list.")
         return bookings_dic, mrn_dic
 
     #  bookings_dic maps endoscopists to a list of tuples of patient names and datestamps of data entry
@@ -1253,6 +1253,10 @@ def open_weekends():
 def error_log():
     webbrowser.open("d:\\JOHN TILLET\\episode_data\\doclog.log")
 
+def open_meditrust():
+    webbrowser.open("https://www.meditrust.com.au/mtv4/home")
+    
+
 
 def add_message():
     mess_box.grid()
@@ -1304,9 +1308,11 @@ def open_receipt():
 
 
 def open_sedation():
-    path = "d:/john tillet/episode_data/sedation"
+
+    path = "d:/john tillet/episode_data/meditrust"
     path = os.path.realpath(path)
     os.startfile(path)
+
 
 
 def asa_click(event):
@@ -1351,6 +1357,7 @@ def is_biller_endoscopist(event):
         "A/Prof R Feller",
         "Dr C Vickers",
         "Dr S Vivekanandarajah",
+        "Dr S Ghaly",
     }:
         biller_endo_flag = True
         con.set("None")
@@ -1527,6 +1534,7 @@ def runner(*args):
 
     logging.debug("started")
     btn_txt.set("Sending...")
+ #    btn.config(bg="red")
     feedback["text"] = "Sending data" + ("  " * 20)
     root.update_idletasks()
     try:
@@ -1534,6 +1542,7 @@ def runner(*args):
         varix_lot = ""
 
         anaesthetist = an.get()
+        
         endoscopist = end.get()
         nurse = nur.get()
 
@@ -1949,11 +1958,16 @@ def runner(*args):
         fu.set("Fund")
     btn_txt.set("Select patient")
     btn.config(state="disabled")
+#     btn.config(bg="blue")
     feedback["text"] = "Select patient"
 
 with concurrent.futures.ThreadPoolExecutor() as executor:
     future = executor.submit(pats_from_aws, today.strftime("%d/%m/%Y"))
-    booking_dic, mrn_dic, double_dic, pat_doc_dic = future.result()
+    try:
+        booking_dic, mrn_dic, double_dic, pat_doc_dic = future.result()
+    except:
+        booking_dic, mrn_dic, double_dic, pat_doc_dic = ({}, {}, {}, {})
+        
     
     
 root = Tk()
@@ -1993,8 +2007,9 @@ menu_admin.add_command(label="Change Fees", command=change_fees)
 
 menubar.add_cascade(menu=menu_accounts, label="Accounts")
 menu_accounts.add_command(label="receipts folder", command=open_receipt)
-menu_accounts.add_command(label="sedation folder", command=open_sedation)
+menu_accounts.add_command(label="meditrust folder", command=open_sedation)
 menu_accounts.add_command(label="Start batches print", command=start_decbatches)
+menu_accounts.add_command(label="Meditrust Website", command=open_meditrust)
 
 # menubar.add_cascade(menu=menu_help, label="Help")
 # menu_help.add_command(label="Help Page", command=open_help)
@@ -2150,6 +2165,7 @@ btn = ttk.Button(bottomframe, textvariable=btn_txt, command=runner)
 btn.grid(column=0, row=2, sticky=W)
 btn_txt.set("Missimg data")
 btn.config(state="disabled")
+# orig_color = btn.cget("bg")
 
 space = "              " * 3
 ttk.Label(bottomframe, text=space).grid(column=2, row=3, sticky=E)  # place holder

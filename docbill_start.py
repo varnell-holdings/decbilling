@@ -17,6 +17,7 @@ from dateutil.parser import parse
 import logging
 import os
 import pickle
+import requests
 import shelve
 import sys
 import time
@@ -91,6 +92,10 @@ ENDOSCOPISTS = [a.title() for a in ENDOSCOPISTS]
 ANAESTHETISTS = config_parser.options("anaesthetists")
 ANAESTHETISTS = [a.title() for a in ANAESTHETISTS]
 
+
+with open("D:\JOHN TILLET\episode_data\store_32228.csv", "rb") as file:
+    COLON_32228 = pickle.load(file)
+
 PATIENTS = []
 selected_name = "error!"
 manual_mrn = ""
@@ -101,6 +106,14 @@ finish_time = False
 
 
 BILLING_ANAESTHETISTS = ["Dr S Vuong", "Dr J Tillett"]
+
+BILLING_ENDOS = ["Dr A Wettstein",
+        "A/Prof R Feller",
+        "Dr C Vickers",
+        "Dr S Vivekanandarajah",
+        "Dr S Ghaly",
+        "Dr J Mill",
+        ]
 
 ASA = ["No Sedation", "ASA 1", "ASA 2", "ASA 3"]
 
@@ -201,22 +214,23 @@ FUNDS = [
     "HCF",
     "BUPA",
     "Medibank Private",
-    "NIB",   
-    "ADF HSC",
+    "NIB",
+    "Teachers Health Fund",
+    "Australian Health Management",
     "Bulk Bill",
+    "ADF HSC",
     "Veterans Affairs",
-    "Pay Later",
     "Pay Today NG",
+    "Pay Later",
     "+++++ other funds ++++++++",
     "ACA Health",
-    "AIA Health",
-    "Australian Health Management",
+    "AIA Health",   
     "Australian Unity Health",
     "CBHS Health",
     "Cessnock District or Hunter Health",
     "CUA Health",
     "Defence Health",
-    "Doctor's Health Fund",
+    "Doctors' Health Fund",
     "Emergency Services Health",
     "Frank Health",
     "GMHBA",
@@ -236,7 +250,6 @@ FUNDS = [
     "Railway & Transport Health",
     "Reserve Bank",
     "stlukeshealth",
-    "Teachers Health Fund",
     "Teachers Union or QTH",
     "UniHealth",
     "Westfund",
@@ -265,6 +278,7 @@ elif user == "John2":
 
 def pats_from_aws(date):
     try:
+        requests.head("https://www.google.com", timeout=3)
         s3 = boto3.resource(
             "s3",
             aws_access_key_id=aws_access_key_id,
@@ -273,14 +287,14 @@ def pats_from_aws(date):
         )
 
         s3.Object("dec601", "patients.csv").download_file("aws_data.csv")
-    except Exception:
+    except requests.ConnectionError:
         logging.error("Failed to get patients list.", exc_info=False)
         bookings_dic = {}
         mrn_dic = {}
 #       pya.alert("Failed to get patients list.")
         return bookings_dic, mrn_dic
 
-    #  bookings_dic maps endoscopists to a list of tuples of patient names and datestamps of data entry
+      # bookings_dic maps endoscopists to a list of tuples of patient names and datestamps of data entry
     bookings_dic = {}
     mrn_dic = {}  #  this will map patient name to mrn
     double_dic = {}  # this will map mrn to double flag
@@ -424,66 +438,10 @@ def front_scrape():
     mrn = pyperclip.paste()
     if not mrn.isdigit():
         mrn = pya.prompt("Please enter this patient's MRN")
-    logging.info(f"Data returned by front_scrape {mrn}, {print_name}, {title}, {first_name}, {last_name}")
+    # logging.info(f"Data returned by front_scrape {mrn}, {print_name}, {title}, {first_name}, {last_name}")
 
     return (mrn, print_name, title, first_name, last_name)
 
-
-
-# def front_scrape():
-#     """Scrape name and mrn from blue chip."""
-
-#     pya.moveTo(TITLE_POS, duration=0.1)
-#     pya.doubleClick()
-#     title = pyperclip.copy("na")
-#     pya.hotkey("ctrl", "c")
-#     title = pyperclip.paste()
-
-#     if title == "na":
-#         pya.alert("Error reading Blue Chip.\nTry again\n?Logged in with AST")
-#         btn_txt.set("Try Again!")
-#         raise NoBlueChipException
-
-#     pya.press("tab")
-
-#     first_name = pyperclip.copy("na")
-#     pya.hotkey("ctrl", "c")
-#     first_name = pyperclip.paste()
-
-#     if first_name == "na":
-#         first_name = pya.prompt(
-#             text="Please enter patient first name", title="First Name", default=""
-#         )
-
-#     pya.press("tab")
-#     pya.press("tab")
-#     last_name = pyperclip.copy("na")
-#     pya.hotkey("ctrl", "c")
-#     last_name = pyperclip.paste()
-#     if last_name == "na":
-#         last_name = pya.prompt(
-#             text="Please enter patient surname", title="Surame", default=""
-#         )
-#     try:
-#         print_name = title + " " + first_name + " " + last_name
-#         print(print_name)
-#     except TypeError:
-#         pya.alert("Problem getting the name. Try again!")
-#         raise BillingException
-
-#     mrn = pyperclip.copy("na")
-#     pya.moveTo(MRN_POS, duration=0.1)
-
-#     pya.doubleClick()
-#     pya.hotkey("ctrl", "c")
-#     mrn = pyperclip.paste()
-#     print(mrn)
-
-#     mrn = pyperclip.paste()
-#     if not mrn.isdigit():
-#         mrn = pya.prompt("Please enter this patient's MRN")
-
-#     return (mrn, print_name)
 
 
 def address_scrape():
@@ -525,47 +483,8 @@ def address_scrape():
 
     address = street + " " + suburb + " " + postcode
     state = postcode_to_state(postcode)
-    logging.info(f"Data returned by address_scrape {address}, {dob}, {street}, {state}, {postcode}")
+    # logging.info(f"Data returned by address_scrape {address}, {dob}, {street}, {state}, {postcode}")
     return (address, dob, street, suburb, state, postcode)
-
-
-
-# def address_scrape():
-#     """Scrape address and dob from blue chip.
-#     Used if billing anaesthetist.
-#     """
-#     dob = pyperclip.copy("na")
-#     pya.moveTo(DOB_POS, duration=0.1)
-
-#     pya.doubleClick()
-#     pya.hotkey("ctrl", "c")
-#     dob = pyperclip.paste()
-
-#     pya.press("tab")
-#     pya.press("tab")
-#     street = pyperclip.copy("na")
-
-#     pya.hotkey("ctrl", "c")
-#     street = pyperclip.paste()
-
-#     pya.press("tab")
-#     pya.press("tab")
-#     suburb = pyperclip.copy("na")
-
-#     pya.hotkey("ctrl", "c")
-#     suburb = pyperclip.paste()
-
-#     postcode = pyperclip.copy("na")
-#     pya.moveTo(POST_CODE_POS, duration=0.1)
-
-#     pya.doubleClick()
-
-#     pya.hotkey("ctrl", "c")
-#     postcode = pyperclip.paste()
-
-#     address = street + " " + suburb + " " + postcode
-
-#     return (address, dob)
 
 
 def episode_get_mcn_and_ref():
@@ -914,7 +833,49 @@ def equip_write(proc, endoscopist, mrn):
         datawriter.writerow(data)
 
 
-def update_and_verify_last_colon(mrn, colon, endoscopist):
+# def update_and_verify_last_colon(mrn, colon, endoscopist):
+#     """
+#     If no long colon done it just returns None
+#     check if dates and codes are in conflict with Medicare rules - note exact date 1,3,5 years ago passes
+#     update shelf  record to today's date and return None
+#     note: shelf is a dictionary of keys - mrn as string, values - date of last colon as datetime.date object
+#     note: in docbill the global 'today' is a datetime.datetime object and has to be converted to a datetime.date object 
+#     for comparisons to work properly
+#     32228's are stored and checked in a pickled set COLON_32228'
+#     """
+#     if not colon:
+#         return
+#     if colon[0:3] != '322':
+#         return
+#     address = "D:\\Nobue\\last_colon_date"
+#     with shelve.open(address) as s:
+#         try:
+#             last_colon_date = s[mrn]  #this is a datetime.date object
+#         except KeyError:
+#             last_colon_date = None
+
+#         if last_colon_date and (last_colon_date != today.date()):  # second test is in case this is a resend today
+
+#             time_sep = relativedelta(today.date(), last_colon_date).years
+#             last_colon_date_printed = last_colon_date.strftime('%d-%m-%Y')
+
+#             if (colon == '32226') and time_sep < 1:
+#                 reply = pya.confirm(text=f'Last colon performed less than one year ago ({last_colon_date_printed}).\nCheck colon code with {endoscopist}.', title='Colon Code Confirm', buttons=['Proceed anyway', 'Go Back to change'])
+#                 if reply == "Go Back to change":
+#                     raise TooSoonException
+#             elif (colon == '32224') and time_sep < 3:
+#                 reply = pya.confirm(text=f'Last colon performed less than three years ago ({last_colon_date_printed}).\nCheck colon code with {endoscopist}.', title='Colon Code Confirm', buttons=['Proceed anyway', 'Go Back to change'])
+#                 if reply == "Go Back to change":
+#                     raise TooSoonException
+#             elif (colon == '32223') and time_sep < 5:
+#                 reply = pya.confirm(text=f'Last colon performed less than five years ago ({last_colon_date_printed}).\nCheck colon code with {endoscopist}.', title='Colon Code Confirm', buttons=['Proceed anyway', 'Go Back to change'])
+#                 if reply == "Go Back to change":
+#                     raise TooSoonException
+
+#         s[mrn] = today.date()
+
+
+def update_and_verify_last_colon(mrn, colon, endoscopist, COLON_32228):
     """
     If no long colon done it just returns None
     check if dates and codes are in conflict with Medicare rules - note exact date 1,3,5 years ago passes
@@ -953,7 +914,17 @@ def update_and_verify_last_colon(mrn, colon, endoscopist):
                     raise TooSoonException
 
         s[mrn] = today.date()
+        
+        if colon == '32228' and mrn in COLON_32228:
+            reply = pya.confirm(text=f'Patient previously billed 32228.\nCheck colon code with {endoscopist}.', title='Colon Code Confirm', buttons=['Proceed anyway', 'Go Back to change'])
+            if reply == "Go Back to change":
+                raise TooSoonException
+        elif colon == '32228':
+            COLON_32228.add(mrn)
+            with open("D:\JOHN TILLET\episode_data\store_32228.csv", "wb") as file:
+                pickle.dump(COLON_32228, file)
 
+    return COLON_32228
 
 def caecum_data(doctor, mrn, caecum_flag):
     """Write whether scope got to caecum."""
@@ -982,7 +953,7 @@ def meditrust_writer(anaesthetist, endoscopist_lowered, today, meditrust_csv):
             with open(csvfile, mode="r") as handle:
                 datareader = csv.reader(handle, dialect="excel", lineterminator="\n")
                 for old_data in datareader:
-                    if (old_data[11] == meditrust_csv[11]) and (old_data[12] == meditrust_csv[12]):
+                    if (old_data[1] == meditrust_csv[1]) and (old_data[2] == meditrust_csv[2]):
                         continue
                     else:
                         temp_list.append(old_data)
@@ -1129,7 +1100,7 @@ def colon_to_csv(mrn, colon):
     Possible basis for app later on to see if patient eligible for code."""
     today_str = today.strftime("%d" + "-" + "%m" + "-" + "%Y")
     data = (today_str, mrn, colon)
-    with open("D:\\JOHN TILLET\\episode_data\\colon_csv", mode="at") as handle:
+    with open("D:\\JOHN TILLET\\episode_data\\colon.csv", mode="at") as handle:
         datawriter = csv.writer(handle, dialect="excel", lineterminator="\n")
         if colon:
             datawriter.writerow(data)
@@ -1351,13 +1322,7 @@ def is_biller_endoscopist(event):
     PATIENTS = get_list_from_dic(doctor, booking_dic)
     #    print(PATIENTS)
 
-    if biller_endo in {
-        "Dr A Wettstein",
-        "A/Prof R Feller",
-        "Dr C Vickers",
-        "Dr S Vivekanandarajah",
-        "Dr S Ghaly",
-    }:
+    if biller_endo in BILLING_ENDOS:
         biller_endo_flag = True
         con.set("None")
         con_label.grid()
@@ -1530,6 +1495,7 @@ def runner(*args):
     global equip_flag
     global overide_endoscopist
     global finish_time
+    global COLON_32228
 
     logging.debug("started")
     btn_txt.set("Sending...")
@@ -1754,7 +1720,7 @@ def runner(*args):
             btn_txt.set("Try Again!")
             raise NoDoubleException
 
-        update_and_verify_last_colon(mrn, colon, endoscopist)
+        COLON_32228 = update_and_verify_last_colon(mrn, colon, endoscopist, COLON_32228)
         
         if equip_flag:
             equip_write(proc, endoscopist, mrn)

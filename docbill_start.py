@@ -156,6 +156,7 @@ COLONS = [
     "Exam via stoma",
     "Failure to reach caecum",
     "Cancelled",
+    "Non Rebatable",
     "32222",
     "32223",
     "32224",
@@ -163,6 +164,7 @@ COLONS = [
     "32226",
     "32227",
     "32228",
+    "32230",
 ]
 
 COLON_DIC = {
@@ -171,6 +173,7 @@ COLON_DIC = {
     "Exam via stoma": "32095-00",
     "Failure to reach caecum": "32084-00",
     "Cancelled": None,
+    "Non Rebatable": "Non Rebatable",
     "32222": "32222",
     "32223": "32223",
     "32224": "32224",
@@ -178,6 +181,7 @@ COLON_DIC = {
     "32226": "32226",
     "32227": "32227",
     "32228": "32228",
+    "32230": "32230",
 }
 
 BANDING = ["No Anal Procedure", "Banding", "Banding + Pudendal", "Anal dilatation"]
@@ -248,7 +252,7 @@ FUNDS = [
     "Police Health",
     "Queensland Country Health",
     "Railway & Transport Health",
-    "Reserve Bank",
+    "Reserve Bank Health Society",
     "stlukeshealth",
     "Teachers Union or QTH",
     "UniHealth",
@@ -1544,6 +1548,8 @@ def runner(*args):
 
         if colon == "Cancelled":
             message += "Colon cancelled."
+        if colon == "Non Rebatable":
+            message += "Colon done but Non Rebatable."
         if colon == "Failure to reach caecum":
             caecum_flag = "fail"
             message += "Short colon only"
@@ -1580,8 +1586,7 @@ def runner(*args):
             colon = "32084-01"
         elif polyp == "Polypectomy":
             polyp = "32229"
-        elif polyp == "emr":
-            polyp = "32230"
+
 
         if colon == "32084-00" and polyp == "32229":
             colon = "32087-00"
@@ -1590,6 +1595,8 @@ def runner(*args):
         #        day surgery uses the old style codes
         if colon in {"32084-00", "32084-01", "32087-00", "32095-00"}:
             colon_for_daysurgery = colon
+        elif colon == "Non Rebatable":
+            colon_for_daysurgery = "32090-00"
         elif colon == "32227":
             dil_flag = pya.confirm(
                 text="Was that a colonic dilatation?", buttons=["Dilatation", "Other"]
@@ -1599,7 +1606,7 @@ def runner(*args):
                 equip_flag = True
                 proc = "Colonic dilatation"
             #                equip_write("Colonic dilatation", endoscopist)
-            elif polyp in {"32229", "32230"}:
+            elif polyp in {"32229"}:
                 colon_for_daysurgery = "32093"
             else:
                 colon_for_daysurgery = "32090-00"
@@ -1613,6 +1620,8 @@ def runner(*args):
             colon_for_daysurgery = None
 
         if polyp in {"Colon Pathology", "No colon pathology", "Biopsy"}:
+            polyp = ""
+        if colon == "32230":
             polyp = ""
 
         caecum_flag = caecum.get()
@@ -2086,7 +2095,7 @@ con_button2 = ttk.Radiobutton(midframe, text="No", variable=con, value="No Consu
 con_button2.grid(column=1, row=2, sticky=E)
 
 path_box = ttk.Combobox(midframe, textvariable=po, width=20)
-path_box["values"] = ["No colon pathology", "Biopsy", "Polypectomy", "emr"]
+path_box["values"] = ["No colon pathology", "Biopsy", "Polypectomy"]
 path_box["state"] = "readonly"
 path_box.grid(column=2, row=2)
 

@@ -1739,21 +1739,28 @@ def runner(*args):
 
         (in_theatre, out_theatre) = in_and_out_calculater(op_time, mrn)
 
-        day_surgery_shelver(
-            mrn,
-            in_theatre,
-            out_theatre,
-            anaesthetist,
-            endoscopist,
-            asa,
-            upper_for_daysurgery,
-            colon_for_daysurgery,
-            banding,
-            nurse,
-            clips,
-            varix_lot,
-            message,
-        )
+        try:
+            day_surgery_shelver(
+                mrn,
+                in_theatre,
+                out_theatre,
+                anaesthetist,
+                endoscopist,
+                asa,
+                upper_for_daysurgery,
+                colon_for_daysurgery,
+                banding,
+                nurse,
+                clips,
+                varix_lot,
+                message,
+            )
+        except ValueError:
+            pya.alert(text="""There was any error in the database. Delete the following files.
+                      D:/JOHN TILLET/episode_data/dumper_data.db.dir
+                      D:/JOHN TILLET/episode_data/dumper_data.db.dat
+                      D:/JOHN TILLET/episode_data/dumper_data.db.bak""")
+            raise BillingException
 
         day_surgery_to_csv(
             mrn,

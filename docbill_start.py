@@ -573,7 +573,7 @@ def day_surgery_to_csv(
         varix_lot,
         message,
     )
-    with open("d:\\Nobue\\day_surgery.csv", mode="at") as handle:
+    with open("d:\\John Tillet\\episode_data\\day_surgery.csv", mode="at") as handle:
         datawriter = csv.writer(handle, dialect="excel", lineterminator="\n")
         datawriter.writerow(data)
 
@@ -892,7 +892,7 @@ def update_and_verify_last_colon(mrn, colon, endoscopist, COLON_32228):
         return
     if colon[0:3] != '322':
         return
-    address = "D:\\Nobue\\last_colon_date"
+    address = "D:\\John Tillet\\episode_data\\last_colon_date"
     with shelve.open(address) as s:
         try:
             last_colon_date = s[mrn]  #this is a datetime.date object
@@ -1729,7 +1729,12 @@ def runner(*args):
             btn_txt.set("Try Again!")
             raise NoDoubleException
 
-        COLON_32228 = update_and_verify_last_colon(mrn, colon, endoscopist, COLON_32228)
+        try:
+            COLON_32228 = update_and_verify_last_colon(mrn, colon, endoscopist, COLON_32228)
+        except ValueError:
+            logging.error("?Corrupt last_colon_date database.", exc_info=True)
+            raise BillingException
+                          
         
         if equip_flag:
             equip_write(proc, endoscopist, mrn)

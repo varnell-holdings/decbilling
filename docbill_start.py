@@ -547,7 +547,7 @@ def day_surgery_to_csv(
     banding,
     nurse,
     clips,
-    varix_lot,
+    glp1,
     message,
 ):
     """Write day surgery data to csv."""
@@ -566,7 +566,7 @@ def day_surgery_to_csv(
         banding,
         nurse,
         clips,
-        varix_lot,
+        glp1,
         message,
     )
     csv_address = epdata_path / "day_surgery.csv"
@@ -1576,6 +1576,8 @@ def runner(*args):
         if clips != 0:
             message += "clips * {}. BS299".format(clips)
 
+        glp1 = glp.get()
+
         op_time = ot.get()
         try:
             op_time = int(op_time)
@@ -1711,7 +1713,7 @@ def runner(*args):
             banding,
             nurse,
             clips,
-            varix_lot,
+            glp1,
             message,
         )
 
@@ -1953,6 +1955,8 @@ ba = StringVar()
 cl = StringVar()
 con = StringVar()
 con.trace("w", button_enable)
+glp = StringVar()
+glp.trace("w", button_enable)
 mes = StringVar()
 ot = StringVar()
 fu = StringVar()
@@ -2070,6 +2074,19 @@ caecum_box["values"] = [
 ]
 caecum_box["state"] = "readonly"
 caecum_box.grid(column=2, row=4)
+
+
+# I think I can put GLP1 box into column 0 row 4 in midframe
+
+glp_label = ttk.Label(midframe, text="GLP1")
+glp_label.grid(column=0, row=4, sticky=W)
+
+glp_button1 = ttk.Radiobutton(midframe, text="Yes", variable=glp, value="Yes")
+glp_button1.grid(column=0, row=4)
+
+glp_button2 = ttk.Radiobutton(midframe, text="No", variable=glp, value="No")
+glp_button2.grid(column=0, row=4, sticky=E)
+
 
 mess_box = ttk.Entry(bottomframe, textvariable=mes, width=30)
 mess_box.grid(column=0, row=0, sticky=W)

@@ -1378,6 +1378,7 @@ def button_enable(*args):
     col = co.get()
     failure = caecum.get()
     path = po.get()
+    glp1 = glp.get()
     fund = fu.get()
     top_line = anas != "Anaesthetist" and endo != "Endoscopist" and nurs != "Nurse"
     if not top_line:
@@ -1410,6 +1411,12 @@ def button_enable(*args):
         btn.config(state="disabled")
         btn_txt.set("")
         feedback["text"] = "Consult ?"
+        root.update_idletasks()
+        return
+    if glp1 == "None":
+        btn.config(state="disabled")
+        btn_txt.set("")
+        feedback["text"] = "GLP! ?"
         root.update_idletasks()
         return
 
@@ -1859,7 +1866,7 @@ def runner(*args):
     ot.set("-3")
     fu.set("")
     fail_text.set("")
-
+    glp.set("None")
     caecum_box.grid_remove()
     ba_box.grid_remove()
     path_box.grid_remove()
@@ -2078,7 +2085,7 @@ caecum_box.grid(column=2, row=4)
 
 # I think I can put GLP1 box into column 0 row 4 in midframe
 
-glp_label = ttk.Label(midframe, text="GLP1")
+glp_label = ttk.Label(midframe, text="GLP1?")
 glp_label.grid(column=0, row=4, sticky=W)
 
 glp_button1 = ttk.Radiobutton(midframe, text="Yes", variable=glp, value="Yes")
@@ -2137,6 +2144,7 @@ con_label.grid_remove()
 con_button1.grid_remove()
 con_button2.grid_remove()
 caecum_box.grid_remove()
+glp.set("None")
 ba_box.grid_remove()
 mess_box.grid_remove()
 fund_box.grid_remove()

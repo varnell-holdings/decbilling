@@ -39,7 +39,7 @@ from awsenv import aws_access_key_id, aws_secret_access_key
 
 import decbatches
 
-pya.PAUSE = 0.4
+pya.PAUSE = 0.15
 pya.FAILSAFE = False
 
 
@@ -70,11 +70,12 @@ class WrongDocException(BillingException):
 class NoDoubleException(BillingException):
     pass
 
+
 class TooSoonException(BaseException):
     pass
 
 
-epdata_path = Path('D:/JOHN TILLET/episode_data')
+epdata_path = Path("D:/JOHN TILLET/episode_data")
 
 logging.basicConfig(
     filename=epdata_path / "doclog.log",
@@ -105,13 +106,15 @@ finish_time = False
 
 BILLING_ANAESTHETISTS = ["Dr S Vuong", "Dr J Tillett"]
 
-BILLING_ENDOS = ["Dr A Wettstein",
-        "A/Prof R Feller",
-        "Dr C Vickers",
-        "Dr S Vivekanandarajah",
-        "Dr S Ghaly",
-        "Dr J Mill",
-        ]
+BILLING_ENDOS = [
+    "Dr A Wettstein",
+    "A/Prof R Feller",
+    "Dr C Vickers",
+    "Dr S Vivekanandarajah",
+    "Dr S Ghaly",
+    "Dr J Mill",
+    "Dr S Sanagapalli",
+]
 
 ASA = ["No Sedation", "ASA 1", "ASA 2", "ASA 3"]
 
@@ -226,7 +229,7 @@ FUNDS = [
     "Pay Later",
     "+++++ other funds ++++++++",
     "ACA Health",
-    "AIA Health",   
+    "AIA Health",
     "Australian Unity Health",
     "CBHS Health",
     "Cessnock District or Hunter Health",
@@ -256,7 +259,6 @@ FUNDS = [
     "Teachers Union or QTH",
     "UniHealth",
     "Westfund",
-    
 ]
 
 user = os.getenv("USERNAME")
@@ -294,10 +296,10 @@ def pats_from_aws(date):
         logging.error("Failed to get patients list.", exc_info=False)
         bookings_dic = {}
         mrn_dic = {}
-#       pya.alert("Failed to get patients list.")
+        #       pya.alert("Failed to get patients list.")
         return bookings_dic, mrn_dic
 
-      # bookings_dic maps endoscopists to a list of tuples of patient names and datestamps of data entry
+    # bookings_dic maps endoscopists to a list of tuples of patient names and datestamps of data entry
     bookings_dic = {}
     mrn_dic = {}  #  this will map patient name to mrn
     double_dic = {}  # this will map mrn to double flag
@@ -308,7 +310,7 @@ def pats_from_aws(date):
         reader = csv.reader(h)
         for patient in reader:
             doc = patient[1].lower()
-            if doc == "hiu sin":
+            if doc[0:3] == "hiu":
                 doc = "sin"
             this_day = patient[0]
 
@@ -326,7 +328,10 @@ def pats_from_aws(date):
                 double_dic[patient[2]] = patient[5]
                 name_for_doc_dic = patient[3].split(", ")[0]
                 name_for_doc_dic = name_for_doc_dic.split()[-1].lower()
-                pat_doc_dic[patient[2]] = patient[1]
+                doc = patient[1]
+                if doc[0:3] == "hiu":
+                    doc = "sin"
+                pat_doc_dic[patient[2]] = doc
     return bookings_dic, mrn_dic, double_dic, pat_doc_dic
 
 
@@ -338,7 +343,7 @@ def in_and_out_calculater(time_in_theatre, mrn):
 
     today_str = today.strftime("%Y-%m-%d") + "_19"
     # today_webshelf_path = "d:\\John Tillet\\episode_data\\" + "webshelf\\" + today_str + "_19"
-    today_webshelf_path = epdata_path / 'webshelf' / today_str
+    today_webshelf_path = epdata_path / "webshelf" / today_str
 
     try:
         with shelve.open(str(today_webshelf_path)) as s:
@@ -367,31 +372,31 @@ def in_and_out_calculater(time_in_theatre, mrn):
 
 
 def postcode_to_state(postcode):
-    post_dic = {'3': 'VIC', '4': 'QLD', '5': 'SA', '6': 'WA', '7': 'TAS'}
+    post_dic = {"3": "VIC", "4": "QLD", "5": "SA", "6": "WA", "7": "TAS"}
     try:
-        if postcode[0] == '0':
-            if postcode[:2] in {'08', '09'}:
-                return 'NT'
+        if postcode[0] == "0":
+            if postcode[:2] in {"08", "09"}:
+                return "NT"
             else:
-                return ''
-        elif postcode[0] in {'0', '1', '8', '9'}:
-            return ''
-        elif postcode[0] == '2':
+                return ""
+        elif postcode[0] in {"0", "1", "8", "9"}:
+            return ""
+        elif postcode[0] == "2":
             if (2600 <= int(postcode) <= 2618) or postcode[:2] == 29:
-                return 'ACT'
+                return "ACT"
             else:
-                return 'NSW'
+                return "NSW"
         else:
             return post_dic[postcode[0]]
     except:
-        return ''
+        return ""
 
 
 def front_scrape():
     """Scrape name and mrn from blue chip.
     return tiltle, first_name, last_name for meditrust and printname for printed accounts"""
 
-    pya.moveTo(TITLE_POS, duration=0.1)
+    pya.moveTo(TITLE_POS, duration=0.3)
     pya.doubleClick()
     title = pyperclip.copy("na")
     pya.hotkey("ctrl", "c")
@@ -443,7 +448,6 @@ def front_scrape():
     return (mrn, print_name, title, first_name, last_name)
 
 
-
 def address_scrape():
     """Scrape address and dob from blue chip.
     Used if billing anaesthetist.
@@ -456,7 +460,7 @@ def address_scrape():
     dob = pyperclip.paste()
     if len(dob) == 9:
         short = dob
-        dob = '0' + short
+        dob = "0" + short
 
     pya.press("tab")
     pya.press("tab")
@@ -593,7 +597,7 @@ def day_surgery_shelver(
     """Write episode  data to a shelf.
     Used by watcher.py to dump data in day surgery.
     """
-    
+
     # dumper_path = "d:\\JOHN TILLET\\episode_data\\dumper_data.db"
     dumper_path = epdata_path / "dumper_data.db"
     with shelve.open(str(dumper_path)) as s:
@@ -674,7 +678,7 @@ def medtitrust_process(
     anaesthetist,
 ):
     """Turn raw data into stuff ready to go into meditrust csv file."""
-    if insur_code in {'adf', 'paid', 'send_bill'} and anaesthetist == "Dr J Tillett":
+    if insur_code in {"adf", "paid", "send_bill"} and anaesthetist == "Dr J Tillett":
         return None
 
     phone = ""
@@ -692,37 +696,40 @@ def medtitrust_process(
     elif fund == "HCF":
         fund = "HCF (NG scheme)"
 
-
     if upper and not colon and not asa3:
-        procedure = 'Panendoscopy'
+        procedure = "Panendoscopy"
     elif upper and not colon and asa3:
-        procedure = 'Panendoscopy, ASA3'
-    elif upper and  colon and not asa3:
-        procedure = 'Panendoscopy, Colonoscopy'
-    elif upper and  colon and asa3:
-        procedure = 'Panendoscopy, Colonoscopy, ASA3'
-    elif not upper and  colon and not asa3:
-        procedure = 'Colonoscopy'
-    elif not upper and  colon and asa3:
-        procedure = 'Panendoscopy, Colonoscopy, ASA3'
+        procedure = "Panendoscopy, ASA3"
+    elif upper and colon and not asa3:
+        procedure = "Panendoscopy, Colonoscopy"
+    elif upper and colon and asa3:
+        procedure = "Panendoscopy, Colonoscopy, ASA3"
+    elif not upper and colon and not asa3:
+        procedure = "Colonoscopy"
+    elif not upper and colon and asa3:
+        procedure = "Panendoscopy, Colonoscopy, ASA3"
 
+    if insur_code == "bb":
+        bill_type = "MEDICARE_FEE"
+        fund = ""
+        fund_number = ""
 
-    if insur_code == 'bb':
-        bill_type = 'MEDICARE_FEE'
-        fund = ''
-        fund_number =''
-
-    elif insur_code in {'adf', 'paid', 'send_bill', 'va'}: # unsure about adf - meditrust wants mcn but I don't have it
-        if insur_code == 'va':
+    elif insur_code in {
+        "adf",
+        "paid",
+        "send_bill",
+        "va",
+    }:  # unsure about adf - meditrust wants mcn but I don't have it
+        if insur_code == "va":
             veterans_no = mcn
-        bill_type = 'NO_GAP_FEE'
-        mcn = ''
-        ref = ''
-        fund = ''
-        fund_number =''
-        
+        bill_type = "NO_GAP_FEE"
+        mcn = ""
+        ref = ""
+        fund = ""
+        fund_number = ""
+
     else:
-        bill_type = 'NO_GAP_FEE'
+        bill_type = "NO_GAP_FEE"
 
     meditrust_csv = (
         title,
@@ -746,10 +753,9 @@ def medtitrust_process(
         workcover_name,
         workcover_claim_no,
         veterans_no,
-)
+    )
 
     return meditrust_csv
-
 
 
 def bill_process(
@@ -834,47 +840,67 @@ def update_and_verify_last_colon(mrn, colon, endoscopist):
     check if dates and codes are in conflict with Medicare rules - note exact date 1,3,5 years ago passes
     update shelf  record to today's date and return None
     note: shelf is a dictionary of keys - mrn as string, values - date of last colon as datetime.date object
-    note: in docbill the global 'today' is a datetime.datetime object and has to be converted to a datetime.date object 
+    note: in docbill the global 'today' is a datetime.datetime object and has to be converted to a datetime.date object
     for comparisons to work properly
     """
     if not colon:
         return
-    if colon[0:3] != '322':
+    if colon[0:3] != "322":
         return
     address = epdata_path / "last_colon_date"
     with shelve.open(str(address)) as s:
         try:
-            last_colon_date = s[mrn]  #this is a datetime.date object
+            last_colon_date = s[mrn]  # this is a datetime.date object
         except KeyError:
             last_colon_date = None
 
-        if last_colon_date and (last_colon_date != today.date()):  # second test is in case this is a resend today
+        if last_colon_date and (
+            last_colon_date != today.date()
+        ):  # second test is in case this is a resend today
 
             time_sep = relativedelta(today.date(), last_colon_date).years
-            last_colon_date_printed = last_colon_date.strftime('%d-%m-%Y')
+            last_colon_date_printed = last_colon_date.strftime("%d-%m-%Y")
 
-            if (colon == '32226') and time_sep < 1:
-                reply = pya.confirm(text=f'Last colon performed less than one year ago ({last_colon_date_printed}).\nCheck colon code with {endoscopist}.', title='Colon Code Confirm', buttons=['Proceed anyway', 'Go Back to change'])
+            if (colon == "32226") and time_sep < 1:
+                reply = pya.confirm(
+                    text=f"Last colon performed less than one year ago ({last_colon_date_printed}).\nCheck colon code with {endoscopist}.",
+                    title="Colon Code Confirm",
+                    buttons=["Proceed anyway", "Go Back to change"],
+                )
                 if reply == "Go Back to change":
                     raise TooSoonException
-            elif (colon == '32224') and time_sep < 3:
-                reply = pya.confirm(text=f'Last colon performed less than three years ago ({last_colon_date_printed}).\nCheck colon code with {endoscopist}.', title='Colon Code Confirm', buttons=['Proceed anyway', 'Go Back to change'])
+            elif (colon == "32224") and time_sep < 3:
+                reply = pya.confirm(
+                    text=f"Last colon performed less than three years ago ({last_colon_date_printed}).\nCheck colon code with {endoscopist}.",
+                    title="Colon Code Confirm",
+                    buttons=["Proceed anyway", "Go Back to change"],
+                )
                 if reply == "Go Back to change":
                     raise TooSoonException
-            elif (colon == '32223') and time_sep < 5:
-                reply = pya.confirm(text=f'Last colon performed less than five years ago ({last_colon_date_printed}).\nCheck colon code with {endoscopist}.', title='Colon Code Confirm', buttons=['Proceed anyway', 'Go Back to change'])
+            elif (colon == "32223") and time_sep < 5:
+                reply = pya.confirm(
+                    text=f"Last colon performed less than five years ago ({last_colon_date_printed}).\nCheck colon code with {endoscopist}.",
+                    title="Colon Code Confirm",
+                    buttons=["Proceed anyway", "Go Back to change"],
+                )
                 if reply == "Go Back to change":
                     raise TooSoonException
 
         s[mrn] = today.date()
-        
-        if colon == '32228':
-            s = epdata_path / "store_32228.csv"  # mistakenly called a csv file - actually pickle
+
+        if colon == "32228":
+            s = (
+                epdata_path / "store_32228.csv"
+            )  # mistakenly called a csv file - actually pickle
             with s.open(mode="rb") as file:
                 COLON_32228 = pickle.load(file)
-        
+
             if mrn in COLON_32228:
-                reply = pya.confirm(text=f'Patient previously billed 32228.\nCheck colon code with {endoscopist}.', title='Colon Code Confirm', buttons=['Proceed anyway', 'Go Back to change'])
+                reply = pya.confirm(
+                    text=f"Patient previously billed 32228.\nCheck colon code with {endoscopist}.",
+                    title="Colon Code Confirm",
+                    buttons=["Proceed anyway", "Go Back to change"],
+                )
                 if reply == "Go Back to change":
                     raise TooSoonException
             else:
@@ -901,28 +927,30 @@ def caecum_data(doctor, mrn, caecum_flag):
 
 
 def meditrust_writer(anaesthetist, endoscopist_lowered, today, meditrust_csv):
-        today_str = today.strftime("%d-%m-%Y")
-        a_surname = anaesthetist.split()[-1]
-        filename = today_str + "-" + endoscopist_lowered + ".csv"
-        # csvfile = "d:\\JOHN TILLET\\episode_data\\meditrust\\{}\\{}".format(a_surname, filename)
-        csvfile = epdata_path / "meditrust" / a_surname / filename
-        temp_list = []
-        try:
-            with csvfile.open(mode="r") as handle:
-                datareader = csv.reader(handle, dialect="excel", lineterminator="\n")
-                for old_data in datareader:
-                    if (old_data[1] == meditrust_csv[1]) and (old_data[2] == meditrust_csv[2]):
-                        continue
-                    else:
-                        temp_list.append(old_data)
-                temp_list.append(meditrust_csv)
-        except:
+    today_str = today.strftime("%d-%m-%Y")
+    a_surname = anaesthetist.split()[-1]
+    filename = today_str + "-" + endoscopist_lowered + ".csv"
+    # csvfile = "d:\\JOHN TILLET\\episode_data\\meditrust\\{}\\{}".format(a_surname, filename)
+    csvfile = epdata_path / "meditrust" / a_surname / filename
+    temp_list = []
+    try:
+        with csvfile.open(mode="r") as handle:
+            datareader = csv.reader(handle, dialect="excel", lineterminator="\n")
+            for old_data in datareader:
+                if (old_data[1] == meditrust_csv[1]) and (
+                    old_data[2] == meditrust_csv[2]
+                ):
+                    continue
+                else:
+                    temp_list.append(old_data)
             temp_list.append(meditrust_csv)
+    except:
+        temp_list.append(meditrust_csv)
 
-        with csvfile.open(mode="w") as handle:
-            datawriter = csv.writer(handle, dialect="excel", lineterminator="\n")
-            for ep_data in temp_list:
-                datawriter.writerow(ep_data)
+    with csvfile.open(mode="w") as handle:
+        datawriter = csv.writer(handle, dialect="excel", lineterminator="\n")
+        for ep_data in temp_list:
+            datawriter.writerow(ep_data)
 
 
 def to_anaesthetic_csv(new_ep_data, anaesthetist):
@@ -1055,18 +1083,6 @@ def make_long_web_secretary_from_shelf(today_path):
         f.write(a)
 
 
-def colon_to_csv(mrn, colon):
-    """Record evry patient who has colon with teir mrn date and colon code.
-    Possible basis for app later on to see if patient eligible for code."""
-    today_str = today.strftime("%d" + "-" + "%m" + "-" + "%Y")
-    data = (today_str, mrn, colon)
-    s = epdata_path / "colon.csv"
-    with s.open(mode="at") as handle:
-        datawriter = csv.writer(handle, dialect="excel", lineterminator="\n")
-        if colon:
-            datawriter.writerow(data)
-
-
 def to_watched():
     """Write dummy text to a folder. Watchdog in watcher.py watches this."""
     s = epdata_path / "watched" / "watched.txt"
@@ -1108,10 +1124,10 @@ def render_anaesthetic_report(anaesthetist):
 def close_out(anaesthetist):
     """Close patient file with mouse click and display billing details
     if a billing anaesthetist."""
-    time.sleep(0.5)
+
     pya.moveTo(CLOSE_POS[0], CLOSE_POS[1])
     pya.click()
-    time.sleep(0.5)
+    # time.sleep(0.25)
     pya.hotkey("alt", "n")
     pya.moveTo(x=780, y=110)
     if anaesthetist in BILLING_ANAESTHETISTS:
@@ -1186,9 +1202,9 @@ def error_log():
     s = epdata_path / "doclog.log"
     webbrowser.open(str(s))
 
+
 def open_meditrust():
     webbrowser.open("https://www.meditrust.com.au/mtv4/home")
-    
 
 
 def add_message():
@@ -1242,7 +1258,7 @@ def open_receipt():
 
 
 def open_sedation():
-    path = epdata_path /  "meditrust"
+    path = epdata_path / "meditrust"
     os.startfile(str(path))
 
 
@@ -1463,7 +1479,7 @@ def runner(*args):
 
     logging.debug("started")
     btn_txt.set("Sending...")
- #    btn.config(bg="red")
+    #    btn.config(bg="red")
     feedback["text"] = "Sending data" + ("  " * 20)
     root.update_idletasks()
     try:
@@ -1471,7 +1487,7 @@ def runner(*args):
         varix_lot = ""
 
         anaesthetist = an.get()
-        
+
         endoscopist = end.get()
         nurse = nur.get()
 
@@ -1507,14 +1523,12 @@ def runner(*args):
             caecum_flag = "success"
         colon = COLON_DIC[colon]
 
-
-
         banding = ba.get()
 
         if banding in {"Banding", "Banding + Pudendal"}:
-            message += "Banding haemorrhoids 32135."
+            message += "Banding haemorrhoids 32135 & disposable DH011"
         if banding == "Banding + Pudendal":
-            message += "Bill Pudendal Block."
+            message += "Bill Pudendal Block & disposable DH011."
         if banding == "Anal dilatation":
             message += "Anal dilatation"
 
@@ -1534,7 +1548,6 @@ def runner(*args):
             colon = "32084-01"
         elif polyp == "Polypectomy":
             polyp = "32229"
-
 
         if colon == "32084-00" and polyp == "32229":
             colon = "32087-00"
@@ -1680,7 +1693,7 @@ def runner(*args):
             logging.error("?Corrupt last_colon_date database.", exc_info=True)
             raise BillingException
 
-        time.sleep(2)
+        # time.sleep(0.2)
         logging.debug(anaesthetist)
 
         (in_theatre, out_theatre) = in_and_out_calculater(op_time, mrn)
@@ -1702,10 +1715,12 @@ def runner(*args):
                 message,
             )
         except ValueError:
-            pya.alert(text="""There was any error in the database. Delete the following files.
+            pya.alert(
+                text="""There was any error in the database. Delete the following files.
                       D:/JOHN TILLET/episode_data/dumper_data.db.dir
                       D:/JOHN TILLET/episode_data/dumper_data.db.dat
-                      D:/JOHN TILLET/episode_data/dumper_data.db.bak""")
+                      D:/JOHN TILLET/episode_data/dumper_data.db.bak"""
+            )
             raise BillingException
 
         day_surgery_to_csv(
@@ -1746,7 +1761,7 @@ def runner(*args):
             mrn,
         )
 
-        time.sleep(1)
+        # time.sleep(0.5)
         # test for existence of mrn in shelve
         with shelve.open(today_path) as s:
             s[mrn]
@@ -1755,16 +1770,14 @@ def runner(*args):
 
         make_long_web_secretary_from_shelf(today_path)
 
-        colon_to_csv(mrn, colon)
-
         #        anaesthetic billing
         if asa is not None and anaesthetist in BILLING_ANAESTHETISTS:
             address, dob, street, suburb, state, postcode = address_scrape()
             (mcn, ref, fund, fund_number) = episode_getfund(
                 insur_code, fund, fund_number, ref
             )
-
-            time.sleep(2)
+            #
+            time.sleep(0.5)
             meditrust_csv = medtitrust_process(
                 title,
                 first_name,
@@ -1787,8 +1800,10 @@ def runner(*args):
                 anaesthetist,
             )
             if meditrust_csv:
-                meditrust_writer(anaesthetist, endoscopist_lowered, today, meditrust_csv)
-            
+                meditrust_writer(
+                    anaesthetist, endoscopist_lowered, today, meditrust_csv
+                )
+
             anaesthetic_tuple = bill_process(
                 dob,
                 upper,
@@ -1810,12 +1825,11 @@ def runner(*args):
             if insur_code in {"paid", "paid_ama"}:
                 print_receipt(anaesthetist, anaesthetic_tuple)
 
-        time.sleep(0.5)
+        #        time.sleep(0.5)
         if colon:
             caecum_data(endoscopist, mrn, caecum_flag)
         if anaesthetist in BILLING_ANAESTHETISTS:
             close_out(anaesthetist)
-
 
     except MissingProcedureException:
         logging.error("MissingProcedureException raised by %s", anaesthetist)
@@ -1884,8 +1898,9 @@ def runner(*args):
         fu.set("Fund")
     btn_txt.set("Select patient")
     btn.config(state="disabled")
-#     btn.config(bg="blue")
+    #     btn.config(bg="blue")
     feedback["text"] = "Select patient"
+
 
 with concurrent.futures.ThreadPoolExecutor() as executor:
     future = executor.submit(pats_from_aws, today.strftime("%d/%m/%Y"))
@@ -1893,15 +1908,14 @@ with concurrent.futures.ThreadPoolExecutor() as executor:
         booking_dic, mrn_dic, double_dic, pat_doc_dic = future.result()
     except:
         booking_dic, mrn_dic, double_dic, pat_doc_dic = ({}, {}, {}, {})
-        
-    
-    
+
+
 root = Tk()
 root.title(datetime.datetime.today().strftime("%A  %d/%m/%Y"))
 if user == "John2":
-    root.geometry("470x500+840+100")
+    root.geometry("470x600+840+50")
 elif user == "John":
-    root.geometry("600x630+1160+180")
+    root.geometry("600x630+1160+100")
 root.option_add("*tearOff", FALSE)
 
 mainframe = ttk.Frame(root, padding="3 3 12 12")

@@ -7,14 +7,15 @@ Created on Mon Jun 25 13:27:05 2018
 import datetime
 import os
 import shelve
-import pyautogui as pya
-import pyperclip
 import time
 import webbrowser
 from tkinter import ttk, W, E, N, S, Tk, Menu
+
 from jinja2 import Environment, FileSystemLoader
 from watchdog.observers import Observer
 from watchdog.events import FileModifiedEvent, PatternMatchingEventHandler
+import pyautogui as pya
+import pyperclip
 
 pya.PAUSE = 0.6
 pya.FAILSAFE = True
@@ -90,7 +91,7 @@ def episode_claim():
     fund_test = pyperclip.copy("empty")
     pya.hotkey("ctrl", "c")
     fund_test = pyperclip.paste()
-    if fund_test == "BUP":
+    if fund_test in {"BUP", "ADF"}:
         bupa_flag = True
     else:
         bupa_flag = False
@@ -121,7 +122,7 @@ def episode_procedures(upper, lower, anal, asa, bupa_flag=False):
         pya.press("enter")
     pya.typewrite(["tab"] * 4)
     if bupa_flag:
-        pya.typewrite("6.0")
+        pya.typewrite("10.0")
     pya.typewrite(["tab"] * 2)
     if upper and lower:  # second line
         pya.typewrite(upper + "\n")

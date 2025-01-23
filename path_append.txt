@@ -1,0 +1,21 @@
+use the following for the terminal change John2 to thw appropriate user
+
+$env:path += ";C:\Users\John\Miniconda3;C:\Users\John\Miniconda3\Scripts;C:\Users\John\Miniconda3\Library\bin"
+
+$env:path += ";C:\Users\John2\Miniconda3;C:\Users\John2\Miniconda3\Scripts;C:\Users\John2\Miniconda3\Library\bin"
+
+use the following for cmd scripts
+
+SET PATH=%PATH%;C:\Users\John2\Miniconda3;C:\Users\John2\Miniconda3\Scripts;C:\Users\John2\Miniconda3\Library\bin;C:\Users\John2\Miniconda3\lib\site-packages\urllib3\util\
+
+
+conda update -n base -c defaults conda
+
+conda install python=3.11
+
+import boto3
+session = boto3.Session()
+client = session.client(service_name='s3', verify=False)
+
+pip install 'urllib3<2'
+

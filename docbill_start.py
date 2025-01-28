@@ -128,8 +128,8 @@ ASA_DIC = {
 UPPERS = [
     "No Upper",
     "Pe",
-    "Pe with Bx",
     "Oesophageal diatation",
+    "O Dil + PE",
     "Pe with APC",
     "Pe with polypectomy",
     "Pe with varix banding",
@@ -142,8 +142,9 @@ UPPER_DIC = {
     "No Upper": None,
     "Cancelled": None,
     "Pe": "30473-00",
-    "Pe with Bx": "30473-01",
+    # "Pe with Bx", "30473-01",
     "Oesophageal diatation": "30475-00",
+    "O Dil + PE": "30475-00",
     "Pe with APC": "30478-20",
     "HALO": "30478-20",
     "Pe with polypectomy": "30478-04",
@@ -289,6 +290,7 @@ def pats_from_aws(date):
             aws_access_key_id=aws_access_key_id,
             aws_secret_access_key=aws_secret_access_key,
             region_name="ap-southeast-2",
+            verify=False,
         )
 
         s3.Object("dec601", "patients.csv").download_file("aws_data.csv")
@@ -1284,10 +1286,10 @@ def colon_combo_click(event):
 
     if colon_proc != "Failure to reach caecum":
         caecum_box.grid_remove()
-        fail_text.set("")
+        fail_text_label.set("")
     else:
         caecum_box.grid()
-        fail_text.set("Reason for Failure")
+        fail_text_label.set("Reason for Failure")
 
 
 def is_biller_endoscopist(event):
@@ -1497,6 +1499,8 @@ def runner(*args):
         if upper == "Pe with varix banding":
             message += "Bill varix bander. BS225"
             varix_lot += "v"
+        if upper == "O Dil + PE":
+            message += "Also bill 30473-00"
         if upper == "HALO":
             halo = pya.prompt(
                 text='Type either "90" or "ultra".', title="Halo", default="90"
@@ -1879,7 +1883,7 @@ def runner(*args):
     mes.set("")
     ot.set("-3")
     fu.set("")
-    fail_text.set("")
+    fail_text_label.set("")
     glp.set("None")
     caecum_box.grid_remove()
     ba_box.grid_remove()
@@ -1982,7 +1986,7 @@ mes = StringVar()
 ot = StringVar()
 fu = StringVar()
 fu.trace("w", button_enable)
-fail_text = StringVar()
+fail_text_label = StringVar()
 btn_txt = StringVar()
 
 topframe = Frame(mainframe, bg="green", pady=7)
@@ -2081,7 +2085,7 @@ ttk.Label(midframe, text="     ").grid(column=1, row=3, sticky=E)
 
 boldStyle = ttk.Style()
 boldStyle.configure("Bold.TLabel", size=20, weight="bold")
-fail_label = ttk.Label(midframe, textvariable=fail_text, style="Bold.TLabel")
+fail_label = ttk.Label(midframe, textvariable=fail_text_label, style="Bold.TLabel")
 fail_label.grid(column=2, row=3, sticky=W)
 
 caecum_box = ttk.Combobox(midframe, textvariable=caecum, width=20)
@@ -2152,7 +2156,7 @@ caecum.set("")
 cl.set("0")
 con.set("None")
 ot.set("0")
-fail_text.set("")
+fail_text_label.set("")
 path_box.grid_remove()
 con_label.grid_remove()
 con_button1.grid_remove()

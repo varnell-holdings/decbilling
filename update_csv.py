@@ -24,5 +24,6 @@ def update_csv(filename, new_row, date, event_id):
         # Add new row if no match was found
         if not found:
             writer.writerow(new_row)
+    temp_file.close()
     # Replace original file with updated temp file
     shutil.move(temp_file.name, filename)

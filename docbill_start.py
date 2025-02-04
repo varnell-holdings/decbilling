@@ -23,6 +23,8 @@ import shelve
 import sys
 import time
 import webbrowser
+from tempfile import NamedTemporaryFile
+import shutil
 
 from tkinter import ttk, StringVar, Tk, W, E, N, S, Spinbox, FALSE, Menu, Frame
 
@@ -76,12 +78,21 @@ class TooSoonException(BaseException):
 
 
 epdata_path = Path("D:/JOHN TILLET/episode_data")
+caecum_csv_file = "d:\\JOHN TILLET\\source\\caecum\\caecum.csv"
 
-logging.basicConfig(
-    filename=epdata_path / "doclog.log",
+# logging.basicConfig(
+#     filename=epdata_path / "doclog.log",
+#     level=logging.INFO,
+#     format="%(asctime)s %(message)s",
+# )
+logfilename = epdata_path / "doclog.log"
+
+logging.basicConfig(    
     level=logging.INFO,
+    handlers=[logging.FileHandler(logfilename), logging.StreamHandler()],
     format="%(asctime)s %(message)s",
 )
+
 
 
 today = datetime.datetime.today()
@@ -290,7 +301,7 @@ def pats_from_aws(date):
             aws_access_key_id=aws_access_key_id,
             aws_secret_access_key=aws_secret_access_key,
             region_name="ap-southeast-2",
-            verify=False,
+            verify=True,
         )
 
         s3.Object("dec601", "patients.csv").download_file("aws_data.csv")
@@ -450,19 +461,38 @@ def front_scrape():
     return (mrn, print_name, title, first_name, last_name)
 
 
-def address_scrape():
-    """Scrape address and dob from blue chip.
-    Used if billing anaesthetist.
-    """
+def dob_scrape():
     dob = pyperclip.copy("na")
     pya.moveTo(DOB_POS, duration=0.1)
 
     pya.doubleClick()
     pya.hotkey("ctrl", "c")
     dob = pyperclip.paste()
+    if dob == "na":
+        dob = pya.prompt(
+            text="Please enter patient date of birth (dd/mm/yyyy)",
+            title="DOB",
+            default="",
+        )
     if len(dob) == 9:
-        short = dob
-        dob = "0" + short
+        dob = "0" + dob
+
+    return dob
+
+
+def address_scrape():
+    """Scrape address and dob from blue chip.
+    Used if billing anaesthetist.
+    """
+    # dob = pyperclip.copy("na")
+    # pya.moveTo(DOB_POS, duration=0.1)
+
+    # pya.doubleClick()
+    # pya.hotkey("ctrl", "c")
+    # dob = pyperclip.paste()
+    # if len(dob) == 9:
+    #     short = dob
+    #     dob = "0" + short
 
     pya.press("tab")
     pya.press("tab")
@@ -486,17 +516,22 @@ def address_scrape():
 
     pya.hotkey("ctrl", "c")
     postcode = pyperclip.paste()
+    
+    email = pyperclip.copy("na")
+    pya.press("tab", presses=6)
+    pya.hotkey("ctrl", "c")
+    email = pyperclip.paste()
 
     address = street + " " + suburb + " " + postcode
     state = postcode_to_state(postcode)
-    # logging.info(f"Data returned by address_scrape {address}, {dob}, {street}, {state}, {postcode}")
-    return (address, dob, street, suburb, state, postcode)
+    # logging.info(f"Data returned by address_scrape {address}, {street}, {state}, {postcode} {email}")
+    return (address, street, suburb, state, postcode, email)
 
 
 def episode_get_mcn_and_ref():
     """Scrape mcn from blue chip."""
     mcn = pyperclip.copy("na")
-    pya.press("tab", presses=11)
+    pya.press("tab", presses=5)
     pya.hotkey("ctrl", "c")
     mcn = pyperclip.paste()
     mcn = mcn.replace(" ", "")
@@ -667,6 +702,7 @@ def medtitrust_process(
     suburb,
     state,
     postcode,
+    email,
     upper,
     colon,
     asa,
@@ -684,7 +720,8 @@ def medtitrust_process(
         return None
 
     phone = ""
-    email = ""
+    if email == "na":
+        email = ""
     workcover_name = ""
     workcover_claim_no = ""
     veterans_no = ""
@@ -911,21 +948,39 @@ def update_and_verify_last_colon(mrn, colon, endoscopist):
                     pickle.dump(COLON_32228, file)
 
 
-def caecum_data(doctor, mrn, caecum_flag):
+def update_csv(filename, new_row, date, event_id):
+    # Create temporary file
+    temp_file = NamedTemporaryFile(mode="w", delete=False, newline="")
+
+    found = False
+    with open(filename, "r", newline="") as csvfile:
+        reader = csv.reader(csvfile, dialect="excel", lineterminator="\n")
+        writer = csv.writer(temp_file)
+        # Check each row
+        for row in reader:
+            if row[0] == date and row[2] == event_id:
+                # Replace matching row with new data
+                writer.writerow(new_row)
+                found = True
+
+            else:
+                writer.writerow(row)
+
+        # Add new row if no match was found
+        if not found:
+            writer.writerow(new_row)
+    # Replace original file with updated temp file
+    temp_file.close()
+    shutil.move(temp_file.name, filename)
+
+
+
+def caecum_to_csv(endoscopist, mrn, caecum_flag, caecum_reason):
     """Write whether scope got to caecum."""
-    doctor = doctor.split()[-1]
+    doctor = endoscopist.split()[-1]
     today_str = today.strftime("%Y-%m-%d")
-    if caecum_flag == "":
-        caecum_flag = "success"
-        reason = ""
-    else:
-        reason = caecum_flag
-        caecum_flag = "fail"
-    caecum_data = (today_str, doctor, mrn, caecum_flag, reason)
-    csvfile = "d:\\JOHN TILLET\\source\\caecum\\caecum.csv"
-    with open(csvfile, "a") as handle:
-        datawriter = csv.writer(handle, dialect="excel", lineterminator="\n")
-        datawriter.writerow(caecum_data)
+    caecum_data = (today_str, doctor, mrn, caecum_flag, caecum_reason)
+    update_csv(caecum_csv_file, caecum_data, today_str, mrn) # caecum_csv_file is defined at line 79
 
 
 def meditrust_writer(anaesthetist, endoscopist_lowered, today, meditrust_csv):
@@ -1515,16 +1570,19 @@ def runner(*args):
             upper_for_daysurgery = upper
 
         colon = co.get()
-
+        
+        caecum_flag = False
+        
         if colon == "Cancelled":
             message += "Colon cancelled."
-        if colon == "Non Rebatable":
+        elif colon == "Non Rebatable":
             message += "Colon done but Non Rebatable."
-        if colon == "Failure to reach caecum":
+        elif colon == "Failure to reach caecum":
             caecum_flag = "fail"
             message += "Short colon only"
-        else:
+        elif colon[0:3] == "322":
             caecum_flag = "success"
+            
         colon = COLON_DIC[colon]
 
         banding = ba.get()
@@ -1586,7 +1644,7 @@ def runner(*args):
         if colon == "32230":
             polyp = ""
 
-        caecum_flag = caecum.get()
+        caecum_reason = caecum.get()
 
         consult = con.get()
         consult = CONSULT_DIC[consult]
@@ -1776,7 +1834,8 @@ def runner(*args):
 
         #        anaesthetic billing
         if asa is not None and anaesthetist in BILLING_ANAESTHETISTS:
-            address, dob, street, suburb, state, postcode = address_scrape()
+            dob = dob_scrape()
+            address, street, suburb, state, postcode, email = address_scrape()
             (mcn, ref, fund, fund_number) = episode_getfund(
                 insur_code, fund, fund_number, ref
             )
@@ -1791,6 +1850,7 @@ def runner(*args):
                 suburb,
                 state,
                 postcode,
+                email,
                 upper,
                 colon,
                 asa,
@@ -1830,8 +1890,8 @@ def runner(*args):
                 print_receipt(anaesthetist, anaesthetic_tuple)
 
         #        time.sleep(0.5)
-        if colon:
-            caecum_data(endoscopist, mrn, caecum_flag)
+        if caecum_flag:
+            caecum_to_csv(endoscopist, mrn, caecum_flag, caecum_reason)
         if anaesthetist in BILLING_ANAESTHETISTS:
             close_out(anaesthetist)
 
@@ -2083,6 +2143,7 @@ s_box = Spinbox(midframe, from_=0, to=30, textvariable=cl, width=5)
 s_box.grid(column=1, row=3)
 ttk.Label(midframe, text="     ").grid(column=1, row=3, sticky=E)
 
+# failure to reach caecum label
 boldStyle = ttk.Style()
 boldStyle.configure("Bold.TLabel", size=20, weight="bold")
 fail_label = ttk.Label(midframe, textvariable=fail_text_label, style="Bold.TLabel")
@@ -2090,7 +2151,6 @@ fail_label.grid(column=2, row=3, sticky=W)
 
 caecum_box = ttk.Combobox(midframe, textvariable=caecum, width=20)
 caecum_box["values"] = [
-    "",
     "Poor Prep",
     "Loopy",
     "Obstruction",

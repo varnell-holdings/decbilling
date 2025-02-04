@@ -521,6 +521,7 @@ def address_scrape():
     pya.press("tab", presses=6)
     pya.hotkey("ctrl", "c")
     email = pyperclip.paste()
+    email = email.replace(",", "")
 
     address = street + " " + suburb + " " + postcode
     state = postcode_to_state(postcode)

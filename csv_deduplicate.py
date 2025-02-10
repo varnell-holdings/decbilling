@@ -4,7 +4,9 @@ The last entry of any duplicates is assumed
 to be the one we want to keep.
 It writes each day's entries into a dictionary which acts
 like a set.
-It is only to be run once - when the regular csv writer is bug free."""
+It is only to be run once - when the regular csv writer is bug free.
+Writes to new_csv.csv which will have to replace day_surgery.csv
+after checking all went well."""
 
 import csv
 
@@ -16,7 +18,7 @@ day_dict = {}
 old_csv = "old_csv.csv"
 #  in production old_csv = "d:\\john tillet\\episode_data\\day_surgery.csv"
 
-with open(old_csv, "r") as oldcsv, open("new_csv.csv", "a") as new_csv:
+with open(old_csv, "r") as oldcsv, open("new_csv.csv", "w") as new_csv:
     reader = csv.reader(oldcsv)
     writer = csv.writer(new_csv)
     for entry in reader:

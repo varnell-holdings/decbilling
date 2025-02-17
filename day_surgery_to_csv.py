@@ -22,6 +22,8 @@ def update_day_surgery_csv(filename, new_row):
         writer = csv.writer(temp_file)
         # Check each row
         for row in reader:
+            if "test" in row[13].lower():
+                continue
             if row[0] == date and row[1] == mrn:
                 # Replace matching row with new data
                 writer.writerow(new_row)

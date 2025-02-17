@@ -26,7 +26,7 @@ with open(old_csv, "r") as oldcsv, open("new_csv.csv", "w") as new_csv:
     writer = csv.writer(new_csv)
     for entry in reader:
         total_rows += 1
-        if "testing" in entry[13].lower():
+        if "test" in entry[13].lower():
             continue
         date = entry[0]
         if current_date and date != current_date:

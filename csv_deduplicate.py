@@ -10,27 +10,39 @@ after checking all went well."""
 
 import csv
 
-previous_date = "19-10-2020"
+# previous_date = "16-10-2020"
 # in production make this the first date in day_surgery.csv
 
 day_dict = {}
+total_rows = 0
+written_rows = 0
+current_date = None
 
-old_csv = "old_csv.csv"
+old_csv = "day_surgery.csv"
 #  in production old_csv = "d:\\john tillet\\episode_data\\day_surgery.csv"
 
 with open(old_csv, "r") as oldcsv, open("new_csv.csv", "w") as new_csv:
     reader = csv.reader(oldcsv)
     writer = csv.writer(new_csv)
     for entry in reader:
-        current_date = entry[0]
-        if current_date != previous_date:
-            # print(f"  {previous_date}    {day_dict}")
+        total_rows += 1
+        if "testing" in entry[13].lower():
+            continue
+        date = entry[0]
+        if current_date and date != current_date:
+            # if we have moved to a new date, write dict to file, put new line in new dict and update current date
             for value in day_dict.values():
                 writer.writerow(value)
+                written_rows += 1
             day_dict = {entry[1]: entry}
-            previous_date = current_date
+
         else:
             day_dict[entry[1]] = entry
+        current_date = date
     # print(f" final day   {current_date}    {day_dict}")
     for value in day_dict.values():
         writer.writerow(value)
+        written_rows += 1
+
+print(f"Lines written:   ", written_rows)
+print("Lines removed:   ", total_rows - written_rows)

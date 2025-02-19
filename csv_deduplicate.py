@@ -6,12 +6,10 @@ It writes each day's entries into a dictionary which acts
 like a set.
 It is only to be run once - when the regular csv writer is bug free.
 Writes to new_csv.csv which will have to replace day_surgery.csv
-after checking all went well."""
+after checking all went well.
+FIRST MAKE A COPY OF day_surgery.csv in another folder!!!"""
 
 import csv
-
-# previous_date = "16-10-2020"
-# in production make this the first date in day_surgery.csv
 
 day_dict = {}
 total_rows = 0

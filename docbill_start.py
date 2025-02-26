@@ -78,6 +78,7 @@ class TooSoonException(BaseException):
 
 
 epdata_path = Path("D:/JOHN TILLET/episode_data")
+source_path = Path("d:/JOHN TILLET/source")
 caecum_csv_file = "d:\\JOHN TILLET\\source\\caecum\\caecum.csv"
 
 # logging.basicConfig(
@@ -139,21 +140,23 @@ ASA_DIC = {
 UPPERS = [
     "No Upper",
     "Pe",
+    "Pe with Bx",
     "Oesophageal diatation",
     "O Dil + PE",
     "Pe with APC",
     "Pe with polypectomy",
     "Pe with varix banding",
+    "Cancelled",
     "BRAVO",
     "HALO",
-    "Cancelled",
+    
 ]
 
 UPPER_DIC = {
     "No Upper": None,
     "Cancelled": None,
     "Pe": "30473-00",
-    # "Pe with Bx", "30473-01",
+    "Pe with Bx": "30473-01",
     "Oesophageal diatation": "30475-00",
     "O Dil + PE": "30475-00",
     "Pe with APC": "30478-20",
@@ -577,44 +580,76 @@ def episode_getfund(insur_code, fund, fund_number, ref):
     return (mcn, ref, fund, fund_number)
 
 
-def day_surgery_to_csv(
-    mrn,
-    in_theatre,
-    out_theatre,
-    anaesthetist,
-    endoscopist,
-    asa,
-    upper,
-    colon,
-    banding,
-    nurse,
-    clips,
-    glp1,
-    message,
-):
-    """Write day surgery data to csv."""
+# def day_surgery_to_csv(
+#     mrn,
+#     in_theatre,
+#     out_theatre,
+#     anaesthetist,
+#     endoscopist,
+#     asa,
+#     upper,
+#     colon,
+#     banding,
+#     nurse,
+#     clips,
+#     glp1,
+#     message,
+# ):
+#     """Write day surgery data to csv."""
 
-    today_str = today.strftime("%d-%m-%Y")
-    data = (
-        today_str,
-        mrn,
-        in_theatre,
-        out_theatre,
-        anaesthetist,
-        endoscopist,
-        asa,
-        upper,
-        colon,
-        banding,
-        nurse,
-        clips,
-        glp1,
-        message,
-    )
-    csv_address = epdata_path / "day_surgery.csv"
-    with csv_address.open(mode="at") as handle:
-        datawriter = csv.writer(handle, dialect="excel", lineterminator="\n")
-        datawriter.writerow(data)
+#     today_str = today.strftime("%d-%m-%Y")
+#     data = (
+#         today_str,
+#         mrn,
+#         in_theatre,
+#         out_theatre,
+#         anaesthetist,
+#         endoscopist,
+#         asa,
+#         upper,
+#         colon,
+#         banding,
+#         nurse,
+#         clips,
+#         glp1,
+#         message,
+#     )
+#     csv_address = epdata_path / "day_surgery.csv"
+#     with csv_address.open(mode="at") as handle:
+#         datawriter = csv.writer(handle, dialect="excel", lineterminator="\n")
+#         datawriter.writerow(data)
+
+
+def update_day_surgery_csv(filename, new_row):
+    # Create temporary file,
+    temp_file = NamedTemporaryFile(mode="w", delete=False, newline="")
+
+    found = False
+
+    date = new_row[0]
+    mrn = new_row[1]
+    with open(filename, "r", newline="") as csvfile:
+        reader = csv.reader(csvfile, dialect="excel", lineterminator="\n")
+        writer = csv.writer(temp_file)
+        # Check each row
+        for row in reader:
+            if "test" in row[13].lower():
+                continue
+            if row[0] == date and row[1] == mrn:
+                # Replace matching row with new data
+                writer.writerow(new_row)
+                found = True
+
+            else:
+                writer.writerow(row)
+
+        # Add new row if no match was found
+        if not found:
+            writer.writerow(new_row)
+    # Replace original file with updated temp file
+    temp_file.close()
+    shutil.move(temp_file.name, filename)
+
 
 
 def day_surgery_shelver(
@@ -948,7 +983,7 @@ def update_and_verify_last_colon(mrn, colon, endoscopist):
                 with s.open(mode="wb") as file:
                     pickle.dump(COLON_32228, file)
 
-
+# generic csv updater from claude. No duplicates
 def update_csv(filename, new_row, date, event_id):
     # Create temporary file
     temp_file = NamedTemporaryFile(mode="w", delete=False, newline="")
@@ -977,7 +1012,7 @@ def update_csv(filename, new_row, date, event_id):
 
 
 def caecum_to_csv(endoscopist, mrn, caecum_flag, caecum_reason):
-    """Write whether scope got to caecum."""
+    """Write whether scope got to caecum. For QPS"""
     doctor = endoscopist.split()[-1]
     today_str = today.strftime("%Y-%m-%d")
     caecum_data = (today_str, doctor, mrn, caecum_flag, caecum_reason)
@@ -1175,7 +1210,7 @@ def render_anaesthetic_report(anaesthetist):
         anaes_surname=anaes_surname,
         csv_length=csv_length,
     )
-    with open("d:\\Nobue\\report_{}.html".format(anaes_surname), "w") as f:
+    with open("d:\\john tillet\\report_{}.html".format(anaes_surname), "w") as f:
         f.write(a)
 
 
@@ -1189,7 +1224,7 @@ def close_out(anaesthetist):
     pya.hotkey("alt", "n")
     pya.moveTo(x=780, y=110)
     if anaesthetist in BILLING_ANAESTHETISTS:
-        webbrowser.open("d:\\Nobue\\report_{}.html".format(anaesthetist.split()[-1]))
+        webbrowser.open("d:\\john tillet\\report_{}.html".format(anaesthetist.split()[-1]))
 
 
 def print_receipt(anaesthetist, episode):
@@ -1786,7 +1821,10 @@ def runner(*args):
             )
             raise BillingException
 
-        day_surgery_to_csv(
+
+        today_str_for_ds = today.strftime("%d-%m-%Y")
+        data_for_day_surgery = [
+            today_str_for_ds,
             mrn,
             in_theatre,
             out_theatre,
@@ -1800,7 +1838,12 @@ def runner(*args):
             clips,
             glp1,
             message,
-        )
+        ]
+
+
+        ds_csv_address = epdata_path / "day_surgery.csv"
+
+        update_day_surgery_csv(ds_csv_address, data_for_day_surgery)
 
         message = message_parse(message)
 

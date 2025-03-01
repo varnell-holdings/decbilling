@@ -88,12 +88,11 @@ caecum_csv_file = "d:\\JOHN TILLET\\source\\caecum\\caecum.csv"
 # )
 logfilename = epdata_path / "doclog.log"
 
-logging.basicConfig(    
+logging.basicConfig(
     level=logging.INFO,
     handlers=[logging.FileHandler(logfilename), logging.StreamHandler()],
     format="%(asctime)s %(message)s",
 )
-
 
 
 today = datetime.datetime.today()
@@ -109,7 +108,7 @@ ANAESTHETISTS = config_parser.options("anaesthetists")
 ANAESTHETISTS = [a.title() for a in ANAESTHETISTS]
 
 PATIENTS = []
-selected_name = "error!"
+selected_name = "No Patient Selected"
 manual_mrn = ""
 manual_flag = False
 overide_endoscopist = False
@@ -149,7 +148,6 @@ UPPERS = [
     "Cancelled",
     "BRAVO",
     "HALO",
-    
 ]
 
 UPPER_DIC = {
@@ -410,7 +408,8 @@ def postcode_to_state(postcode):
 
 def front_scrape():
     """Scrape name and mrn from blue chip.
-    return tiltle, first_name, last_name for meditrust and printname for printed accounts"""
+    return tiltle, first_name, last_name for meditrust and printname for printed accounts
+    """
 
     pya.moveTo(TITLE_POS, duration=0.3)
     pya.doubleClick()
@@ -519,7 +518,7 @@ def address_scrape():
 
     pya.hotkey("ctrl", "c")
     postcode = pyperclip.paste()
-    
+
     email = pyperclip.copy("na")
     pya.press("tab", presses=6)
     pya.hotkey("ctrl", "c")
@@ -580,46 +579,6 @@ def episode_getfund(insur_code, fund, fund_number, ref):
     return (mcn, ref, fund, fund_number)
 
 
-# def day_surgery_to_csv(
-#     mrn,
-#     in_theatre,
-#     out_theatre,
-#     anaesthetist,
-#     endoscopist,
-#     asa,
-#     upper,
-#     colon,
-#     banding,
-#     nurse,
-#     clips,
-#     glp1,
-#     message,
-# ):
-#     """Write day surgery data to csv."""
-
-#     today_str = today.strftime("%d-%m-%Y")
-#     data = (
-#         today_str,
-#         mrn,
-#         in_theatre,
-#         out_theatre,
-#         anaesthetist,
-#         endoscopist,
-#         asa,
-#         upper,
-#         colon,
-#         banding,
-#         nurse,
-#         clips,
-#         glp1,
-#         message,
-#     )
-#     csv_address = epdata_path / "day_surgery.csv"
-#     with csv_address.open(mode="at") as handle:
-#         datawriter = csv.writer(handle, dialect="excel", lineterminator="\n")
-#         datawriter.writerow(data)
-
-
 def update_day_surgery_csv(filename, new_row):
     # Create temporary file,
     temp_file = NamedTemporaryFile(mode="w", delete=False, newline="")
@@ -649,7 +608,6 @@ def update_day_surgery_csv(filename, new_row):
     # Replace original file with updated temp file
     temp_file.close()
     shutil.move(temp_file.name, filename)
-
 
 
 def day_surgery_shelver(
@@ -932,7 +890,6 @@ def update_and_verify_last_colon(mrn, colon, endoscopist):
         if last_colon_date and (
             last_colon_date != today.date()
         ):  # second test is in case this is a resend today
-
             time_sep = relativedelta(today.date(), last_colon_date).years
             last_colon_date_printed = last_colon_date.strftime("%d-%m-%Y")
 
@@ -983,6 +940,7 @@ def update_and_verify_last_colon(mrn, colon, endoscopist):
                 with s.open(mode="wb") as file:
                     pickle.dump(COLON_32228, file)
 
+
 # generic csv updater from claude. No duplicates
 def update_csv(filename, new_row, date, event_id):
     # Create temporary file
@@ -1010,13 +968,14 @@ def update_csv(filename, new_row, date, event_id):
     shutil.move(temp_file.name, filename)
 
 
-
 def caecum_to_csv(endoscopist, mrn, caecum_flag, caecum_reason):
     """Write whether scope got to caecum. For QPS"""
     doctor = endoscopist.split()[-1]
     today_str = today.strftime("%Y-%m-%d")
     caecum_data = (today_str, doctor, mrn, caecum_flag, caecum_reason)
-    update_csv(caecum_csv_file, caecum_data, today_str, mrn) # caecum_csv_file is defined at line 79
+    update_csv(
+        caecum_csv_file, caecum_data, today_str, mrn
+    )  # caecum_csv_file is defined at line 79
 
 
 def meditrust_writer(anaesthetist, endoscopist_lowered, today, meditrust_csv):
@@ -1224,7 +1183,9 @@ def close_out(anaesthetist):
     pya.hotkey("alt", "n")
     pya.moveTo(x=780, y=110)
     if anaesthetist in BILLING_ANAESTHETISTS:
-        webbrowser.open("d:\\john tillet\\report_{}.html".format(anaesthetist.split()[-1]))
+        webbrowser.open(
+            "d:\\john tillet\\report_{}.html".format(anaesthetist.split()[-1])
+        )
 
 
 def print_receipt(anaesthetist, episode):
@@ -1456,11 +1417,11 @@ def is_biller_anaesthetist(event):
 
 def get_list_from_dic(doctor, booking_dic):
     if doctor not in booking_dic:
-        return ["Enter Manually", ""]
+        return ["Enter Manually", "Use Blue Chip", ""]
     else:
         lop = list(set(booking_dic[doctor]))
         lop = sorted(lop, key=lambda x: x[1])
-        return_list = ["Enter Manually", ""]
+        return_list = ["Enter Manually", "Use Blue Chip", ""]
         for p in lop:
             return_list.append(p[0])
         return return_list
@@ -1606,9 +1567,9 @@ def runner(*args):
             upper_for_daysurgery = upper
 
         colon = co.get()
-        
+
         caecum_flag = False
-        
+
         if colon == "Cancelled":
             message += "Colon cancelled."
         elif colon == "Non Rebatable":
@@ -1618,7 +1579,7 @@ def runner(*args):
             message += "Short colon only"
         elif colon[0:3] == "322":
             caecum_flag = "success"
-            
+
         colon = COLON_DIC[colon]
 
         banding = ba.get()
@@ -1722,12 +1683,13 @@ def runner(*args):
             if insur_code in {"bb", "paid", "bill"}:
                 fund = "no fund"
 
-        if anaesthetist in BILLING_ANAESTHETISTS:
+        # get name and mrn
+        if anaesthetist in BILLING_ANAESTHETISTS or selected_name == "Use Blue Chip":
             pya.click(TITLE_POS)
             mrn, name, title, first_name, last_name = front_scrape()
 
-        elif selected_name == "error!":
-            pya.alert(text="Error with patient name.")
+        elif selected_name in {"No Patient Selected", ""}:
+            pya.alert(text="Choose a patient.")
             btn_txt.set("Try Again!")
             raise NoNameException
         elif manual_flag is False:
@@ -1747,7 +1709,7 @@ def runner(*args):
 
             if (
                 endobase_endoscopist == "Absent"
-            ):  #  an absent mrn means patient not in list from endobase
+            ):  # an absent mrn means patient not in list from endobase
                 no_mrn_string = "CAREFUL!! /nThis patient not in the booked list. Click OK to continue or Cancel to go back"
                 mrn_check = pya.confirm(
                     text=no_mrn_string,
@@ -1774,6 +1736,7 @@ def runner(*args):
                 else:
                     raise WrongDocException
 
+        # missed double check
         if ((upper is None or colon is None) and "cancelled." not in message) and (
             double_dic.get(mrn) == "True"
         ):
@@ -1791,11 +1754,9 @@ def runner(*args):
             logging.error("?Corrupt last_colon_date database.", exc_info=True)
             raise BillingException
 
-        # time.sleep(0.2)
-        logging.debug(anaesthetist)
-
         (in_theatre, out_theatre) = in_and_out_calculater(op_time, mrn)
 
+        # write to the shelf used to populate day surgery module by watcher.py
         try:
             day_surgery_shelver(
                 mrn,
@@ -1812,16 +1773,17 @@ def runner(*args):
                 varix_lot,
                 message,
             )
-        except ValueError:
+        except ValueError as e:
             pya.alert(
                 text="""There was any error in the database. Delete the following files.
                       D:/JOHN TILLET/episode_data/dumper_data.db.dir
                       D:/JOHN TILLET/episode_data/dumper_data.db.dat
                       D:/JOHN TILLET/episode_data/dumper_data.db.bak"""
             )
+            logging.error(f"Trouble writing to day surgery shelf: {e}")
             raise BillingException
 
-
+        # update day_surgery.csv - note badly named - not for the day surgery in Blue Chip
         today_str_for_ds = today.strftime("%d-%m-%Y")
         data_for_day_surgery = [
             today_str_for_ds,
@@ -1839,14 +1801,12 @@ def runner(*args):
             glp1,
             message,
         ]
-
-
         ds_csv_address = epdata_path / "day_surgery.csv"
-
         update_day_surgery_csv(ds_csv_address, data_for_day_surgery)
 
         message = message_parse(message)
 
+        # alert watcher program of new patient
         to_watched()
 
         today_path = web_shelver(
@@ -1867,16 +1827,20 @@ def runner(*args):
             mrn,
         )
 
-        # time.sleep(0.5)
-        # test for existence of mrn in shelve
-        with shelve.open(today_path) as s:
-            s[mrn]
+        # test for existence of mrn in web shelf ie above code worked
+        try:
+            with shelve.open(today_path) as s:
+                s[mrn]
+        except KeyError as e:
+            pya.alert("Try again. Program faulty.")
+            logging.error(f"Trouble writing to web shelf: {e}")
+            raise BillingException
 
         make_web_secretary_from_shelf(today_path)
 
         make_long_web_secretary_from_shelf(today_path)
 
-        #        anaesthetic billing
+        # anaesthetic billing
         if asa is not None and anaesthetist in BILLING_ANAESTHETISTS:
             dob = dob_scrape()
             address, street, suburb, state, postcode, email = address_scrape()
@@ -1936,7 +1900,7 @@ def runner(*args):
         #        time.sleep(0.5)
         if caecum_flag:
             caecum_to_csv(endoscopist, mrn, caecum_flag, caecum_reason)
-        if anaesthetist in BILLING_ANAESTHETISTS:
+        if anaesthetist in BILLING_ANAESTHETISTS or selected_name == "Use Blue Chip":
             close_out(anaesthetist)
 
     except MissingProcedureException:
@@ -1970,10 +1934,13 @@ def runner(*args):
         pya.alert(text="Something went wrong!!", title="", button="OK")
         return
 
-    # reset variables in gui
-
-    pat.set("Click for patients")
-    selected_name = "error!"
+    # reset gui
+    if selected_name in ("Use Blue Chip"):
+        pat.set("Use Blue Chip")
+        selected_name = "Use Blue Chip"
+    else:
+        pat.set("Click for patients")
+        selected_name = "No Patient Selected"
 
     manual_flag = False
     asc.set("ASA")
@@ -2008,6 +1975,7 @@ def runner(*args):
     btn.config(state="disabled")
     #     btn.config(bg="blue")
     feedback["text"] = "Select patient"
+    # end of runner
 
 
 with concurrent.futures.ThreadPoolExecutor() as executor:

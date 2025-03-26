@@ -1,0 +1,18 @@
+put new templates into episode_data from github
+
+? move to same AWS login as endobase uses
+
+
+
+
+decbatches crashes because FUND_FEES.ini does not have an entry for "bill_given"
+
+/configparser.py", line 998, in __getitem__
+    raise KeyError(key)
+KeyError: 'bill_given'
+
+
+endobase_checking.py is in the endobase repository
+
+need to work out how to click/tab to street box from email box
+

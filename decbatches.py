@@ -6,6 +6,7 @@ from collections import defaultdict
 import datetime
 import math
 import os
+from pathlib import Path
 import shutil
 import sys
 import time
@@ -16,16 +17,14 @@ import docx
 from docx.shared import Mm
 
 
-import pyautogui as pya
-
-import yagmail
+# import yagmail
 
 colorama.init()
-pya.FAILSAFE = True
 
-
+# epdata_path = Path("d:\\john tillet\\episode_data")
+epdata_path = Path("./files")
 fees_config = configparser.ConfigParser()
-fees_config.read("d:\\john tillet\\episode_data\\FEES.ini")
+fees_config.read(epdata_path / "FEES.ini")
 
 BILLER = {
     "Dr J Tillett": {
@@ -47,7 +46,6 @@ BILLER = {
 }
 
 
-
 PAGE_NUMBER = 24
 
 today = datetime.datetime.today()
@@ -59,7 +57,9 @@ def clear():
     print("\033[1;1H")  # move to top left
 
 
-def print_account(ep, doc, unit, consult_as_float, time_fee, total_fee, biller, page_break=True):
+def print_account(
+    ep, doc, unit, consult_as_float, time_fee, total_fee, biller, page_break=True
+):
     """Prints a single accout to a docx document and returns it"""
     biller = BILLER[biller]
 
@@ -163,7 +163,7 @@ def print_account(ep, doc, unit, consult_as_float, time_fee, total_fee, biller, 
     tot_str = "$%.2f" % total_fee
     tot_str = tot_str.rjust(19)
     p_tot.add_run(tot_str).bold = True
-    
+
     if ep["fund_code"] == "paid":
         p_tot = doc.add_paragraph("Paid")
         tot_str = "$%.2f" % total_fee
@@ -175,7 +175,7 @@ def print_account(ep, doc, unit, consult_as_float, time_fee, total_fee, biller, 
         tot_str = "$0.00"
         tot_str = tot_str.rjust(25)
         p_tot.add_run(tot_str).bold = True
-        
+
     doc.add_paragraph("")
     p_gst = doc.add_paragraph("")
     p_gst.add_run("No item on this invoice attracts GST").italic = True
@@ -240,18 +240,21 @@ def mail_and_backup(anaesthetist, file_type):
         path = "d:/john tillet/episode_data/sedation/{}.csv".format(surname)
         subject = "DEC billing csv"
         body = "Attached is the csv file of your acounts proccesed today"
-        save_destination = "d:/john tillet/episode_data/sedation/backup/{}-{}-csv.csv".format(
-            FILE_STR, surname
+        save_destination = (
+            "d:/john tillet/episode_data/sedation/backup/{}-{}-csv.csv".format(
+                FILE_STR, surname
+            )
         )
     elif file_type == "docx":
         path = "d:/john tillet/episode_data/sedation/accts.docx"
         subject = "DEC accounts"
         body = "Attached are your acounts proccesed today"
-        save_destination = "d:/john tillet/episode_data/sedation/backup/{}-{}-accts.docx".format(
-            FILE_STR, surname
+        save_destination = (
+            "d:/john tillet/episode_data/sedation/backup/{}-{}-accts.docx".format(
+                FILE_STR, surname
+            )
         )
 
-    
     path = os.path.realpath(path)
     save_path = os.path.realpath(save_destination)
     content = [path]
@@ -395,19 +398,16 @@ def printProgressBar(
 def main():
     """Print accounts in batches of funds."""
 
-
     biller = "Dr J Tillett"
 
-
     clear()
-    print_set ={"adf", "send_bill"}
+    print_set = {"adf", "send_bill"}
     biller_surmame = biller.split()[-1]
     base = "D:\\JOHN TILLET\\episode_data\\sedation\\"
     summaryfile = base + "accts_summary.txt"
     printfile = base + "accts.docx"
     datafile = base + biller_surmame + ".csv"
     masterfile = base + biller_surmame + "_master.csv"
-
 
     headers = [
         "date",
@@ -432,7 +432,6 @@ def main():
     except IOError:
         pass
 
-
     try:
         with open(datafile) as csvfile:
             reader = csv.DictReader(csvfile, headers)
@@ -456,7 +455,7 @@ def main():
     pat_dict = defaultdict(list)
 
     for episode in ep_list:
-        if episode["fund_code"]  in print_set:
+        if episode["fund_code"] in print_set:
             fund_id = episode["fund_code"]
             pat_dict[fund_id].append(episode)
 
@@ -527,7 +526,6 @@ def main():
     print("Emailing the accounts..")
     mail_and_backup(biller, "docx")
     print()
-
 
     cleanup(datafile, masterfile, summaryfile, printfile, biller)
 

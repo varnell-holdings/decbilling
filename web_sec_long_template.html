@@ -28,7 +28,7 @@ $(document).ready(function(){
 
         <table class="w3-table">
             <tr><th>Time In</th><th>Time Out</th><th>Doctors</th><th>Nurse</th><th>Patient</th>
-            <th>Consult</th><th>ASA</th><th>Upper</th><th>Colon</th><th>Anal</th><th>Varix</th><th>Message</th></tr>
+            <th>Consult</th><th>ASA</th><th>Upper</th><th>Colon</th><th>Polyp</th><th>Anal</th><th>Varix</th><th>Message</th></tr>
             {% for ep in today_data %}
             <tr class="{{row_class.next()}}">
                 <td>{{ep["in_theatre"]}}</td>
@@ -40,6 +40,7 @@ $(document).ready(function(){
                 <td>{{ep["asa"]}}</td>
                 <td>{{ep["upper"]}}</td>
                 <td>{{ep["colon"]}}</td>
+                <td>{{ep["polyp"]}}</td>
                 <td>{{ep["banding"]}}</td>
                 <td>{{ep["varix_lot"]}}</td>
                 <td>{{ep["message"]}}</td>

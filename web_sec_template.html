@@ -27,7 +27,7 @@ $(document).ready(function(){
         {% set row_class = cycler('odd' ,'even') %}
 
         <table class="w3-table">
-            <tr><th>Time Out</th><th>Doctors</th><th>Patient</th><th>Consult</th><th>Upper</th><th>Colon</th><th>Message</th><th>Billed</th></tr>
+            <tr><th>Time Out</th><th>Doctors</th><th>Patient</th><th>Consult</th><th>Upper</th><th>Colon</th><th>Polyp</th><th>Message</th><th>Billed</th></tr>
             {% for ep in today_data %}
             <tr class="{{row_class.next()}}">
                 <td>{{ep["in_theatre"]}}</td>
@@ -36,6 +36,7 @@ $(document).ready(function(){
                 <td>{{ep["consult"]}}</td>
                 <td>{{ep["upper"]}}</td>
                 <td>{{ep["colon"]}}</td>
+                <td>{{ep["polyp"]}}</td>
                 <td>{{ep["message"]}}</td>
                 <td>{{ep["billed"]}}</td>
             </tr> {% endfor %}

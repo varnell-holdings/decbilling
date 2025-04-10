@@ -24,6 +24,8 @@ from dateutil.parser import parse
 import docx
 from jinja2 import Environment, FileSystemLoader
 import pymsgbox as pmb
+import pyautogui as pya
+import requests
 
 import decbatches
 
@@ -41,6 +43,7 @@ class BillingException(Exception):
 # globals
 overide_endoscopist = False
 finish_time = False
+biller_anaesthetist_flag = False
 
 user = os.getenv("USERNAME")
 
@@ -48,20 +51,15 @@ user = os.getenv("USERNAME")
 def parse_args():
     parser = argparse.ArgumentParser(description="test mode option")
 
-    # Add a --test flag that defaults to False if not specified
-    parser.add_argument(
-        "--test",
-        action="store_true",
-        help="Run in test mode (uses test imports and file paths)",
-    )
+    parser.add_argument('--mac', action='store_true')
 
     return parser.parse_args()
 
 
 args = parse_args()
+print(args.mac)
 
-
-if args:  # mac testing - defined in starter.py
+if args.mac:  # mac testing - defined in starter.py
     epdata_path = Path("./files")
     caecum_csv_file = epdata_path / "caecum" / "caecum.csv"
     sec_web_page = epdata_path / "today_new.html"
@@ -76,11 +74,12 @@ else:
 
     caecum_csv_file = source_path / "caecum" / "caecum.csv"
     sec_web_page = nobue_path / "today_new.html"
+    sec_web_page1 = nobue_path / "today_new1.html"
     sec_long_web_page = nobue_path / "today_long.html"
 
     from blue_chip_scrapers import patient_id_scrape, address_scrape, close_out
     from blue_chip_scrapers import scrape_mcn_and_ref, scrape_fund_number
-    from blue_chip_scrapers import scraper, postcode_to_state
+    from blue_chip_scrapers import scraper, postcode_to_state, ST
 
 logfilename = epdata_path / "doclog.log"
 logging.basicConfig(
@@ -166,8 +165,8 @@ UPPERS = [
 ]
 
 UPPER_DIC = {
-    "No Upper": None,
-    "Cancelled": None,
+    "No Upper": "",
+    "Cancelled": "",
     "Pe": "30473-00",
     "Pe with Bx": "30473-01",
     "Oesophageal diatation": "30475-00",
@@ -197,11 +196,11 @@ COLONS = [
 ]
 
 COLON_DIC = {
-    "No Lower": None,
+    "No Lower": "",
     "Planned Short Colon": "32084-00",
     "Exam via stoma": "32095-00",
     "Failure to reach caecum": "32084-00",
-    "Cancelled": None,
+    "Cancelled": "",
     "Non Rebatable": "Non Rebatable",
     "32222": "32222",
     "32223": "32223",
@@ -216,7 +215,7 @@ COLON_DIC = {
 BANDING = ["No Anal Procedure", "Banding", "Banding + Pudendal", "Anal dilatation"]
 
 BANDING_DIC = {
-    "No Anal Procedure": None,
+    "No Anal Procedure": "",
     "Banding": "32135-00",
     "Banding + Pudendal": "32135-00",
     "Anal dilatation": "32153-00",
@@ -364,7 +363,7 @@ class ProcedureData:
             if dil_flag == "Dilatation":
                 self.colon_for_daysurgery = "32094-00"
             elif self.polyp == "32229":
-                self.colon_for_daysurgery = "32093"
+                self.colon_for_daysurgery = "32093-00"
             else:
                 self.colon_for_daysurgery = "32090-00"
         elif self.colon and self.polyp == "32229":
@@ -382,6 +381,8 @@ class ProcedureData:
             self.polyp = ""
 
         self.consult = CONSULT_DIC[self.consult]
+        if self.clips:
+            self.message += f"{self.clips} clips used"
 
         self.insur_code = FUND_TO_CODE.get(self.fund, "no_gap")
 
@@ -450,9 +451,7 @@ def add_message():
 
 
 def open_dox():
-    pass
-
-
+    webbrowser.open("http://dox.endoscopy.local/Landing")
 #     pya.hotkey("ctrl", "w")
 
 
@@ -818,7 +817,7 @@ def web_shelver(pd):
     today_str = today.strftime("%Y-%m-%d")
     today_path = epdata_path / "webshelf" / today_str
     try:
-        with shelve.open(today_path) as s:
+        with shelve.open(str(today_path)) as s:
             s[pd.mrn] = episode_dict
     except KeyError as e:
         pmb.alert("Try again. Program faulty.")
@@ -835,7 +834,7 @@ def make_web_secretary_from_shelf(today_path):
     """
     today_str = today.strftime("%A" + "  " + "%d" + "-" + "%m" + "-" + "%Y")
 
-    with shelve.open(today_path) as s:
+    with shelve.open(str(today_path)) as s:
         today_data = list(s.values())
 
     today_data.sort(key=lambda x: x["out_theatre"], reverse=True)
@@ -856,7 +855,7 @@ def make_long_web_secretary_from_shelf(today_path):
     """
     today_str = today.strftime("%A" + "  " + "%d" + "-" + "%m" + "-" + "%Y")
 
-    with shelve.open(today_path) as s:
+    with shelve.open(str(today_path)) as s:
         today_data = list(s.values())
 
     today_data.sort(key=lambda x: x["out_theatre"], reverse=True)
@@ -888,8 +887,8 @@ def day_surgery_shelver(pd):
                 "anaesthetist": pd.anaesthetist,
                 "endoscopist": pd.endoscopist,
                 "asa": pd.asa,
-                "upper": pd.upper,
-                "colon": pd.colon,
+                "upper": pd.upper_for_daysurgery,
+                "colon": pd.colon_for_daysurgery,
                 "banding": pd.banding,
                 "nurse": pd.nurse,
                 "clips": pd.clips,
@@ -907,7 +906,6 @@ def day_surgery_shelver(pd):
         raise BillingException
 
 
-# generic csv updater from claude. No duplicates
 def update_csv(filename, new_row, data_1, data_2, compare_1=0, compare_2=2):
     """updates a csv without creating duplicates.
     compares 2 pieces of date from new_row with their equivalents
@@ -1252,6 +1250,7 @@ def runner(*args):
     """Main program. Runs when button pushed."""
     global overide_endoscopist  # for future endoscopist check
     global finish_time
+    global biller_anaesthetist_flag
 
     btn_txt.set("Sending...")
     feedback["text"] = "Sending data" + ("  " * 20)
@@ -1263,12 +1262,17 @@ def runner(*args):
         )
 
         proc_data = patient_id_scrape(proc_data)
+        if not proc_data.mrn.isdigit():
+            pya.alert("Error in data. Try again.\nHint: Don't touch mouse during collection")
+            raise BillingException
 
         # double check
 
         # Doctor check
 
         # Time since last colon check
+        
+
         try:
             update_and_verify_last_colon(proc_data)
         except ValueError:
@@ -1285,8 +1289,7 @@ def runner(*args):
         # make day surgery module dumper
         day_surgery_shelver(proc_data)
 
-        # alert secretaries of new patient
-        to_watched()
+    
 
         # make day_surgery.csv - need to change name
         # confusing with Blue Chip day surgery module
@@ -1322,6 +1325,12 @@ def runner(*args):
             if proc_data.insur_code == "bill_given":
                 print_receipt(proc_data.anaesthetist, anaesthetic_tuple)
         close_out(proc_data.anaesthetist)
+        
+        # alert secretaries of new patient
+        to_watched()
+        send_name = proc_data.full_name
+        requests.post("https://ntfy.sh/dec601billing",
+                      data=f"{send_name} 😀".encode(encoding='utf-8'))
         pprint(proc_data)
 
     except BillingException:
@@ -1333,6 +1342,8 @@ def runner(*args):
         btn_txt.set("Try Again")
         feedback["text"] = f"{e}"
         root.update_idletasks()
+        requests.post("https://ntfy.sh/dec601doclog",
+        data=f"{e}".encode(encoding='utf-8'))
         return
 
     asc.set("ASA")

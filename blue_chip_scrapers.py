@@ -5,15 +5,16 @@ from pprint import pprint
 import pyperclip
 import time
 import os
+import webbrowser
 
 from pyisemail import is_email
 import pyautogui as pya
 
-pya.PAUSE = 0.9
-pya.FAILSAFE = True
+pya.PAUSE = 0.1
+# pya.FAILSAFE = True
 
 
-ST = 10  # bigger makes repeated scrapping slower
+ST = 10  # bigger makes repeated scrapping faster
 
 user = os.getenv("USERNAME")
 
@@ -34,6 +35,7 @@ elif user == "John2":
     FUND_NO_POS = (580, 548)
     CLOSE_POS = (774, 96)
 
+BILLING_ANAESTHETISTS = ["Dr S Vuong", "Dr J Tillett"]
 
 @dataclass
 class ScrapedData:
@@ -57,26 +59,29 @@ class ScrapedData:
 def scraper(info, email=False):
     """Takes a string for the piece of data to be scraped.
     st changes the speed of retries"""
-    info = pyperclip.copy("na")
-    for i in range(4):
+    result = pyperclip.copy("na")
+    
+    for i in range(3):
         time.sleep((i**2) / ST)
         pya.hotkey("ctrl", "c")
-        info = pyperclip.paste()
+        result = pyperclip.paste()
         if email:
+            result = result.split()[0]
             if not is_email:
-                info = ""
-        if info != "na":
+                result = ""
+        if result != "na":
             break
-    if info == "na":
+    if result == "na":
         while True:
-            info = pya.prompt(text=f"Please enter patient's {info}")
-            if info:
+            result = pya.prompt(text=f"Please enter patient's {info}")
+            if result:
                 break
-    return info
+    return result
 
 
-def postcode_to_state(postcode):
+def postcode_to_state(sd):
     post_dic = {"3": "VIC", "4": "QLD", "5": "SA", "6": "WA", "7": "TAS"}
+    postcode = sd.postcode
     try:
         if postcode[0] == "0":
             if postcode[:2] in {"08", "09"}:
@@ -96,74 +101,81 @@ def postcode_to_state(postcode):
         return ""
 
 
-def patient_id_scrape(pd):
+def patient_id_scrape(sd):
     """Scrape names, mrn, dob, email from blue chip."""
-    pya.moveTo(TITLE_POS, duration=0.3)()
-    pd.title = scraper("Title")
+    pya.moveTo(TITLE_POS)
+    pya.doubleClick()
+    sd.title = scraper("Title")
 
     pya.press("tab")
-    pd.first_name = scraper("First Name")
+    sd.first_name = scraper("First Name")
 
     pya.press("tab")
     pya.press("tab")
-    pd.last_name = scraper("Surname")
+    sd.last_name = scraper("Surname")
 
-    pya.moveTo(MRN_POS, duration=0.1)
-    pd.mrn = scraper("MRN")
+    pya.moveTo(MRN_POS)
+    pya.doubleClick()
+    sd.mrn = scraper("MRN")
 
-    pya.moveTo(DOB_POS, duration=0.1)
-    pd.dob = scraper("date of birth (dd/mm/yyyy)")
-    if len(pd.dob) == 9:
-        pd.dob = "0" + pd.dob
+    pya.moveTo(DOB_POS)
+    pya.doubleClick()
+    sd.dob = scraper("date of birth (dd/mm/yyyy)")
+    if len(sd.dob) == 9:
+        sd.dob = "0" + sd.dob
 
-    pya.press("tab", presses=16)
-    pd.email = scraper("email", email=True)
+    pya.press("tab", presses=10)
+    sd.email = scraper("email", email=True)
 
-    pd.full_name = pd.title + " " + pd.first_name + " " + pd.last_name
+    sd.full_name = sd.title + " " + sd.first_name + " " + sd.last_name
+    
+    return sd
 
-    return pd
 
-
-def address_scrape(pd):
+def address_scrape(sd):
     """Scrape address from blue chip.
     Used if billing anaesthetist.
     """
     # need to work out how to click/tab here from email box
-    # pya.press("tab")
-    # pya.press("tab")
-    pd.street = scraper("Street No. & Name")
-    pd.street = pd.street.replace(",", "")
+    pya.keyDown('shift')
+    pya.press('tab', presses=8)
+    pya.keyUp('shift')
+    sd.street = scraper("Street No. & Name")
+    sd.street = sd.street.replace(",", "")
 
     pya.press("tab")
     pya.press("tab")
-    pd.suburb = scraper("Suburb")
+    sd.suburb = scraper("Suburb")
 
     pya.moveTo(POST_CODE_POS, duration=0.1)
-    pd.postcode = scraper("Address")
+    pya.doubleClick()
+    sd.postcode = scraper("Postcode")
 
-    pd.address = pd.street + " " + pd.suburb + " " + pd.postcode
-    pd.state = postcode_to_state(pd.postcode)
-    return pd
+    sd.state = postcode_to_state(sd)
+    sd.full_address = sd.street + " " + sd.suburb + " " + sd.state  + " " + sd.postcode
+    
+    return sd
 
 
-def episode_get_mcn_and_ref(pd):
+def scrape_mcn_and_ref(sd):
     """Scrape mcn from blue chip."""
-    pya.press("tab", presses=5)
-    pd.mcn = scraper("mcn")
-    pd.mcn = pd.mcn.replace(" ", "")
+    pya.press("tab", presses=11)
+    sd.mcn = scraper("mcn")
+    sd.mcn = sd.mcn.replace(" ", "")
 
     pya.press("tab", presses=2)
-    pd.ref = scraper("ref")
+    sd.ref = scraper("ref")
 
-    return pd
+    return sd
 
 
-def episode_get_fund_number(pd):
+def scrape_fund_number(sd):
     """Scrape fund number from blue chip."""
     pya.moveTo(FUND_NO_POS, duration=0.1)
-    pd.fund_number = scraper("Fund Number")
+    pya.doubleClick()
+    sd.fund_number = scraper("Fund Number")
 
-    return pd
+    return sd
 
 
 def close_out(anaesthetist):
@@ -176,14 +188,16 @@ def close_out(anaesthetist):
     pya.hotkey("alt", "n")
     pya.moveTo(x=780, y=110)
     if anaesthetist in BILLING_ANAESTHETISTS:
+        anaes_surname = anaesthetist.split()[-1]
         webbrowser.open(
-            "d:\\john tillet\\report_{}.html".format(anaesthetist.split()[-1])
+            f"d:\\john tillet\\episode_data\\sedation\\{anaes_surname}.html".format(anaesthetist.split()[-1])
         )
 
 
 if __name__ == "__main__":
     sd = ScrapedData()
-    sd = patient_id_scrape(sd)
+    input()
+    patient_id_scrape(sd)
     sd = address_scrape(sd)
     sd = episode_get_mcn_and_ref(sd)
     sd = episode_get_fund_number(sd)

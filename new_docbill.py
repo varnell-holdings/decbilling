@@ -24,7 +24,8 @@ from dateutil.parser import parse
 import docx
 from jinja2 import Environment, FileSystemLoader
 import pymsgbox as pmb
-import pyautogui as pya
+
+# import pyautogui as pya
 import requests
 
 import decbatches
@@ -51,7 +52,7 @@ user = os.getenv("USERNAME")
 def parse_args():
     parser = argparse.ArgumentParser(description="test mode option")
 
-    parser.add_argument('--mac', action='store_true')
+    parser.add_argument("--mac", action="store_true")
 
     return parser.parse_args()
 
@@ -139,6 +140,19 @@ BILLING_ENDOSOSCOPISTS = [
     "Dr S Ghaly",
     "Dr J Mill",
     "Dr S Sanagapalli",
+]
+
+DEC_ENDOSCOPISTS = [
+    "Dr A Wettstein",
+    "A/Prof R Feller",
+    "Dr C Vickers",
+    "Dr S Vivekanandarajah",
+    "Dr S Ghaly",
+    "Dr J Mill",
+    "Dr S Sanagapalli",
+    "Dr D Williams",
+    "Dr A Stoita",
+    "Dr C Bariol",
 ]
 
 ASA = ["No Sedation", "ASA 1", "ASA 2", "ASA 3"]
@@ -249,6 +263,8 @@ class ProcedureData:
     message: str
     clips: int
     op_time: str
+    pe_recall: str
+    col_recall: str
     mrn: str = ""
     title: str = ""
     first_name: str = ""
@@ -274,7 +290,7 @@ class ProcedureData:
 
     @classmethod
     def from_string_vars(
-        cls, an, end, nur, up, co, ba, asc, po, caecum, con, mes, cl, ot
+        cls, an, end, nur, up, co, ba, asc, po, caecum, con, mes, cl, ot, per, colr
     ):
         form_data = cls(
             anaesthetist=an.get(),
@@ -289,6 +305,8 @@ class ProcedureData:
             consult=con.get(),
             message=mes.get(),
             clips=int(cl.get()),
+            pe_recall=per.get(),
+            col_recall=colr.get(),
             op_time=ot.get(),
             fund=fu.get(),
         )
@@ -452,6 +470,8 @@ def add_message():
 
 def open_dox():
     webbrowser.open("http://dox.endoscopy.local/Landing")
+
+
 #     pya.hotkey("ctrl", "w")
 
 
@@ -506,16 +526,32 @@ def asa_click(event):
             fund_box.grid()
 
 
+def upper_combo_click(event):
+    upper = up.get()
+    endo = end.get()
+    if upper not in {"No Upper", "Cancelled"} and endo in DEC_ENDOSCOPISTS:
+        pe_recall.grid()
+    else:
+        pe_recall.grid_remove()
+
+
 def colon_combo_click(event):
     colon_proc = co.get()
+    endo = end.get()
     if colon_proc not in {"No Lower", "Cancelled"}:
         path_box.grid()
         ba_box.grid()
+        col_recall.grid()
+        if endo in DEC_ENDOSCOPISTS:
+            col_recall.grid()
+        else:
+            col_recall.grid_remove()
     else:
         po.set("Colon Pathology")
         ba.set("No Anal Procedure")
         path_box.grid_remove()
         ba_box.grid_remove()
+        col_recall.grid_remove()
 
     if colon_proc != "Failure to reach caecum":
         caecum_box.grid_remove()
@@ -527,6 +563,8 @@ def colon_combo_click(event):
 
 def is_biller_endoscopist(event):
     endo = end.get()
+    colon_proc = co.get()
+    upper = up.get()
 
     if endo in BILLING_ENDOSOSCOPISTS:
         con.set("None")
@@ -538,6 +576,20 @@ def is_biller_endoscopist(event):
         con_label.grid_remove()
         con_button1.grid_remove()
         con_button2.grid_remove()
+
+    if endo not in DEC_ENDOSCOPISTS:
+        pe_recall.grid_remove()
+        col_recall.grid_remove()
+    else:
+        if colon_proc in {"No Lower", "Cancelled"}:
+            col_recall.grid_remove()
+        else:
+            col_recall.grid()
+
+        if upper in {"No Upper", "Cancelled"}:
+            pe_recall.grid_remove()
+        else:
+            pe_recall.grid()
 
 
 def is_biller_anaesthetist(event):
@@ -572,6 +624,8 @@ def button_enable(*args):
     col = co.get()
     failure = caecum.get()
     path = po.get()
+    pe_recall = per.get()
+    col_recall = colr.get()
     fund = fu.get()
 
     top_line = anas != "Anaesthetist" and endo != "Endoscopist" and nurs != "Nurse"
@@ -613,6 +667,28 @@ def button_enable(*args):
         btn.config(state="disabled")
         btn_txt.set("")
         feedback["text"] = "Colon path?"
+        root.update_idletasks()
+        return
+
+    if (
+        upper not in {"No Upper", "Cancelled"}
+        and endo in DEC_ENDOSCOPISTS
+        and pe_recall == "? Pe recall"
+    ):
+        btn.config(state="disabled")
+        btn_txt.set("")
+        feedback["text"] = "Pe recall?"
+        root.update_idletasks()
+        return
+
+    if (
+        col not in {"No Lower", "Cancelled"}
+        and endo in DEC_ENDOSCOPISTS
+        and col_recall == "? Col recall"
+    ):
+        btn.config(state="disabled")
+        btn_txt.set("")
+        feedback["text"] = "Col recall?"
         root.update_idletasks()
         return
 
@@ -1258,12 +1334,14 @@ def runner(*args):
     try:
         # data from gui, then process it (inside the dataclass ProcedureData)
         proc_data = ProcedureData.from_string_vars(
-            an, end, nur, up, co, ba, asc, po, caecum, con, mes, cl, ot
+            an, end, nur, up, co, ba, asc, po, caecum, con, mes, cl, ot, per, colr
         )
 
         proc_data = patient_id_scrape(proc_data)
         if not proc_data.mrn.isdigit():
-            pya.alert("Error in data. Try again.\nHint: Don't touch mouse during collection")
+            pya.alert(
+                "Error in data. Try again.\nHint: Don't touch mouse during collection"
+            )
             raise BillingException
 
         # double check
@@ -1271,7 +1349,6 @@ def runner(*args):
         # Doctor check
 
         # Time since last colon check
-        
 
         try:
             update_and_verify_last_colon(proc_data)
@@ -1288,8 +1365,6 @@ def runner(*args):
 
         # make day surgery module dumper
         day_surgery_shelver(proc_data)
-
-    
 
         # make day_surgery.csv - need to change name
         # confusing with Blue Chip day surgery module
@@ -1325,12 +1400,14 @@ def runner(*args):
             if proc_data.insur_code == "bill_given":
                 print_receipt(proc_data.anaesthetist, anaesthetic_tuple)
         close_out(proc_data.anaesthetist)
-        
+
         # alert secretaries of new patient
         to_watched()
         send_name = proc_data.full_name
-        requests.post("https://ntfy.sh/dec601billing",
-                      data=f"{send_name} 😀".encode(encoding='utf-8'))
+        requests.post(
+            "https://ntfy.sh/dec601billing",
+            data=f"{send_name} 😀".encode(encoding="utf-8"),
+        )
         pprint(proc_data)
 
     except BillingException:
@@ -1342,8 +1419,9 @@ def runner(*args):
         btn_txt.set("Try Again")
         feedback["text"] = f"{e}"
         root.update_idletasks()
-        requests.post("https://ntfy.sh/dec601doclog",
-        data=f"{e}".encode(encoding='utf-8'))
+        requests.post(
+            "https://ntfy.sh/dec601doclog", data=f"{e}".encode(encoding="utf-8")
+        )
         return
 
     asc.set("ASA")
@@ -1361,6 +1439,10 @@ def runner(*args):
     ba_box.grid_remove()
     path_box.grid_remove()
     btn.config(text="Send!")
+    per.set("? Pe recall")
+    pe_recall.grid_remove()
+    colr.set("? Col recall")
+    col_recall.grid_remove()
     mess_box.grid_remove()
     if proc_data.endoscopist in BILLING_ENDOSOSCOPISTS:
         con_label.grid()
@@ -1449,6 +1531,10 @@ ba = StringVar()
 cl = StringVar()
 con = StringVar()
 con.trace("w", button_enable)
+per = StringVar()
+per.trace("w", button_enable)
+colr = StringVar()
+colr.trace("w", button_enable)
 mes = StringVar()
 ot = StringVar()
 fu = StringVar()
@@ -1495,6 +1581,7 @@ ttk.Label(midframe, text=space).grid(column=2, row=0, sticky=E)  # place holder
 up_box = ttk.Combobox(midframe, textvariable=up, width=20)
 up_box["values"] = UPPERS
 up_box["state"] = "readonly"
+up_box.bind("<<ComboboxSelected>>", upper_combo_click)
 up_box.grid(column=0, row=1, sticky=W)
 
 col_box = ttk.Combobox(midframe, textvariable=co, width=20)
@@ -1546,6 +1633,17 @@ s_box = Spinbox(midframe, from_=0, to=30, textvariable=cl, width=5)
 s_box.grid(column=1, row=3)
 ttk.Label(midframe, text="     ").grid(column=1, row=3, sticky=E)
 
+# recalls
+pe_recall = ttk.Combobox(midframe, textvariable=per, width=20)
+pe_recall["values"] = ["No Pe recall", "1 year", "2 years", "3 years", "5 years"]
+pe_recall["state"] = "readonly"
+pe_recall.grid(column=0, row=4, sticky=W)
+
+col_recall = ttk.Combobox(midframe, textvariable=colr, width=20)
+col_recall["values"] = ["No colon recall", "1 year", "2 years", "3 years", "5 years"]
+col_recall["state"] = "readonly"
+col_recall.grid(column=1, row=4, sticky=W)
+
 # failure to reach caecum label
 boldStyle = ttk.Style()
 boldStyle.configure("Bold.TLabel", size=20, weight="bold")
@@ -1577,21 +1675,21 @@ btn_txt.set("Missimg data")
 btn.config(state="disabled")
 # orig_color = btn.cget("bg")
 
-space = "              " * 3
-ttk.Label(bottomframe, text=space).grid(column=2, row=3, sticky=E)  # place holder
+# space = "     " * 1
+# ttk.Label(bottomframe, text=space).grid(column=2, row=3, sticky=E)  # place holder
 
 feedback = ttk.Label(bottomframe, text="Missing staff  data")
 feedback.grid(column=0, row=4, sticky=W)
 
 
 for child in topframe.winfo_children():
-    child.grid_configure(padx=5, pady=5)
+    child.grid_configure(padx=5, pady=1)
 
 for child in midframe.winfo_children():
-    child.grid_configure(padx=5, pady=15)
+    child.grid_configure(padx=5, pady=25)
 
 for child in bottomframe.winfo_children():
-    child.grid_configure(padx=5, pady=15)
+    child.grid_configure(padx=5, pady=20)
 
 an.set("Anaesthetist")
 end.set("Endoscopist")
@@ -1612,6 +1710,10 @@ con_button1.grid_remove()
 con_button2.grid_remove()
 caecum_box.grid_remove()
 ba_box.grid_remove()
+pe_recall.grid_remove()
+col_recall.grid_remove()
+per.set("? Pe recall")
+colr.set("? Col recall")
 mess_box.grid_remove()
 fund_box.grid_remove()
 

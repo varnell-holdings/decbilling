@@ -5,6 +5,7 @@ from pprint import pprint
 import pyperclip
 import time
 import os
+import tkinter as tk
 import webbrowser
 
 from pyisemail import is_email
@@ -37,6 +38,7 @@ elif user == "John2":
 
 BILLING_ANAESTHETISTS = ["Dr S Vuong", "Dr J Tillett"]
 
+
 @dataclass
 class ScrapedData:
     title: str = ""
@@ -56,11 +58,101 @@ class ScrapedData:
     full_address: str = ""
 
 
+class BillingException(Exception):
+    pass
+
+
+class PersistentEntryDialog(tk.Toplevel):
+    def __init__(self, parent, title, prompt):
+        super().__init__(parent)
+
+        # Make this window stay on top
+        self.transient(parent)
+        self.grab_set()
+
+        # Set window properties
+        self.title(title)
+        self.resizable(False, False)
+        self.protocol("WM_DELETE_WINDOW", self.cancel)
+
+        # Create and place widgets
+        tk.Label(self, text=prompt).pack(padx=10, pady=10)
+
+        # Use Entry widget for single-line input
+        self.entry = tk.Entry(self, width=40)
+        self.entry.pack(padx=10, pady=10)
+
+        # Button frame
+        button_frame = tk.Frame(self)
+        button_frame.pack(padx=10, pady=10)
+
+        # OK and Restart buttons
+        tk.Button(button_frame, text="OK", width=10, command=self.ok).pack(
+            side=tk.LEFT, padx=5
+        )
+        tk.Button(button_frame, text="Restart", width=10, command=self.cancel).pack(
+            side=tk.LEFT, padx=5
+        )
+
+        # Set focus to the entry
+        self.entry.focus_set()
+
+        # Center the window
+        self.center_window()
+
+        # Initialize result
+        self.result = None
+
+        # Wait for the window to be destroyed
+        self.wait_window(self)
+
+    def ok(self):
+        # Get the text from the entry
+        self.result = self.entry.get()
+        self.destroy()
+
+    def cancel(self):
+        # Set result to None and destroy the window
+        self.result = None
+        self.destroy()
+
+    def center_window(self):
+        # Update to ensure the window size is calculated
+        self.update_idletasks()
+
+        # Get the window size and screen dimensions
+        width = self.winfo_width()
+        height = self.winfo_height()
+        screen_width = self.winfo_screenwidth()
+        screen_height = self.winfo_screenheight()
+
+        # Calculate position
+        x = (screen_width - width) // 2
+        y = (screen_height - height) // 2
+
+        # Set the window position
+        self.geometry(f"{width}x{height}+{x}+{y}")
+
+
+def get_manual_data(
+    root, title="Manual Entry", prompt="Please enter the data manually:"
+):
+    """
+    Show a dialog to get manual data entry from the user.
+    Returns the entered data or None if cancelled.
+    """
+    dialog = PersistentEntryDialog(root, title, prompt)
+    if not dialog:
+        raise BillingException
+    else:
+        return dialog.result
+
+
 def scraper(info, email=False):
     """Takes a string for the piece of data to be scraped.
     st changes the speed of retries"""
     result = pyperclip.copy("na")
-    
+
     for i in range(3):
         time.sleep((i**2) / ST)
         pya.hotkey("ctrl", "c")
@@ -72,10 +164,9 @@ def scraper(info, email=False):
         if result != "na":
             break
     if result == "na":
-        while True:
-            result = pya.prompt(text=f"Please enter patient's {info}")
-            if result:
-                break
+        result = get_manual_data(
+            root, title="Manual Entry", prompt="Please enter the {info}:"
+        )
     return result
 
 
@@ -128,7 +219,7 @@ def patient_id_scrape(sd):
     sd.email = scraper("email", email=True)
 
     sd.full_name = sd.title + " " + sd.first_name + " " + sd.last_name
-    
+
     return sd
 
 
@@ -137,9 +228,9 @@ def address_scrape(sd):
     Used if billing anaesthetist.
     """
     # need to work out how to click/tab here from email box
-    pya.keyDown('shift')
-    pya.press('tab', presses=8)
-    pya.keyUp('shift')
+    pya.keyDown("shift")
+    pya.press("tab", presses=8)
+    pya.keyUp("shift")
     sd.street = scraper("Street No. & Name")
     sd.street = sd.street.replace(",", "")
 
@@ -152,8 +243,8 @@ def address_scrape(sd):
     sd.postcode = scraper("Postcode")
 
     sd.state = postcode_to_state(sd)
-    sd.full_address = sd.street + " " + sd.suburb + " " + sd.state  + " " + sd.postcode
-    
+    sd.full_address = sd.street + " " + sd.suburb + " " + sd.state + " " + sd.postcode
+
     return sd
 
 
@@ -190,11 +281,14 @@ def close_out(anaesthetist):
     if anaesthetist in BILLING_ANAESTHETISTS:
         anaes_surname = anaesthetist.split()[-1]
         webbrowser.open(
-            f"d:\\john tillet\\episode_data\\sedation\\{anaes_surname}.html".format(anaesthetist.split()[-1])
+            f"d:\\john tillet\\episode_data\\sedation\\{anaes_surname}.html".format(
+                anaesthetist.split()[-1]
+            )
         )
 
 
 if __name__ == "__main__":
+    root = tk.Tk()
     sd = ScrapedData()
     input()
     patient_id_scrape(sd)

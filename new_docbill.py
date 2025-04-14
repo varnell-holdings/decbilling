@@ -51,7 +51,7 @@ user = os.getenv("USERNAME")
 def parse_args():
     parser = argparse.ArgumentParser(description="test mode option")
 
-    parser.add_argument('--mac', action='store_true')
+    parser.add_argument("--mac", action="store_true")
 
     return parser.parse_args()
 
@@ -79,7 +79,8 @@ else:
 
     from blue_chip_scrapers import patient_id_scrape, address_scrape, close_out
     from blue_chip_scrapers import scrape_mcn_and_ref, scrape_fund_number
-    from blue_chip_scrapers import scraper, postcode_to_state, ST
+    from blue_chip_scrapers import scraper, postcode_to_state, ST, get_manual_data
+    from blue_chip_scrapers import PersistentEntryDialog
 
 logfilename = epdata_path / "doclog.log"
 logging.basicConfig(
@@ -452,6 +453,8 @@ def add_message():
 
 def open_dox():
     webbrowser.open("http://dox.endoscopy.local/Landing")
+
+
 #     pya.hotkey("ctrl", "w")
 
 
@@ -1263,7 +1266,9 @@ def runner(*args):
 
         proc_data = patient_id_scrape(proc_data)
         if not proc_data.mrn.isdigit():
-            pya.alert("Error in data. Try again.\nHint: Don't touch mouse during collection")
+            pya.alert(
+                "Error in data. Try again.\nHint: Don't touch mouse during collection"
+            )
             raise BillingException
 
         # double check
@@ -1271,7 +1276,6 @@ def runner(*args):
         # Doctor check
 
         # Time since last colon check
-        
 
         try:
             update_and_verify_last_colon(proc_data)
@@ -1288,8 +1292,6 @@ def runner(*args):
 
         # make day surgery module dumper
         day_surgery_shelver(proc_data)
-
-    
 
         # make day_surgery.csv - need to change name
         # confusing with Blue Chip day surgery module
@@ -1325,12 +1327,14 @@ def runner(*args):
             if proc_data.insur_code == "bill_given":
                 print_receipt(proc_data.anaesthetist, anaesthetic_tuple)
         close_out(proc_data.anaesthetist)
-        
+
         # alert secretaries of new patient
         to_watched()
         send_name = proc_data.full_name
-        requests.post("https://ntfy.sh/dec601billing",
-                      data=f"{send_name} 😀".encode(encoding='utf-8'))
+        requests.post(
+            "https://ntfy.sh/dec601billing",
+            data=f"{send_name} 😀".encode(encoding="utf-8"),
+        )
         pprint(proc_data)
 
     except BillingException:
@@ -1342,8 +1346,9 @@ def runner(*args):
         btn_txt.set("Try Again")
         feedback["text"] = f"{e}"
         root.update_idletasks()
-        requests.post("https://ntfy.sh/dec601doclog",
-        data=f"{e}".encode(encoding='utf-8'))
+        requests.post(
+            "https://ntfy.sh/dec601doclog", data=f"{e}".encode(encoding="utf-8")
+        )
         return
 
     asc.set("ASA")

@@ -1,7 +1,6 @@
 """New and improved docbill! Thanks to Thailand March 2025"""
 
 
-import argparse
 from configparser import ConfigParser
 import csv
 from dataclasses import dataclass
@@ -15,6 +14,7 @@ import random
 import shelve
 import shutil
 from tempfile import NamedTemporaryFile
+import time
 from tkinter import ttk, StringVar, Tk, W, E, N, S, Spinbox, FALSE, Menu, Frame
 import tkinter as tk
 import webbrowser
@@ -26,6 +26,10 @@ from jinja2 import Environment, FileSystemLoader
 import pymsgbox as pmb
 import pyautogui as pya
 import requests
+from pyisemail import is_email
+import pyperclip
+
+import win32api
 
 import decbatches
 
@@ -45,41 +49,18 @@ overide_endoscopist = False
 finish_time = False
 biller_anaesthetist_flag = False
 
-user = os.getenv("USERNAME")
+ST = 10
+
+epdata_path = Path("D:\\JOHN TILLET\\episode_data")
+source_path = Path("D:\\JOHN TILLET\\source")
+nobue_path = Path("D:\\Nobue")
+
+caecum_csv_file = source_path / "caecum" / "caecum.csv"
+sec_web_page = nobue_path / "today_new.html"
+sec_web_page1 = nobue_path / "today_new1.html"
+sec_long_web_page = nobue_path / "today_long.html"
 
 
-def parse_args():
-    parser = argparse.ArgumentParser(description="test mode option")
-
-    parser.add_argument('--mac', action='store_true')
-
-    return parser.parse_args()
-
-
-args = parse_args()
-print(args.mac)
-
-if args.mac:  # mac testing - defined in starter.py
-    epdata_path = Path("./files")
-    caecum_csv_file = epdata_path / "caecum" / "caecum.csv"
-    sec_web_page = epdata_path / "today_new.html"
-    sec_long_web_page = epdata_path / "today_long.html"
-
-    from mock_scrapers import patient_id_scrape, address_scrape, scrape_mcn_and_ref
-    from mock_scrapers import scrape_fund_number, close_out
-else:
-    epdata_path = Path("D:\\JOHN TILLET\\episode_data")
-    source_path = Path("D:\\JOHN TILLET\\source")
-    nobue_path = Path("D:\\Nobue")
-
-    caecum_csv_file = source_path / "caecum" / "caecum.csv"
-    sec_web_page = nobue_path / "today_new.html"
-    sec_web_page1 = nobue_path / "today_new1.html"
-    sec_long_web_page = nobue_path / "today_long.html"
-
-    from blue_chip_scrapers import patient_id_scrape, address_scrape, close_out
-    from blue_chip_scrapers import scrape_mcn_and_ref, scrape_fund_number
-    from blue_chip_scrapers import scraper, postcode_to_state, ST
 
 logfilename = epdata_path / "doclog.log"
 logging.basicConfig(
@@ -129,7 +110,29 @@ config_parser.read(funds_path)
 FUNDS = config_parser.options("funds")
 FUNDS = [a.title() for a in FUNDS]
 
+
+user = os.getenv("USERNAME")
+
+if user == "John":
+    RED_BAR_POS = (280, 790)
+    TITLE_POS = (230, 170)
+    MRN_POS = (740, 315)
+    POST_CODE_POS = (610, 355)
+    DOB_POS = (750, 220)
+    FUND_NO_POS = (770, 703)
+    CLOSE_POS = (1020, 120)
+elif user == "John2":
+    RED_BAR_POS = (160, 630)
+    TITLE_POS = (200, 134)
+    MRN_POS = (600, 250)
+    POST_CODE_POS = (490, 284)
+    DOB_POS = (600, 174)
+    FUND_NO_POS = (580, 548)
+    CLOSE_POS = (774, 96)
+
 BILLING_ANAESTHETISTS = ["Dr S Vuong", "Dr J Tillett"]
+
+scr_width, scr_height = pya.size()
 
 BILLING_ENDOSOSCOPISTS = [
     "Dr A Wettstein",
@@ -452,6 +455,8 @@ def add_message():
 
 def open_dox():
     webbrowser.open("http://dox.endoscopy.local/Landing")
+
+
 #     pya.hotkey("ctrl", "w")
 
 
@@ -1246,6 +1251,264 @@ def print_receipt(anaesthetist, episode):
     acc.save(printfile)
 
 
+class PersistentEntryDialog(tk.Toplevel):
+    def __init__(self, parent, title, prompt):
+        super().__init__(parent)
+
+        # Make this window stay on top
+        self.transient(parent)
+        self.grab_set()
+
+        # Set window properties
+        self.title(title)
+        self.resizable(False, False)
+        self.protocol("WM_DELETE_WINDOW", self.cancel)
+
+        # Create and place widgets
+        tk.Label(self, text=prompt).pack(padx=10, pady=10)
+
+        # Use Entry widget for single-line input
+        self.entry = tk.Entry(self, width=40)
+        self.entry.pack(padx=10, pady=10)
+
+        # Button frame
+        button_frame = tk.Frame(self)
+        button_frame.pack(padx=10, pady=10)
+
+        # OK and Restart buttons
+        tk.Button(button_frame, text="OK", width=10, command=self.ok).pack(
+            side=tk.LEFT, padx=5
+        )
+        tk.Button(button_frame, text="Restart", width=10, command=self.cancel).pack(
+            side=tk.LEFT, padx=5
+        )
+
+        # Set focus to the entry
+        self.entry.focus_set()
+
+        # Center the window
+        self.center_window()
+
+        # Initialize result
+        self.result = None
+
+        # Wait for the window to be destroyed
+        self.wait_window(self)
+
+    def ok(self):
+        # Get the text from the entry
+        self.result = self.entry.get()
+        self.destroy()
+
+    def cancel(self):
+        # Set result to None and destroy the window
+        self.result = None
+        self.destroy()
+
+    def center_window(self):
+        # Update to ensure the window size is calculated
+        self.update_idletasks()
+
+        # Get the window size and screen dimensions
+        width = self.winfo_width()
+        height = self.winfo_height()
+        screen_width = self.winfo_screenwidth()
+        screen_height = self.winfo_screenheight()
+
+        # Calculate position
+        x = (screen_width - width) // 2
+        y = (screen_height - height) // 2
+
+        # Set the window position
+        self.geometry(f"{width}x{height}+{x}+{y}")
+
+
+def get_manual_data(
+    root, title="Manual Entry", prompt="Please enter the data manually:"
+):
+    """
+    Show a dialog to get manual data entry from the user.
+    Returns the entered data or None if cancelled.
+    """
+    dialog = PersistentEntryDialog(root, title, prompt)
+    if not dialog:
+        raise BillingException
+    else:
+        return dialog.result
+
+
+def scraper(info, email=False):
+    """Takes a string for the piece of data to be scraped.
+    st changes the speed of retries"""
+    result = pyperclip.copy("na")
+
+    for i in range(3):
+        time.sleep((i**2) / ST)
+        pya.hotkey("ctrl", "c")
+        result = pyperclip.paste()
+        if email:
+            result = result.split()[0]
+            if not is_email:
+                result = ""
+        if result != "na":
+            break
+    if result == "na":
+        result = get_manual_data(
+            root, title="Manual Entry", prompt="Please enter the {info}:"
+        )
+    return result
+
+
+def postcode_to_state(sd):
+    post_dic = {"3": "VIC", "4": "QLD", "5": "SA", "6": "WA", "7": "TAS"}
+    postcode = sd.postcode
+    try:
+        if postcode[0] == "0":
+            if postcode[:2] in {"08", "09"}:
+                return "NT"
+            else:
+                return ""
+        elif postcode[0] in {"0", "1", "8", "9"}:
+            return ""
+        elif postcode[0] == "2":
+            if (2600 <= int(postcode) <= 2618) or postcode[:2] == 29:
+                return "ACT"
+            else:
+                return "NSW"
+        else:
+            return post_dic[postcode[0]]
+    except Exception:
+        return ""
+
+
+def patient_id_scrape(sd):
+    """Scrape names, mrn, dob, email from blue chip."""
+    pya.moveTo(TITLE_POS)
+    x1, y1 = TITLE_POS
+    # fix_pos = x1, y1, x1 +1, y1 +1
+    disable_mouse(x1, y1, x1 +1, y1 +1)
+    pya.doubleClick()
+    sd.title = scraper("Title")
+
+    pya.press("tab")
+    sd.first_name = scraper("First Name")
+
+    pya.press("tab")
+    pya.press("tab")
+    sd.last_name = scraper("Surname")
+
+    enable_mouse()
+    pya.moveTo(MRN_POS)
+    x1, y1 = MRN_POS
+    disable_mouse(x1, y1, x1 +1, y1 +1)
+    pya.doubleClick()
+    sd.mrn = scraper("MRN")
+
+    enable_mouse()
+    pya.moveTo(DOB_POS)
+    x1, y1 = DOB_POS
+    disable_mouse(x1, y1, x1 +1, y1 +1)
+    pya.doubleClick()
+    sd.dob = scraper("date of birth (dd/mm/yyyy)")
+    if len(sd.dob) == 9:
+        sd.dob = "0" + sd.dob
+
+    pya.press("tab", presses=10)
+    sd.email = scraper("email", email=True)
+
+    sd.full_name = sd.title + " " + sd.first_name + " " + sd.last_name
+
+    return sd
+
+
+def address_scrape(sd):
+    """Scrape address from blue chip.
+    Used if billing anaesthetist.
+    """
+    # need to work out how to click/tab here from email box
+    pya.keyDown("shift")
+    pya.press("tab", presses=8)
+    pya.keyUp("shift")
+    sd.street = scraper("Street No. & Name")
+    sd.street = sd.street.replace(",", "")
+
+    pya.press("tab")
+    pya.press("tab")
+    sd.suburb = scraper("Suburb")
+
+    enable_mouse()
+    pya.moveTo(POST_CODE_POS, duration=0.1)
+    x1, y1 = POST_CODE_POS
+    disable_mouse(x1, y1, x1 +1, y1 +1)
+    pya.doubleClick()
+    sd.postcode = scraper("Postcode")
+
+    sd.state = postcode_to_state(sd)
+    sd.full_address = sd.street + " " + sd.suburb + " " + sd.state + " " + sd.postcode
+
+    return sd
+
+
+def scrape_mcn_and_ref(sd):
+    """Scrape mcn from blue chip."""
+    pya.press("tab", presses=11)
+    sd.mcn = scraper("mcn")
+    sd.mcn = sd.mcn.replace(" ", "")
+
+    pya.press("tab", presses=2)
+    sd.ref = scraper("ref")
+
+    return sd
+
+
+def scrape_fund_number(sd):
+    """Scrape fund number from blue chip."""
+    enable_mouse()
+    pya.moveTo(FUND_NO_POS, duration=0.1)
+    x1, y1 = FUND_NO_POS
+    disable_mouse(x1, y1, x1 +1, y1 +1)
+    pya.doubleClick()
+    sd.fund_number = scraper("Fund Number")
+
+    return sd
+
+
+def close_out(anaesthetist):
+    """Close patient file with mouse click and display billing details
+    if a billing anaesthetist."""
+    enable_mouse()
+    pya.moveTo(CLOSE_POS[0], CLOSE_POS[1])
+    x1, y1 = CLOSE_POS[0], CLOSE_POS[1]
+    disable_mouse(x1, y1, x1 +1, y1 +1)
+    pya.click()
+    # time.sleep(0.25)
+    pya.hotkey("alt", "n")
+    enable_mouse()
+    pya.moveTo(x=780, y=110)
+    if anaesthetist in BILLING_ANAESTHETISTS:
+        anaes_surname = anaesthetist.split()[-1]
+        webbrowser.open(
+            f"d:\\john tillet\\episode_data\\sedation\\{anaes_surname}.html".format(
+                anaesthetist.split()[-1]
+            )
+        )
+
+
+def disable_mouse(x1, y1, x2, y2):
+    # Set clip area to small area (effectively disabling mouse)
+    win32api.ClipCursor((x1, y1, x2, y2))
+    print("Mouse disabled")
+
+
+def enable_mouse():
+    # Remove all cursor restrictions
+    win32api.ClipCursor((0, 0, scr_height, scr_width))
+    print("Mouse enabled")
+
+
+
+
+
 def runner(*args):
     """Main program. Runs when button pushed."""
     global overide_endoscopist  # for future endoscopist check
@@ -1263,7 +1526,9 @@ def runner(*args):
 
         proc_data = patient_id_scrape(proc_data)
         if not proc_data.mrn.isdigit():
-            pya.alert("Error in data. Try again.\nHint: Don't touch mouse during collection")
+            pya.alert(
+                "Error in data. Try again.\nHint: Don't touch mouse during collection"
+            )
             raise BillingException
 
         # double check
@@ -1271,7 +1536,6 @@ def runner(*args):
         # Doctor check
 
         # Time since last colon check
-        
 
         try:
             update_and_verify_last_colon(proc_data)
@@ -1288,8 +1552,6 @@ def runner(*args):
 
         # make day surgery module dumper
         day_surgery_shelver(proc_data)
-
-    
 
         # make day_surgery.csv - need to change name
         # confusing with Blue Chip day surgery module
@@ -1325,12 +1587,14 @@ def runner(*args):
             if proc_data.insur_code == "bill_given":
                 print_receipt(proc_data.anaesthetist, anaesthetic_tuple)
         close_out(proc_data.anaesthetist)
-        
+
         # alert secretaries of new patient
         to_watched()
         send_name = proc_data.full_name
-        requests.post("https://ntfy.sh/dec601billing",
-                      data=f"{send_name} 😀".encode(encoding='utf-8'))
+        requests.post(
+            "https://ntfy.sh/dec601billing",
+            data=f"{send_name} 😀".encode(encoding="utf-8"),
+        )
         pprint(proc_data)
 
     except BillingException:
@@ -1342,9 +1606,11 @@ def runner(*args):
         btn_txt.set("Try Again")
         feedback["text"] = f"{e}"
         root.update_idletasks()
-        requests.post("https://ntfy.sh/dec601doclog",
-        data=f"{e}".encode(encoding='utf-8'))
+        requests.post(
+            "https://ntfy.sh/dec601doclog", data=f"{e}".encode(encoding="utf-8")
+        )
         return
+    
 
     asc.set("ASA")
     up.set("No Upper")

@@ -1353,6 +1353,7 @@ def scraper(info, email=False):
         if result != "na":
             break
     if result == "na":
+        enable_mouse()
         result = get_manual_data(
             root, title="Manual Entry", prompt=f"Please enter the {info}:"
         )

@@ -1471,6 +1471,7 @@ def scrape_fund_number(sd):
     disable_mouse(x1, y1, x1 +1, y1 +1)
     pya.doubleClick()
     sd.fund_number = scraper("Fund Number")
+    enable_mouse()
 
     return sd
 

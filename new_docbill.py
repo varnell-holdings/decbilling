@@ -1354,9 +1354,11 @@ def scraper(info, email=False):
             break
     if result == "na":
         result = get_manual_data(
-            root, title="Manual Entry", prompt="Please enter the {info}:"
+            root, title="Manual Entry", prompt=f"Please enter the {info}:"
         )
     return result
+        # pya.alert("Error reading data. Try again.")
+        # raise BillingException()
 
 
 def postcode_to_state(sd):
@@ -1610,6 +1612,8 @@ def runner(*args):
             "https://ntfy.sh/dec601doclog", data=f"{e}".encode(encoding="utf-8")
         )
         return
+    finally:
+        enable_mouse()
     
 
     asc.set("ASA")

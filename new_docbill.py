@@ -390,7 +390,7 @@ class ProcedureData:
         self.insur_code = FUND_TO_CODE.get(self.fund, "no_gap")
 
         if (
-            self.insur_code in {"send_bill", "bill_given"}
+            self.insur_code in {"send_bill"}
             and self.anaesthetist == "Dr J Tillett"
         ):
             self.fund = pmb.prompt(
@@ -1573,30 +1573,27 @@ def runner(*args):
                 + proc_data.postcode
             )
 
-            if proc_data.insur_code == "adf":
+            if proc_data.insur_code in{ "adf", "bill_given"}:
                 proc_data.mcn = ""
             elif proc_data.insur_code in {"bb", "va"}:
                 proc_data.fund_number = ""
                 proc_data = scrape_mcn_and_ref(proc_data)
-            elif proc_data.insur_code in {"send_bill", "bill_given"}:
+            elif proc_data.insur_code in {"send_bill"}:
+                proc_data.mcn = ""
                 proc_data = scrape_fund_number(proc_data)
             else:
                 proc_data = scrape_mcn_and_ref(proc_data)
                 proc_data = scrape_fund_number(proc_data)
 
-            if proc_data.mrn == "na":
-                proc_data.mrn = get_manual_data(
-                    root, title="Manual Entry", prompt="Please enter the MRN."
+            if proc_data.mcn == "na":
+                proc_data.mcn = get_manual_data(
+                    root, title="Manual Entry", prompt="Please enter the MCN."
                 )
-            if not proc_data.mrn:
-                raise BillingException
 
             if proc_data.ref == "na":
                 proc_data.ref = get_manual_data(
                     root, title="Manual Entry", prompt="Please enter the REF."
                 )
-            if not proc_data.ref:
-                raise BillingException
 
             if proc_data.fund_number == "na":
                 proc_data.fund_number = get_manual_data(
@@ -1604,8 +1601,7 @@ def runner(*args):
                     title="Manual Entry",
                     prompt="Please enter the Fund Number.",
                 )
-            if (not proc_data.fund_number) and proc_data.insur_code == "no_gap":
-                raise BillingException
+
 
             # ? make patient ID database
 

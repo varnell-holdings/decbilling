@@ -147,7 +147,7 @@ BILLING_ENDOSOSCOPISTS = [
 ASA = ["No Sedation", "ASA 1", "ASA 2", "ASA 3"]
 
 ASA_DIC = {
-    "No Sedation": None,
+    "No Sedation": "",
     "ASA 1": "92515-19",
     "ASA 2": "92515-29",
     "ASA 3": "92515-39",
@@ -945,23 +945,34 @@ def update_csv(filename, new_row, data_1, data_2, compare_1=0, compare_2=2):
     shutil.move(temp_file.name, filename)
 
 
-def update_day_surgery_csv(pd):
+def update_episode_csv(pd):
     today_str_for_ds = today.strftime("%d-%m-%Y")
+    an = pd.anaesthetist.split()[-1]
+    en = pd.endoscopist.split()[-1]
+    asa = pd.asa
+    if asa == "":
+        asa = "0"
+    else:
+        asa = asa[-2]
+    up = pd.upper
+    if up != "":
+        up = up.split("-")[0]
+    nu = pd.nurse.split()[-1]
     new_row = [
         today_str_for_ds,
         pd.mrn,
         pd.in_theatre,
         pd.out_theatre,
-        pd.anaesthetist,
-        pd.endoscopist,
-        pd.asa,
-        pd.upper,
+        an,
+        en,
+        asa,
+        up,
         pd.colon,
         pd.banding,
-        pd.nurse,
+        nu,
         pd.clips,
         "",
-        pd.message,
+        "",
         pd.caecum_reason_flag,
         pd.title,
         pd.first_name,
@@ -969,11 +980,6 @@ def update_day_surgery_csv(pd):
         pd.dob,
         pd.email,
     ]
-    ds_csv_address = epdata_path / "day_surgery.csv"
-    if not "test" in pd.message.lower():
-        update_csv(
-            ds_csv_address, new_row, today_str_for_ds, pd.mrn, compare_1=0, compare_2=1
-        )
 
 
 def update_caecum_csv(pd):
@@ -1546,9 +1552,8 @@ def runner(*args):
         # make Blue Chip day surgery module dumper
         day_surgery_shelver(proc_data)
 
-        # make day_surgery.csv - need to change name
-        # confusing with Blue Chip day surgery module
-        update_day_surgery_csv(proc_data)
+        # make episode.csv
+        update_episode_csv(proc_data)
 
         # make caecum.csv
         if proc_data.caecum_reason_flag:

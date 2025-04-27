@@ -40,7 +40,7 @@ headers = [
     "endo",
     "asa",
     "upper",
-    "lower",
+    "colon",
     "anal",
     "nurse",
     "clips",

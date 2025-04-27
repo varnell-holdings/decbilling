@@ -981,6 +981,12 @@ def update_episode_csv(pd):
         pd.email,
     ]
 
+    csv_address = epdata_path / "episodes.csv"
+        if not "test" in pd.message.lower():
+            update_csv(
+                csv_address, new_row, today_str_for_ds, pd.mrn, compare_1=0, compare_2=1
+            )
+
 
 def update_caecum_csv(pd):
     """Write whether scope got to caecum. For QPS"""
@@ -1552,8 +1558,8 @@ def runner(*args):
         # make Blue Chip day surgery module dumper
         day_surgery_shelver(proc_data)
 
-        # make episode.csv
-        update_episode_csv(proc_data)
+        # make episodes.csv
+        update_episodes_csv(proc_data)
 
         # make caecum.csv
         if proc_data.caecum_reason_flag:

@@ -911,7 +911,7 @@ def day_surgery_shelver(pd):
         raise BillingException
 
 
-def update_csv(filename, new_row, data_1, data_2, compare_1=0, compare_2=2):
+def update_csv(filename, new_row, data_1, data_2, compare_1=0, compare_2=2, headers=False):
     """updates a csv without creating duplicates.
     compares 2 pieces of date from new_row with their equivalents
     by position in the csv."""
@@ -923,6 +923,8 @@ def update_csv(filename, new_row, data_1, data_2, compare_1=0, compare_2=2):
         with open(filename, "r", newline="") as csvfile:
             reader = csv.reader(csvfile, dialect="excel", lineterminator="\n")
             writer = csv.writer(temp_file)
+            if headers:
+                next(reader)
             # Check each row
             for row in reader:
                 if row[compare_1] == data_1 and row[compare_2] == data_2:
@@ -984,7 +986,7 @@ def update_episode_csv(pd):
     csv_address = epdata_path / "episodes.csv"
         if not "test" in pd.message.lower():
             update_csv(
-                csv_address, new_row, today_str_for_ds, pd.mrn, compare_1=0, compare_2=1
+                csv_address, new_row, today_str_for_ds, pd.mrn, compare_1=0, compare_2=1, headers=True
             )
 
 

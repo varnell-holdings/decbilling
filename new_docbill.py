@@ -924,7 +924,8 @@ def update_csv(filename, new_row, data_1, data_2, compare_1=0, compare_2=2, head
             reader = csv.reader(csvfile, dialect="excel", lineterminator="\n")
             writer = csv.writer(temp_file)
             if headers:
-                next(reader)
+                first_row = next(reader)
+                writer.writerow(first_row)
             # Check each row
             for row in reader:
                 if row[compare_1] == data_1 and row[compare_2] == data_2:

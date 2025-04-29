@@ -56,7 +56,7 @@ epdata_path = Path("D:\\JOHN TILLET\\episode_data")
 source_path = Path("D:\\JOHN TILLET\\source")
 nobue_path = Path("D:\\Nobue")
 
-caecum_csv_file = source_path / "caecum" / "caecum.csv"
+caecum_csv_file = source_path / "active" / "caecum" / "caecum.csv"
 sec_web_page = nobue_path / "today_new.html"
 sec_web_page1 = nobue_path / "today_new1.html"
 sec_long_web_page = nobue_path / "today_long.html"
@@ -948,7 +948,7 @@ def update_csv(filename, new_row, data_1, data_2, compare_1=0, compare_2=2, head
     shutil.move(temp_file.name, filename)
 
 
-def update_episode_csv(pd):
+def update_episodes_csv(pd):
     today_str_for_ds = today.strftime("%d-%m-%Y")
     an = pd.anaesthetist.split()[-1]
     en = pd.endoscopist.split()[-1]
@@ -985,10 +985,10 @@ def update_episode_csv(pd):
     ]
 
     csv_address = epdata_path / "episodes.csv"
-        if not "test" in pd.message.lower():
-            update_csv(
-                csv_address, new_row, today_str_for_ds, pd.mrn, compare_1=0, compare_2=1, headers=True
-            )
+    if not "test" in pd.message.lower():
+        update_csv(
+            csv_address, new_row, today_str_for_ds, pd.mrn, compare_1=0, compare_2=1, headers=True
+        )
 
 
 def update_caecum_csv(pd):

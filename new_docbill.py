@@ -11,6 +11,7 @@ from pathlib import Path
 import pickle
 from pprint import pprint
 import random
+import re
 import shelve
 import shutil
 from tempfile import NamedTemporaryFile
@@ -1360,7 +1361,7 @@ def scraper(email=False):
     pya.hotkey("ctrl", "c")
     result = pyperclip.paste()
     if email:
-        result = result.split()[0]
+        result = re.split(r'[\s,:/;\\]', result)[0]
         if not is_email(result):
             result = ""
 

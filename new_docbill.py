@@ -36,6 +36,7 @@ import pyperclip
 
 import decbatches
 
+pya.PAUSE = 0.2
 
 # import concurrent.futures
 # import boto3
@@ -166,6 +167,7 @@ UPPERS = [
     "Cancelled",
     "BRAVO",
     "HALO",
+    "Pe + Botox Crico",
 ]
 
 UPPER_DIC = {
@@ -180,6 +182,7 @@ UPPER_DIC = {
     "Pe with polypectomy": "30478-04",
     "Pe with varix banding": "30478-20",
     "BRAVO": "30490-00",
+    "Pe + Botox Crico": "30473-00",
 }
 
 COLONS = [
@@ -312,6 +315,8 @@ class ProcedureData:
             self.message += "Also bill 30473-00"
         if self.upper == "HALO":
             self.message += "Halo Ultra."
+        if self.upper == "Pe + Botox Crico":
+            self.message += "Botox Cricopharyngeus."
 
         self.upper = UPPER_DIC[self.upper]
         if self.upper == "30475-00":
@@ -437,7 +442,7 @@ def open_today():
 
 
 def open_weekends():
-    weekends = "https://docs.google.com/spreadsheets/d/10FAfIu_mkRA-cmABNz4nhK-i_VuSVNrPs55zpOTTbcs/edit?usp=sharing"
+    weekends = "file:///D:/Nobue/anaesthetic_contacts.html"
     webbrowser.open(weekends)
 
 
@@ -1723,7 +1728,7 @@ menubar.add_cascade(menu=menu_extras, label="Extras")
 menu_extras.add_command(label="Roster", command=open_roster)
 menu_extras.add_command(label="Patients Done Today", command=open_today)
 menu_extras.add_command(label="Dox", command=open_dox)
-menu_extras.add_command(label="Saturdays", command=open_weekends)
+menu_extras.add_command(label="Anaesthetists Details", command=open_weekends)
 
 menubar.add_cascade(menu=menu_admin, label="Admin")
 menu_admin.add_command(label="Delete Record", command=delete_record)

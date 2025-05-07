@@ -144,6 +144,7 @@ BILLING_ENDOSOSCOPISTS = [
     "Dr S Ghaly",
     "Dr J Mill",
     "Dr S Sanagapalli",
+    "Dr J Chetwood"
 ]
 
 ASA = ["No Sedation", "ASA 1", "ASA 2", "ASA 3"]
@@ -327,6 +328,9 @@ class ProcedureData:
         if self.colon == "Cancelled":
             self.message += "Colon cancelled."
         elif self.colon == "Non Rebatable":
+            resp = pmb.confirm(text='You have billed a non rebatable colon.', title='', buttons=['Continue', 'Go Back'])
+            if resp == "Go Back":
+                raise BillingException()
             self.message += "Colon done but Non Rebatable."
         elif self.colon == "Failure to reach caecum":
             self.message += "Short colon only."
@@ -1370,7 +1374,6 @@ def scraper(email=False):
         if not is_email(result):
             result = ""
 
-    print(result)
     return result
 
 
@@ -1542,7 +1545,17 @@ def runner(*args):
             proc_data.mrn,
             proc_data.email,
         }:
+            logging.error("Scraping error")
             raise BillingException
+        if not proc_data.mrn.isdigit():
+            logging.error("Scraping error")
+            raise BillingException
+        try:
+            parse(proc_data.dob, dayfirst=True)
+        except Exception:
+            logging.error("Scraping error")
+            raise BillingException
+        
         proc_data.full_name = (
             proc_data.title + " " + proc_data.first_name + " " + proc_data.last_name
         )

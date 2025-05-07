@@ -1547,6 +1547,12 @@ def runner(*args):
         }:
             logging.error("Scraping error")
             raise BillingException
+        if proc_data.first_name == proc_data.last_name:
+            resp = pmb.confirm(text=f'Patient first name and second name are the same - {proc_data.first_name} ? error', title='', buttons=['Continue', 'Go Back'])
+            if resp == "Go Back":
+                logging.error("Scraping error")
+                raise BillingException
+                
         if not proc_data.mrn.isdigit():
             logging.error("Scraping error")
             raise BillingException

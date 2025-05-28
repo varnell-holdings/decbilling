@@ -38,9 +38,9 @@ import decbatches
 
 pya.PAUSE = 0.2
 
-# import concurrent.futures
-# import boto3
-# from awsenv import aws_access_key_id, aws_secret_access_key
+import concurrent.futures
+import boto3
+from awsenv import aws_access_key_id, aws_secret_access_key
 
 
 class BillingException(Exception):
@@ -62,6 +62,7 @@ caecum_csv_file = source_path / "active" / "caecum" / "caecum.csv"
 sec_web_page = nobue_path / "today_new.html"
 sec_web_page1 = nobue_path / "today_new1.html"
 sec_long_web_page = nobue_path / "today_long.html"
+aws_data_path = source_path /"active" / "billing" / "aws_data.csv"
 
 
 logfilename = epdata_path / "doclog.log"
@@ -76,24 +77,37 @@ today = datetime.datetime.today()
 # need this for boto3
 # sys.path.append("C:\\Users\\John2\\Miniconda3\\lib\\site-packages\\urllib3\\util\\")
 
-# def pats_from_aws(date):
-#     try:
-#         requests.head("https://www.google.com", timeout=3)
-#         s3 = boto3.resource(
-#             "s3",
-#             aws_access_key_id=aws_access_key_id,
-#             aws_secret_access_key=aws_secret_access_key,
-#             region_name="ap-southeast-2",
-#             verify=True,
-#         )
+def pats_from_aws(date):
+    try:
+        requests.head("https://www.google.com", timeout=3)
+        s3 = boto3.resource(
+            "s3",
+            aws_access_key_id=aws_access_key_id,
+            aws_secret_access_key=aws_secret_access_key,
+            region_name="ap-southeast-2",
+            verify=True,
+        )
 
-#         s3.Object("dec601", "patients.csv").download_file("aws_data.csv")
-#     except requests.ConnectionError:
-#         logging.error("Failed to get patients list.", exc_info=False)
-#         doubles_set = {}
-#         mrn_to_doc_dict = {}
-#         #       pya.alert("Failed to get patients list.")
-#         return doubles_set, mrn_to_doc_dict
+        s3.Object("dec601", "patients.csv").download_file(aws_data_path)
+        with open(aws_data_path, encoding="utf-8") as h:
+            double_set = {}
+            reader = csv.reader(h)
+            for patient in reader:
+                this_day = patient[0]
+        
+                if len(this_day) == 9:
+                    this_day = "0" + this_day
+        
+                if (this_day == date) and patient[3]:
+                    double_set.add(patient[1])
+        print(f"Doubles : {double_set}")
+        return double_set
+     
+    except requests.ConnectionError:
+        logging.error("Failed to get patients list.", exc_info=False)
+        doubles_set = {}
+        #       pya.alert("Failed to get patients list.")
+        return doubles_set
 
 
 config_parser = ConfigParser(allow_no_value=True)
@@ -1711,6 +1725,14 @@ def runner(*args):
     feedback["text"] = "Select Procedure"
     # end of runner
 
+
+
+with concurrent.futures.ThreadPoolExecutor() as executor:
+    future = executor.submit(pats_from_aws, today.strftime("%d/%m/%Y"))
+    try:
+        double_set = future.result()
+    except:
+        double_set = ({},)
 
 root = Tk()
 root.title(today.strftime("%A  %d/%m/%Y"))

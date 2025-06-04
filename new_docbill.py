@@ -1,6 +1,8 @@
 """New and improved docbill! Thanks to Thailand March 2025"""
 
 
+from awsenv import aws_access_key_id, aws_secret_access_key
+import boto3
 from configparser import ConfigParser
 import csv
 from dataclasses import dataclass
@@ -39,11 +41,12 @@ import decbatches
 pya.PAUSE = 0.2
 
 import concurrent.futures
-import boto3
-from awsenv import aws_access_key_id, aws_secret_access_key
 
 
 class BillingException(Exception):
+    pass
+
+class ScrapingException(Exception):
     pass
 
 
@@ -51,6 +54,7 @@ class BillingException(Exception):
 overide_endoscopist = False
 finish_time = False
 biller_anaesthetist_flag = False
+double_set = set()
 
 # ST = 10
 
@@ -62,7 +66,7 @@ caecum_csv_file = source_path / "active" / "caecum" / "caecum.csv"
 sec_web_page = nobue_path / "today_new.html"
 sec_web_page1 = nobue_path / "today_new1.html"
 sec_long_web_page = nobue_path / "today_long.html"
-aws_data_path = source_path /"active" / "billing" / "aws_data.csv"
+aws_data_path = source_path / "active" / "billing" / "aws_data.csv"
 
 
 logfilename = epdata_path / "doclog.log"
@@ -76,38 +80,6 @@ today = datetime.datetime.today()
 
 # need this for boto3
 # sys.path.append("C:\\Users\\John2\\Miniconda3\\lib\\site-packages\\urllib3\\util\\")
-
-def pats_from_aws(date):
-    try:
-        requests.head("https://www.google.com", timeout=3)
-        s3 = boto3.resource(
-            "s3",
-            aws_access_key_id=aws_access_key_id,
-            aws_secret_access_key=aws_secret_access_key,
-            region_name="ap-southeast-2",
-            verify=True,
-        )
-
-        s3.Object("dec601", "patients.csv").download_file(aws_data_path)
-        with open(aws_data_path, encoding="utf-8") as h:
-            double_set = {}
-            reader = csv.reader(h)
-            for patient in reader:
-                this_day = patient[0]
-        
-                if len(this_day) == 9:
-                    this_day = "0" + this_day
-        
-                if (this_day == date) and patient[3]:
-                    double_set.add(patient[1])
-        print(f"Doubles : {double_set}")
-        return double_set
-     
-    except requests.ConnectionError:
-        logging.error("Failed to get patients list.", exc_info=False)
-        doubles_set = {}
-        #       pya.alert("Failed to get patients list.")
-        return doubles_set
 
 
 config_parser = ConfigParser(allow_no_value=True)
@@ -234,7 +206,8 @@ COLON_DIC = {
     "32230": "32230",
 }
 
-BANDING = ["No Anal Procedure", "Banding", "Banding + Pudendal", "Anal dilatation"]
+BANDING = ["No Anal Procedure", "Banding",
+           "Banding + Pudendal", "Anal dilatation"]
 
 BANDING_DIC = {
     "No Anal Procedure": "",
@@ -255,6 +228,41 @@ FUND_TO_CODE = {
     "Account Later": "send_bill",
 }
 
+
+def pats_from_aws():
+    try:
+        requests.head("https://www.google.com", timeout=3)
+        s3 = boto3.resource(
+            "s3",
+            aws_access_key_id=aws_access_key_id,
+            aws_secret_access_key=aws_secret_access_key,
+            region_name="ap-southeast-2",
+            verify=True,
+        )
+
+        s3.Object("dec601", "patients.csv").download_file(aws_data_path)
+
+    except requests.ConnectionError:
+        logging.error("Failed to get patients list.", exc_info=False)
+
+
+def process_aws_data():
+    global double_set
+    date = today.strftime("%d/%m/%Y")
+    with open(aws_data_path, encoding="utf-8") as h:
+        reader = csv.reader(h)
+        for patient in reader:
+            this_day = patient[0]
+            if len(this_day) == 9:
+                this_day = "0" + this_day
+            if (this_day == date) and patient[3] == "True":
+                double_set.add(patient[1])
+    print(f"Doubles : {double_set}")
+
+def download_and_process():
+    pats_from_aws()
+    process_aws_data()
+    
 
 @dataclass
 class ProcedureData:
@@ -342,7 +350,8 @@ class ProcedureData:
         if self.colon == "Cancelled":
             self.message += "Colon cancelled."
         elif self.colon == "Non Rebatable":
-            resp = pmb.confirm(text='You have billed a non rebatable colon.', title='', buttons=['Continue', 'Go Back'])
+            resp = pmb.confirm(text='You have billed a non rebatable colon.', title='', buttons=[
+                               'Continue', 'Go Back'])
             if resp == "Go Back":
                 raise BillingException()
             self.message += "Colon done but Non Rebatable."
@@ -424,7 +433,8 @@ class ProcedureData:
             )
 
         if self.insur_code == "adf":
-            self.ref = pmb.prompt(text="Enter Episode Id", title="Ep Id", default=None)
+            self.ref = pmb.prompt(text="Enter Episode Id",
+                                  title="Ep Id", default=None)
             self.fund_number = pmb.prompt(
                 text="Enter Approval Number", title="Approval Number", default=None
             )
@@ -511,9 +521,11 @@ def start_decbatches():
     to fire up python for terminal programs"""
     user = os.getenv("USERNAME")
     if user == "John":
-        os.startfile("c:\\Users\\John\\Miniconda3\\bccode\\start_decbatches.cmd")
+        os.startfile(
+            "c:\\Users\\John\\Miniconda3\\bccode\\start_decbatches.cmd")
     elif user == "John2":
-        os.startfile("c:\\Users\\John2\\Miniconda3\\bccode\\start_decbatches.cmd")
+        os.startfile(
+            "c:\\Users\\John2\\Miniconda3\\bccode\\start_decbatches.cmd")
 
 
 def open_receipt():
@@ -1023,7 +1035,8 @@ def update_caecum_csv(pd):
         caecum_flag = "fail"
     else:
         caecum_flag = "success"
-    caecum_data = (today_str, doctor, pd.mrn, caecum_flag, pd.caecum_reason_flag)
+    caecum_data = (today_str, doctor, pd.mrn,
+                   caecum_flag, pd.caecum_reason_flag)
     update_csv(
         caecum_csv_file, caecum_data, today_str, pd.mrn, compare_1=0, compare_2=2
     )
@@ -1286,7 +1299,8 @@ def print_receipt(anaesthetist, episode):
     name = episode["name"]
     name = name.split()[-1]
     today_str = today.strftime("%Y-%m-%d")
-    printfile = epdata_path / "sedation" / "accounts" / f"{name}_{today_str}.docx"
+    printfile = epdata_path / "sedation" / \
+        "accounts" / f"{name}_{today_str}.docx"
     acc.save(printfile)
 
 
@@ -1559,27 +1573,28 @@ def runner(*args):
             proc_data.mrn,
             proc_data.email,
         }:
-            logging.error("Scraping error")
-            raise BillingException
+            raise ScrapingException
         if proc_data.first_name == proc_data.last_name:
-            resp = pmb.confirm(text=f'Patient first name and second name are the same - {proc_data.first_name} ? error', title='', buttons=['Continue', 'Go Back'])
+            resp = pmb.confirm(text=f'Patient first name and second name are the same - {
+                               proc_data.first_name} ? error', title='', buttons=['Continue', 'Go Back'])
             if resp == "Go Back":
-                logging.error("Scraping error")
                 raise BillingException
-                
+
         if not proc_data.mrn.isdigit():
-            logging.error("Scraping error")
-            raise BillingException
+            raise ScrapingException
         try:
             parse(proc_data.dob, dayfirst=True)
         except Exception:
-            logging.error("Scraping error")
-            raise BillingException
-        
+            raise ScrapingException
+
         proc_data.full_name = (
             proc_data.title + " " + proc_data.first_name + " " + proc_data.last_name
         )
         # double check
+        # if proc_data.mrn in double_set and not (proc_data.upper and proc_data.colon) and "cancelled" not in proc_data.message:
+        #     pya.alert(text='Patient booked for Double. Choose either a procedure or cancelled for both.',
+        #                       title='', button='OK')
+        #     raise BillingException
 
         # Doctor check
 
@@ -1615,7 +1630,7 @@ def runner(*args):
                 proc_data.suburb,
                 proc_data.postcode,
             }:
-                raise BillingException
+                raise ScrapingException
             proc_data.full_address = (
                 proc_data.street
                 + " "
@@ -1626,7 +1641,7 @@ def runner(*args):
                 + proc_data.postcode
             )
 
-            if proc_data.insur_code in{ "adf", "bill_given"}:
+            if proc_data.insur_code in {"adf", "bill_given"}:
                 proc_data.mcn = ""
             elif proc_data.insur_code in {"bb", "va"}:
                 proc_data.fund_number = ""
@@ -1655,7 +1670,6 @@ def runner(*args):
                     prompt="Please enter the Fund Number.",
                 )
 
-
             # ? make patient ID database
 
             # anaesthetic_tuple used by print_receipt
@@ -1677,12 +1691,22 @@ def runner(*args):
         )
         pprint(proc_data)
 
-    except BillingException:
+    except ScrapingException:
         messagebox.showerror(message="Error in data. Try again.")
         btn_txt.set("Try Again")
         root.update_idletasks()
+        logging.error("Scraping error")
         return
+
+
+    except BillingException:
+        btn_txt.set("Try Again")
+        root.update_idletasks()
+        logging.error("Billing error")
+        return
+
     except Exception as e:
+        messagebox.showerror(message="Error in data. Try again.")
         logging.error("Error in main loop", exc_info=True)
         btn_txt.set("Try Again")
         feedback["text"] = f"{e}"
@@ -1691,8 +1715,6 @@ def runner(*args):
             "https://ntfy.sh/dec601doclog", data=f"{e}".encode(encoding="utf-8")
         )
         return
-    # finally:
-    #     enable_mouse()
 
     asc.set("ASA")
     up.set("No Upper")
@@ -1726,14 +1748,12 @@ def runner(*args):
     # end of runner
 
 
-
 with concurrent.futures.ThreadPoolExecutor() as executor:
-    future = executor.submit(pats_from_aws, today.strftime("%d/%m/%Y"))
-    try:
-        double_set = future.result()
-    except:
-        double_set = ({},)
+    print("starting download")
+    future = executor.submit(download_and_process)
 
+
+print("starting gui")
 root = Tk()
 root.title(today.strftime("%A  %d/%m/%Y"))
 
@@ -1779,7 +1799,8 @@ menu_admin.add_command(label="Add Staff", command=add_staff)
 menubar.add_cascade(menu=menu_accounts, label="Accounts")
 menu_accounts.add_command(label="receipts folder", command=open_receipt)
 menu_accounts.add_command(label="meditrust folder", command=open_sedation)
-menu_accounts.add_command(label="Start batches print", command=start_decbatches)
+menu_accounts.add_command(label="Start batches print",
+                          command=start_decbatches)
 menu_accounts.add_command(label="Meditrust Website", command=open_meditrust)
 
 
@@ -1877,10 +1898,12 @@ ttk.Label(midframe, text="     ").grid(column=1, row=2, sticky=W)
 con_label = ttk.Label(midframe, text="Consult")
 con_label.grid(column=1, row=2, sticky=W)
 
-con_button1 = ttk.Radiobutton(midframe, text="Yes", variable=con, value="Consult")
+con_button1 = ttk.Radiobutton(
+    midframe, text="Yes", variable=con, value="Consult")
 con_button1.grid(column=1, row=2)
 
-con_button2 = ttk.Radiobutton(midframe, text="No", variable=con, value="No Consult")
+con_button2 = ttk.Radiobutton(
+    midframe, text="No", variable=con, value="No Consult")
 con_button2.grid(column=1, row=2, sticky=E)
 
 path_box = ttk.Combobox(midframe, textvariable=po, width=20)
@@ -1905,7 +1928,8 @@ ttk.Label(midframe, text="     ").grid(column=1, row=3, sticky=E)
 # failure to reach caecum label
 boldStyle = ttk.Style()
 boldStyle.configure("Bold.TLabel", size=20, weight="bold")
-fail_label = ttk.Label(midframe, textvariable=fail_text_label, style="Bold.TLabel")
+fail_label = ttk.Label(
+    midframe, textvariable=fail_text_label, style="Bold.TLabel")
 fail_label.grid(column=2, row=3, sticky=W)
 
 caecum_box = ttk.Combobox(midframe, textvariable=caecum, width=20)
@@ -1934,7 +1958,8 @@ btn.config(state="disabled")
 # orig_color = btn.cget("bg")
 
 space = "              " * 3
-ttk.Label(bottomframe, text=space).grid(column=2, row=3, sticky=E)  # place holder
+ttk.Label(bottomframe, text=space).grid(
+    column=2, row=3, sticky=E)  # place holder
 
 feedback = ttk.Label(bottomframe, text="Missing staff  data")
 feedback.grid(column=0, row=4, sticky=W)

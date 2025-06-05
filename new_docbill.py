@@ -17,6 +17,8 @@ import re
 import shelve
 import shutil
 from tempfile import NamedTemporaryFile
+import threading
+import time
 from tkinter import ttk, StringVar, Tk, W, E, N, S
 from tkinter import Spinbox, FALSE, Menu, Frame, messagebox
 
@@ -39,8 +41,6 @@ import pyperclip
 import decbatches
 
 pya.PAUSE = 0.2
-
-import concurrent.futures
 
 
 class BillingException(Exception):
@@ -1441,6 +1441,7 @@ def patient_id_scrape(sd):
 
     pya.press("tab")
     pya.press("tab")
+    time.sleep(1)
     sd.last_name = scraper()
 
     # enable_mouse()
@@ -1564,6 +1565,8 @@ def runner(*args):
         )
 
         proc_data = patient_id_scrape(proc_data)
+        
+        # scraping checks
 
         if "na" in {
             proc_data.title,
@@ -1575,10 +1578,11 @@ def runner(*args):
         }:
             raise ScrapingException
         if proc_data.first_name == proc_data.last_name:
-            resp = pmb.confirm(text=f'Patient first name and second name are the same - {
-                               proc_data.first_name} ? error', title='', buttons=['Continue', 'Go Back'])
-            if resp == "Go Back":
-                raise BillingException
+            # resp = pmb.confirm(text=f'Patient first name and second name are the same - {
+            #                    proc_data.first_name} ? error', title='', buttons=['Continue', 'Go Back'])
+            # if resp == "Go Back":
+            #     raise BillingException
+            raise ScrapingException
 
         if not proc_data.mrn.isdigit():
             raise ScrapingException
@@ -1587,14 +1591,13 @@ def runner(*args):
         except Exception:
             raise ScrapingException
 
-        proc_data.full_name = (
-            proc_data.title + " " + proc_data.first_name + " " + proc_data.last_name
-        )
+        
+
         # double check
-        # if proc_data.mrn in double_set and not (proc_data.upper and proc_data.colon) and "cancelled" not in proc_data.message:
-        #     pya.alert(text='Patient booked for Double. Choose either a procedure or cancelled for both.',
-        #                       title='', button='OK')
-        #     raise BillingException
+        if proc_data.mrn in double_set and not (proc_data.upper and proc_data.colon) and "cancelled" not in proc_data.message:
+            pya.alert(text='Patient booked for Double. Choose either a procedure or cancelled for both.',
+                              title='', button='OK')
+            raise BillingException
 
         # Doctor check
 
@@ -1605,6 +1608,11 @@ def runner(*args):
             logging.error("?Corrupt last_colon_date database.", exc_info=True)
             raise BillingException
 
+
+        proc_data.full_name = (
+            proc_data.title + " " + proc_data.first_name + " " + proc_data.last_name
+        )
+        
         proc_data = in_and_out_calculater(proc_data)
 
         # make secretaries' web page
@@ -1748,10 +1756,13 @@ def runner(*args):
     # end of runner
 
 
-with concurrent.futures.ThreadPoolExecutor() as executor:
-    print("starting download")
-    future = executor.submit(download_and_process)
-
+# with concurrent.futures.ThreadPoolExecutor() as executor:
+#     print("starting download")
+#     future = executor.submit(download_and_process)
+    
+thread = threading.Thread(target=download_and_process)
+thread.start()
+print("starting download")
 
 print("starting gui")
 root = Tk()

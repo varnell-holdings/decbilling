@@ -1,21 +1,32 @@
-put new templates into episode_data from github
 
-? move to same AWS login as endobase uses
+1. process input from recall boxes into integers
 
-
-
-
-decbatches crashes because FUND_FEES.ini does not have an entry for "bill_given"
-
-/configparser.py", line 998, in __getitem__
-    raise KeyError(key)
-KeyError: 'bill_given'
-
-
-endobase_checking.py is in the endobase repository
-
-need to work out how to click/tab to street box from email box
+RECALL_DIC = {
+    "No colon recall": 0,
+    "No Pe recall": 0,
+    "? Pe recall": 0,
+    "? Col recall": 0,
+    "1 year": 1,
+    "2 years": 2,
+    "3 years": 3,
+    "5 years": 5,
+}
 
 
-remove _19 from webshelf in watcher
+~line 400 in process_inputs()
 
+        self.pe_recall = RECALL_DIC[self.pe_recall]
+        self.col_recall = RECALL_DIC[self.col_recall]
+
+
+2.  above close_out()
+
+send_recalls(proc_data)
+
+3. define send_recalls
+
+???  def send_recalls(proc_data):
+    if proc_data.pe_recall:
+        pass
+    if proc_data.col_recall:
+        pass

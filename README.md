@@ -5,6 +5,7 @@ The purpose of decbilling is to:
 3. Collect data for anaesthetists who use Meditrust billing service - meditrust_writer function inside docbill_start.py
 4. Print anaesthetic accounts - decbatches.py
 5. Provide a simple analysis package to tell jrt how many patients he needs to do to reach a target - jt_target.py
-6. Automate patient data entry into Endobase program by typists and import that data into docbill - endobase.py (separate module in github)
-7. Collect data for QPS and provide programs to present that data - caecum.py & repeat_procedures.py
-8. Generate emails to patients for quality control.
+6. Automate patient data entry into Endobase program by typists and import that data into docbill - endobase.py (endobase repo in github)
+7. Collect data for QPS and provide programs to present that data - caecum.py & repeat_procedures.py (stats repo in github)
+8. Collect emails of patients for quality control survey program (survey repo in github).
+9. Add recall data to Blue Chip.

@@ -10,3 +10,7 @@ send_recalls(proc_data)
         pass
     if proc_data.col_recall:
         pass
+
+3.
+
+write recall dates to episodes.csv

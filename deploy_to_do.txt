@@ -1,24 +1,4 @@
 
-1. process input from recall boxes into integers
-
-RECALL_DIC = {
-    "No colon recall": 0,
-    "No Pe recall": 0,
-    "? Pe recall": 0,
-    "? Col recall": 0,
-    "1 year": 1,
-    "2 years": 2,
-    "3 years": 3,
-    "5 years": 5,
-}
-
-
-~line 400 in process_inputs()
-
-        self.pe_recall = RECALL_DIC[self.pe_recall]
-        self.col_recall = RECALL_DIC[self.col_recall]
-
-
 2.  above close_out()
 
 send_recalls(proc_data)

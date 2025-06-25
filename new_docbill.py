@@ -1,4 +1,11 @@
-"""New and improved docbill! Thanks to Thailand March 2025"""
+# -*- coding: utf-8 -*-
+"""
+Created on Wed Jun  4 10:19:58 2025
+
+@author: John2
+
+adding a recall feature to docbill
+"""
 
 
 from awsenv import aws_access_key_id, aws_secret_access_key
@@ -46,6 +53,7 @@ pya.PAUSE = 0.2
 class BillingException(Exception):
     pass
 
+
 class ScrapingException(Exception):
     pass
 
@@ -55,6 +63,7 @@ overide_endoscopist = False
 finish_time = False
 biller_anaesthetist_flag = False
 double_set = set()
+sent_set = set()
 
 # ST = 10
 
@@ -125,13 +134,40 @@ scr_width, scr_height = pya.size()
 BILLING_ENDOSOSCOPISTS = [
     "Dr A Wettstein",
     "A/Prof R Feller",
-    "Dr C Vickers",
     "Dr S Vivekanandarajah",
     "Dr S Ghaly",
     "Dr J Mill",
     "Dr S Sanagapalli",
-    "Dr J Chetwood"
+    "Dr J Chetwood",
 ]
+
+
+DEC_ENDOSCOPISTS = {
+    "bariol": 1,
+    "ghaly": 6,
+    "feller": 4,
+    "vivekanandarajah": 18,
+    "wettstein": 40,
+    "williams": 42,
+    "mill": 8,
+    "sanagapalli": 10,
+    "stoita": 13,
+}
+
+RECALL_PROC = {"upper": 2, "colon": 1, "double": 3}
+
+YEARS_TO_WEEKS = {1: "53", 2: "105", 3: "157", 5: "262", 10: "524"}
+
+RECALL_DIC = {
+    "None or unlisted": 0,
+    "? Pe recall": 0,
+    "? Col recall": 0,
+    "1 year": 1,
+    "2 years": 2,
+    "3 years": 3,
+    "5 years": 5,
+    "10 years": 10,
+}
 
 ASA = ["No Sedation", "ASA 1", "ASA 2", "ASA 3"]
 
@@ -206,8 +242,7 @@ COLON_DIC = {
     "32230": "32230",
 }
 
-BANDING = ["No Anal Procedure", "Banding",
-           "Banding + Pudendal", "Anal dilatation"]
+BANDING = ["No Anal Procedure", "Banding", "Banding + Pudendal", "Anal dilatation"]
 
 BANDING_DIC = {
     "No Anal Procedure": "",
@@ -259,10 +294,11 @@ def process_aws_data():
                 double_set.add(patient[1])
     print(f"Doubles : {double_set}")
 
+
 def download_and_process():
     pats_from_aws()
     process_aws_data()
-    
+
 
 @dataclass
 class ProcedureData:
@@ -279,6 +315,8 @@ class ProcedureData:
     message: str
     clips: int
     op_time: str
+    pe_recall: str
+    col_recall: str
     mrn: str = ""
     title: str = ""
     first_name: str = ""
@@ -319,6 +357,8 @@ class ProcedureData:
             consult=con.get(),
             message=mes.get(),
             clips=int(cl.get()),
+            pe_recall=per.get(),
+            col_recall=colr.get(),
             op_time=ot.get(),
             fund=fu.get(),
         )
@@ -350,8 +390,11 @@ class ProcedureData:
         if self.colon == "Cancelled":
             self.message += "Colon cancelled."
         elif self.colon == "Non Rebatable":
-            resp = pmb.confirm(text='You have billed a non rebatable colon.', title='', buttons=[
-                               'Continue', 'Go Back'])
+            resp = pmb.confirm(
+                text="You have billed a non rebatable colon.",
+                title="",
+                buttons=["Continue", "Go Back"],
+            )
             if resp == "Go Back":
                 raise BillingException()
             self.message += "Colon done but Non Rebatable."
@@ -418,14 +461,14 @@ class ProcedureData:
 
         self.consult = CONSULT_DIC[self.consult]
         if self.clips:
-            self.message += f"{self.clips} clips used"
+            self.message += f"{self.clips} clips used. "
+
+        self.pe_recall = RECALL_DIC[self.pe_recall]
+        self.col_recall = RECALL_DIC[self.col_recall]
 
         self.insur_code = FUND_TO_CODE.get(self.fund, "no_gap")
 
-        if (
-            self.insur_code in {"send_bill"}
-            and self.anaesthetist == "Dr J Tillett"
-        ):
+        if self.insur_code in {"send_bill"} and self.anaesthetist == "Dr J Tillett":
             self.fund = pmb.prompt(
                 text="Enter Fund Name or just Enter if none",
                 title="Pay Later",
@@ -433,8 +476,7 @@ class ProcedureData:
             )
 
         if self.insur_code == "adf":
-            self.ref = pmb.prompt(text="Enter Episode Id",
-                                  title="Ep Id", default=None)
+            self.ref = pmb.prompt(text="Enter Episode Id", title="Ep Id", default=None)
             self.fund_number = pmb.prompt(
                 text="Enter Approval Number", title="Approval Number", default=None
             )
@@ -521,11 +563,9 @@ def start_decbatches():
     to fire up python for terminal programs"""
     user = os.getenv("USERNAME")
     if user == "John":
-        os.startfile(
-            "c:\\Users\\John\\Miniconda3\\bccode\\start_decbatches.cmd")
+        os.startfile("c:\\Users\\John\\Miniconda3\\bccode\\start_decbatches.cmd")
     elif user == "John2":
-        os.startfile(
-            "c:\\Users\\John2\\Miniconda3\\bccode\\start_decbatches.cmd")
+        os.startfile("c:\\Users\\John2\\Miniconda3\\bccode\\start_decbatches.cmd")
 
 
 def open_receipt():
@@ -547,16 +587,34 @@ def asa_click(event):
             fund_box.grid()
 
 
+def upper_combo_click(event):
+    upper = up.get()
+    endo = end.get()
+    endo = endo.split()[-1].lower()
+    if upper not in {"No Upper", "Cancelled"} and endo in DEC_ENDOSCOPISTS:
+        pe_recall.grid()
+    else:
+        pe_recall.grid_remove()
+
+
 def colon_combo_click(event):
     colon_proc = co.get()
+    endo = end.get()
+    endo = endo.split()[-1].lower()
     if colon_proc not in {"No Lower", "Cancelled"}:
         path_box.grid()
         ba_box.grid()
+        col_recall.grid()
+        if endo in DEC_ENDOSCOPISTS:
+            col_recall.grid()
+        else:
+            col_recall.grid_remove()
     else:
         po.set("Colon Pathology")
         ba.set("No Anal Procedure")
         path_box.grid_remove()
         ba_box.grid_remove()
+        col_recall.grid_remove()
 
     if colon_proc != "Failure to reach caecum":
         caecum_box.grid_remove()
@@ -568,6 +626,9 @@ def colon_combo_click(event):
 
 def is_biller_endoscopist(event):
     endo = end.get()
+    endo_lower = endo.split()[-1].lower()
+    upper = up.get()
+    colon_proc = co.get()
 
     if endo in BILLING_ENDOSOSCOPISTS:
         con.set("None")
@@ -579,6 +640,14 @@ def is_biller_endoscopist(event):
         con_label.grid_remove()
         con_button1.grid_remove()
         con_button2.grid_remove()
+
+    if endo_lower not in DEC_ENDOSCOPISTS:
+        pe_recall.grid_remove()
+        col_recall.grid_remove()
+    elif endo_lower in DEC_ENDOSCOPISTS and upper not in {"No Upper", "Cancelled"}:
+        pe_recall.grid()
+    elif endo_lower in DEC_ENDOSCOPISTS and colon_proc not in {"No Lower", "Cancelled"}:
+        col_recall.grid()
 
 
 def is_biller_anaesthetist(event):
@@ -606,6 +675,7 @@ def button_enable(*args):
     """Toggle Send button when all data entered"""
     anas = an.get()
     endo = end.get()
+    endo = endo.split()[-1].lower()
     nurs = nur.get()
     asa = asc.get()
     consult = con.get()
@@ -613,9 +683,11 @@ def button_enable(*args):
     col = co.get()
     failure = caecum.get()
     path = po.get()
+    pe_recall = per.get()
+    col_recall = colr.get()
     fund = fu.get()
 
-    top_line = anas != "Anaesthetist" and endo != "Endoscopist" and nurs != "Nurse"
+    top_line = anas != "Anaesthetist" and endo != "endoscopist" and nurs != "Nurse"
     if not top_line:
         btn.config(state="disabled")
         btn_txt.set("")
@@ -657,6 +729,27 @@ def button_enable(*args):
         root.update_idletasks()
         return
 
+    if (
+        upper not in {"No Upper", "Cancelled"}
+        and endo in DEC_ENDOSCOPISTS
+        and pe_recall == "? Pe recall"
+    ):
+        btn.config(state="disabled")
+        btn_txt.set("")
+        feedback["text"] = "Pe recall?"
+        root.update_idletasks()
+        return
+
+    if (
+        col not in {"No Lower", "Cancelled"}
+        and endo in DEC_ENDOSCOPISTS
+        and col_recall == "? Col recall"
+    ):
+        btn.config(state="disabled")
+        btn_txt.set("")
+        feedback["text"] = "Col recall?"
+        root.update_idletasks()
+        return
     if (
         (anas in BILLING_ANAESTHETISTS)
         and (fund in {"Fund", "++++ Other Funds ++++"})
@@ -947,7 +1040,9 @@ def day_surgery_shelver(pd):
         raise BillingException
 
 
-def update_csv(filename, new_row, data_1, data_2, compare_1=0, compare_2=2, headers=False):
+def update_csv(
+    filename, new_row, data_1, data_2, compare_1=0, compare_2=2, headers=False
+):
     """updates a csv without creating duplicates.
     compares 2 pieces of date from new_row with their equivalents
     by position in the csv."""
@@ -997,6 +1092,21 @@ def update_episodes_csv(pd):
     if up != "":
         up = up.split("-")[0]
     nu = pd.nurse.split()[-1]
+
+    if pd.pe_recall == 0:
+        p_rec = ""
+    else:
+        weeks = (pd.pe_recall * 52) + 1
+        p_rec = today.date() + datetime.timedelta(weeks=weeks)
+        p_rec = p_rec.isoformat()
+
+    if pd.col_recall == 0:
+        c_rec = ""
+    else:
+        weeks = (pd.col_recall * 52) + 1
+        c_rec = today.date() + datetime.timedelta(weeks=weeks)
+        c_rec = c_rec.isoformat()
+    print(f"{p_rec} -- {c_rec}")
     new_row = [
         today_str_for_ds,
         pd.mrn,
@@ -1010,8 +1120,8 @@ def update_episodes_csv(pd):
         pd.banding,
         nu,
         pd.clips,
-        "",
-        "",
+        p_rec,
+        c_rec,
         pd.caecum_reason_flag,
         pd.title,
         pd.first_name,
@@ -1023,7 +1133,13 @@ def update_episodes_csv(pd):
     csv_address = epdata_path / "episodes.csv"
     if not "test" in pd.message.lower():
         update_csv(
-            csv_address, new_row, today_str_for_ds, pd.mrn, compare_1=0, compare_2=1, headers=True
+            csv_address,
+            new_row,
+            today_str_for_ds,
+            pd.mrn,
+            compare_1=0,
+            compare_2=1,
+            headers=True,
         )
 
 
@@ -1035,8 +1151,7 @@ def update_caecum_csv(pd):
         caecum_flag = "fail"
     else:
         caecum_flag = "success"
-    caecum_data = (today_str, doctor, pd.mrn,
-                   caecum_flag, pd.caecum_reason_flag)
+    caecum_data = (today_str, doctor, pd.mrn, caecum_flag, pd.caecum_reason_flag)
     update_csv(
         caecum_csv_file, caecum_data, today_str, pd.mrn, compare_1=0, compare_2=2
     )
@@ -1299,8 +1414,7 @@ def print_receipt(anaesthetist, episode):
     name = episode["name"]
     name = name.split()[-1]
     today_str = today.strftime("%Y-%m-%d")
-    printfile = epdata_path / "sedation" / \
-        "accounts" / f"{name}_{today_str}.docx"
+    printfile = epdata_path / "sedation" / "accounts" / f"{name}_{today_str}.docx"
     acc.save(printfile)
 
 
@@ -1398,7 +1512,7 @@ def scraper(email=False):
     pya.hotkey("ctrl", "c")
     result = pyperclip.paste()
     if email:
-        result = re.split(r'[\s,:/;\\]', result)[0]
+        result = re.split(r"[\s,:/;\\]", result)[0]
         if not is_email(result):
             result = ""
 
@@ -1433,6 +1547,7 @@ def patient_id_scrape(sd):
     # x1, y1 = TITLE_POS
     # fix_pos = x1, y1, x1 +1, y1 +1
     # disable_mouse(x1, y1, x1 + 1, y1 + 1)
+    pyperclip.copy("")
     pya.doubleClick()
     sd.title = scraper()
 
@@ -1537,16 +1652,39 @@ def close_out(anaesthetist):
         )
 
 
-# def disable_mouse(x1, y1, x2, y2):
-#     # Set clip area to small area (effectively disabling mouse)
-#     win32api.ClipCursor((x1, y1, x2, y2))
-#     print("Mouse disabled")
+# def add_recall(proc, pd):
+#     print("recall", proc)
 
 
-# def enable_mouse():
-#     # Remove all cursor restrictions
-#     win32api.ClipCursor((0, 0, scr_height, scr_width))
-#     print("Mouse enabled")
+def add_recall(proc, pd):
+    date = today.strftime("%d/%m/%Y")
+    doc = pd.endoscopist.split()[-1].lower()
+    if proc == "colon":
+        years = pd.col_recall
+    else:
+        years = pd.pe_recall
+    pya.click(100, 400)
+    pya.press("up", presses=3)
+    pya.press("enter")
+    pya.hotkey("alt", "n")
+    pya.hotkey("alt", "a")
+    proc_num = RECALL_PROC[proc]
+    pya.press("down", presses=proc_num)
+    pya.press("tab")
+    doc_num = DEC_ENDOSCOPISTS[doc]
+    pya.press("down", presses=doc_num)
+    pya.press("tab", presses=2)
+    pya.write(YEARS_TO_WEEKS[years])
+    pya.press("tab", presses=4)
+    pya.write(pd.upper)
+    pya.write("  ")
+    pya.write(pd.colon)
+    pya.write("  ")
+    pya.write(date)
+    pya.keyDown("shift")
+    pya.press("tab", presses=2)
+    pya.keyUp("shift")
+    pya.press("enter")
 
 
 def runner(*args):
@@ -1554,6 +1692,7 @@ def runner(*args):
     global overide_endoscopist  # for future endoscopist check
     global finish_time
     global biller_anaesthetist_flag
+    global sent_set
 
     btn_txt.set("Sending...")
     feedback["text"] = "Sending data" + ("  " * 20)
@@ -1565,7 +1704,7 @@ def runner(*args):
         )
 
         proc_data = patient_id_scrape(proc_data)
-        
+
         # scraping checks
 
         if "na" in {
@@ -1591,12 +1730,17 @@ def runner(*args):
         except Exception:
             raise ScrapingException
 
-        
-
         # double check
-        if proc_data.mrn in double_set and not (proc_data.upper and proc_data.colon) and "cancelled" not in proc_data.message:
-            pya.alert(text='Patient booked for Double. Choose either a procedure or cancelled for both.',
-                              title='', button='OK')
+        if (
+            proc_data.mrn in double_set
+            and not (proc_data.upper and proc_data.colon)
+            and "cancelled" not in proc_data.message
+        ):
+            pya.alert(
+                text="Patient booked for Double. Choose either a procedure or cancelled for both.",
+                title="",
+                button="OK",
+            )
             raise BillingException
 
         # Doctor check
@@ -1608,11 +1752,10 @@ def runner(*args):
             logging.error("?Corrupt last_colon_date database.", exc_info=True)
             raise BillingException
 
-
         proc_data.full_name = (
             proc_data.title + " " + proc_data.first_name + " " + proc_data.last_name
         )
-        
+
         proc_data = in_and_out_calculater(proc_data)
 
         # make secretaries' web page
@@ -1688,15 +1831,30 @@ def runner(*args):
 
             if proc_data.insur_code == "bill_given":
                 print_receipt(proc_data.anaesthetist, anaesthetic_tuple)
+
+        # write recalls
+        if proc_data.mrn not in sent_set:
+            if proc_data.pe_recall == proc_data.col_recall and proc_data.pe_recall != 0:
+                add_recall("double", proc_data)
+            else:
+                if proc_data.pe_recall != 0:
+                    add_recall("upper", proc_data)
+                if proc_data.col_recall != 0:
+                    add_recall("colon", proc_data)
+
+        sent_set.add(proc_data.mrn)
         close_out(proc_data.anaesthetist)
 
         # alert secretaries of new patient
         to_watched()
         send_name = proc_data.full_name
-        requests.post(
-            "https://ntfy.sh/dec601billing",
-            data=f"{send_name} 😀".encode(encoding="utf-8"),
-        )
+        try:
+            requests.post(
+                "https://ntfy.sh/dec601billing",
+                data=f"{send_name} 😀".encode(encoding="utf-8"),
+            )
+        except Exception():
+            pass
         pprint(proc_data)
 
     except ScrapingException:
@@ -1705,7 +1863,6 @@ def runner(*args):
         root.update_idletasks()
         logging.error("Scraping error")
         return
-
 
     except BillingException:
         btn_txt.set("Try Again")
@@ -1739,6 +1896,10 @@ def runner(*args):
     ba_box.grid_remove()
     path_box.grid_remove()
     btn.config(text="Send!")
+    per.set("? Pe recall")
+    pe_recall.grid_remove()
+    colr.set("? Col recall")
+    col_recall.grid_remove()
     mess_box.grid_remove()
     if proc_data.endoscopist in BILLING_ENDOSOSCOPISTS:
         con_label.grid()
@@ -1759,7 +1920,7 @@ def runner(*args):
 # with concurrent.futures.ThreadPoolExecutor() as executor:
 #     print("starting download")
 #     future = executor.submit(download_and_process)
-    
+
 thread = threading.Thread(target=download_and_process)
 thread.start()
 print("starting download")
@@ -1810,8 +1971,7 @@ menu_admin.add_command(label="Add Staff", command=add_staff)
 menubar.add_cascade(menu=menu_accounts, label="Accounts")
 menu_accounts.add_command(label="receipts folder", command=open_receipt)
 menu_accounts.add_command(label="meditrust folder", command=open_sedation)
-menu_accounts.add_command(label="Start batches print",
-                          command=start_decbatches)
+menu_accounts.add_command(label="Start batches print", command=start_decbatches)
 menu_accounts.add_command(label="Meditrust Website", command=open_meditrust)
 
 
@@ -1837,6 +1997,10 @@ ba = StringVar()
 cl = StringVar()
 con = StringVar()
 con.trace("w", button_enable)
+per = StringVar()
+per.trace("w", button_enable)
+colr = StringVar()
+colr.trace("w", button_enable)
 mes = StringVar()
 ot = StringVar()
 fu = StringVar()
@@ -1883,6 +2047,7 @@ ttk.Label(midframe, text=space).grid(column=2, row=0, sticky=E)  # place holder
 up_box = ttk.Combobox(midframe, textvariable=up, width=20)
 up_box["values"] = UPPERS
 up_box["state"] = "readonly"
+up_box.bind("<<ComboboxSelected>>", upper_combo_click)
 up_box.grid(column=0, row=1, sticky=W)
 
 col_box = ttk.Combobox(midframe, textvariable=co, width=20)
@@ -1909,12 +2074,10 @@ ttk.Label(midframe, text="     ").grid(column=1, row=2, sticky=W)
 con_label = ttk.Label(midframe, text="Consult")
 con_label.grid(column=1, row=2, sticky=W)
 
-con_button1 = ttk.Radiobutton(
-    midframe, text="Yes", variable=con, value="Consult")
+con_button1 = ttk.Radiobutton(midframe, text="Yes", variable=con, value="Consult")
 con_button1.grid(column=1, row=2)
 
-con_button2 = ttk.Radiobutton(
-    midframe, text="No", variable=con, value="No Consult")
+con_button2 = ttk.Radiobutton(midframe, text="No", variable=con, value="No Consult")
 con_button2.grid(column=1, row=2, sticky=E)
 
 path_box = ttk.Combobox(midframe, textvariable=po, width=20)
@@ -1936,11 +2099,22 @@ s_box = Spinbox(midframe, from_=0, to=30, textvariable=cl, width=5)
 s_box.grid(column=1, row=3)
 ttk.Label(midframe, text="     ").grid(column=1, row=3, sticky=E)
 
+# recalls
+pe_recall = ttk.Combobox(midframe, textvariable=per, width=20)
+pe_recall["values"] = ["None or unlisted", "1 year", "2 years", "3 years", "5 years", "10 years"]
+pe_recall["state"] = "readonly"
+pe_recall.grid(column=0, row=4, sticky=W)
+
+col_recall = ttk.Combobox(midframe, textvariable=colr, width=20)
+col_recall["values"] = ["None or unlisted", "1 year", "2 years", "3 years", "5 years", "10 years"]
+col_recall["state"] = "readonly"
+col_recall.grid(column=1, row=4, sticky=W)
+
+
 # failure to reach caecum label
 boldStyle = ttk.Style()
 boldStyle.configure("Bold.TLabel", size=20, weight="bold")
-fail_label = ttk.Label(
-    midframe, textvariable=fail_text_label, style="Bold.TLabel")
+fail_label = ttk.Label(midframe, textvariable=fail_text_label, style="Bold.TLabel")
 fail_label.grid(column=2, row=3, sticky=W)
 
 caecum_box = ttk.Combobox(midframe, textvariable=caecum, width=20)
@@ -1969,8 +2143,7 @@ btn.config(state="disabled")
 # orig_color = btn.cget("bg")
 
 space = "              " * 3
-ttk.Label(bottomframe, text=space).grid(
-    column=2, row=3, sticky=E)  # place holder
+ttk.Label(bottomframe, text=space).grid(column=2, row=3, sticky=E)  # place holder
 
 feedback = ttk.Label(bottomframe, text="Missing staff  data")
 feedback.grid(column=0, row=4, sticky=W)
@@ -1995,6 +2168,8 @@ po.set("Colon Pathology")
 ba.set("No Anal Procedure")
 caecum.set("")
 cl.set("0")
+per.set("? Pe recall")
+colr.set("? Col recall")
 con.set("None")
 ot.set("0")
 fail_text_label.set("")
@@ -2004,6 +2179,8 @@ con_button1.grid_remove()
 con_button2.grid_remove()
 caecum_box.grid_remove()
 ba_box.grid_remove()
+pe_recall.grid_remove()
+col_recall.grid_remove()
 mess_box.grid_remove()
 fund_box.grid_remove()
 

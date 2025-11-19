@@ -1550,41 +1550,68 @@ def postcode_to_state(sd):
     except Exception:
         return ""
 
+def id_scrape_check(proc_data):
+    if "na" in {
+        proc_data.title,
+        proc_data.first_name,
+        proc_data.last_name,
+        proc_data.dob,
+        proc_data.mrn,
+        proc_data.email,
+    }:
+        return False
+    if proc_data.first_name == proc_data.last_name:
+        # resp = pmb.confirm(text=f'Patient first name and second name are the same - {
+        #                    proc_data.first_name} ? error', title='', buttons=['Continue', 'Go Back'])
+        # if resp == "Go Back":
+        #     raise BillingException
+        return False
+    if proc_data.title == proc_data.first_name:
+        return False
+
+    if not proc_data.mrn.isdigit():
+        return False
+    try:
+        parse(proc_data.dob, dayfirst=True)
+    except Exception:
+        return False
+    return True
+
+
 
 def patient_id_scrape(sd):
     """Scrape names, mrn, dob, email from blue chip."""
-    pya.moveTo(TITLE_POS)
-    # x1, y1 = TITLE_POS
-    # fix_pos = x1, y1, x1 +1, y1 +1
-    # disable_mouse(x1, y1, x1 + 1, y1 + 1)
-    pyperclip.copy("")
-    pya.doubleClick()
-    sd.title = scraper()
+    for idex in range(3):
+        pya.moveTo(TITLE_POS)
+        pyperclip.copy("")
+        pya.doubleClick()
+        sd.title = scraper()
 
-    pya.press("tab")
-    sd.first_name = scraper()
+        pya.press("tab")
+        sd.first_name = scraper()
 
-    pya.press("tab")
-    pya.press("tab")
-    time.sleep(1)
-    sd.last_name = scraper()
+        pya.press("tab")
+        pya.press("tab")
+        time.sleep(1)
+        sd.last_name = scraper()
 
-    # enable_mouse()
-    pya.moveTo(MRN_POS)
-    # x1, y1 = MRN_POS
-    # disable_mouse(x1, y1, x1 + 1, y1 + 1)
-    pya.doubleClick()
-    sd.mrn = scraper()
+        pya.moveTo(MRN_POS)
+        pya.doubleClick()
+        sd.mrn = scraper()
 
-    # enable_mouse()
-    pya.moveTo(DOB_POS)
-    # x1, y1 = DOB_POS
-    # disable_mouse(x1, y1, x1 + 1, y1 + 1)
-    pya.doubleClick()
-    sd.dob = scraper()
+        pya.moveTo(DOB_POS)
+        pya.doubleClick()
+        sd.dob = scraper()
 
-    pya.press("tab", presses=10)
-    sd.email = scraper(email=True)
+        pya.press("tab", presses=10)
+        sd.email = scraper(email=True)
+
+        sd.full_name = sd.title + " " + sd.first_name + " " + sd.last_name
+
+        if id_scrape_check(sd):
+            break
+        if idex == 2:
+            raise ScrapingException
 
     return sd
 
@@ -1715,30 +1742,7 @@ def runner(*args):
 
         proc_data = patient_id_scrape(proc_data)
 
-        # scraping checks
 
-        if "na" in {
-            proc_data.title,
-            proc_data.first_name,
-            proc_data.last_name,
-            proc_data.dob,
-            proc_data.mrn,
-            proc_data.email,
-        }:
-            raise ScrapingException
-        if proc_data.first_name == proc_data.last_name:
-            # resp = pmb.confirm(text=f'Patient first name and second name are the same - {
-            #                    proc_data.first_name} ? error', title='', buttons=['Continue', 'Go Back'])
-            # if resp == "Go Back":
-            #     raise BillingException
-            raise ScrapingException
-
-        if not proc_data.mrn.isdigit():
-            raise ScrapingException
-        try:
-            parse(proc_data.dob, dayfirst=True)
-        except Exception:
-            raise ScrapingException
 
         # double check
         if (
@@ -1762,9 +1766,6 @@ def runner(*args):
             logging.error("?Corrupt last_colon_date database.", exc_info=True)
             raise BillingException
 
-        proc_data.full_name = (
-            proc_data.title + " " + proc_data.first_name + " " + proc_data.last_name
-        )
 
         proc_data = in_and_out_calculater(proc_data)
 

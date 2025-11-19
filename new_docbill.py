@@ -1,15 +1,4 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Wed Jun  4 10:19:58 2025
-
-@author: John2
-
-adding a recall feature to docbill
-"""
-
-
-from awsenv import aws_access_key_id, aws_secret_access_key
-import boto3
 from configparser import ConfigParser
 import csv
 from dataclasses import dataclass
@@ -43,11 +32,15 @@ import requests
 from pyisemail import is_email
 import pyperclip
 
+from awsenv import aws_access_key_id, aws_secret_access_key
+import boto3
+
 # import win32api
 
 import decbatches
 
 pya.PAUSE = 0.2
+pya.FAILSAFE = False
 
 
 class BillingException(Exception):
@@ -146,9 +139,9 @@ DEC_ENDOSCOPISTS = {
     "bariol": 1,
     "ghaly": 6,
     "feller": 4,
-    "vivekanandarajah": 18,
-    "wettstein": 40,
-    "williams": 42,
+    "vivekanandarajah": 15,
+    "wettstein": 35,
+    "williams": 37,
     "mill": 8,
     "sanagapalli": 10,
     "stoita": 13,
@@ -242,7 +235,8 @@ COLON_DIC = {
     "32230": "32230",
 }
 
-BANDING = ["No Anal Procedure", "Banding", "Banding + Pudendal", "Anal dilatation"]
+BANDING = ["No Anal Procedure", "Banding",
+           "Banding + Pudendal", "Anal dilatation"]
 
 BANDING_DIC = {
     "No Anal Procedure": "",
@@ -416,10 +410,18 @@ class ProcedureData:
 
         self.banding = BANDING_DIC[self.banding]
 
-        if self.asa == "No Sedation":
-            self.message += "No sedation."
-
         self.asa = ASA_DIC[self.asa]
+
+        if not self.asa:
+            resp = pmb.confirm(
+                text="You have billed No Sedation.",
+                title="",
+                buttons=["Continue", "Go Back"],
+            )
+            if resp == "Go Back":
+                raise BillingException()
+        if not self.asa:
+            self.message += "No sedation."
 
         if self.polyp == "Biopsy" and self.colon == "32084-00":
             self.colon = "32084-01"
@@ -476,7 +478,8 @@ class ProcedureData:
             )
 
         if self.insur_code == "adf":
-            self.ref = pmb.prompt(text="Enter Episode Id", title="Ep Id", default=None)
+            self.ref = pmb.prompt(text="Enter Episode Id",
+                                  title="Ep Id", default=None)
             self.fund_number = pmb.prompt(
                 text="Enter Approval Number", title="Approval Number", default=None
             )
@@ -563,9 +566,11 @@ def start_decbatches():
     to fire up python for terminal programs"""
     user = os.getenv("USERNAME")
     if user == "John":
-        os.startfile("c:\\Users\\John\\Miniconda3\\bccode\\start_decbatches.cmd")
+        os.startfile(
+            "c:\\Users\\John\\Miniconda3\\bccode\\start_decbatches.cmd")
     elif user == "John2":
-        os.startfile("c:\\Users\\John2\\Miniconda3\\bccode\\start_decbatches.cmd")
+        os.startfile(
+            "c:\\Users\\John2\\Miniconda3\\bccode\\start_decbatches.cmd")
 
 
 def open_receipt():
@@ -675,7 +680,10 @@ def button_enable(*args):
     """Toggle Send button when all data entered"""
     anas = an.get()
     endo = end.get()
-    endo = endo.split()[-1].lower()
+    try:
+        endo = endo.split()[-1].lower()
+    except IndexError:
+        pass
     nurs = nur.get()
     asa = asc.get()
     consult = con.get()
@@ -1151,7 +1159,8 @@ def update_caecum_csv(pd):
         caecum_flag = "fail"
     else:
         caecum_flag = "success"
-    caecum_data = (today_str, doctor, pd.mrn, caecum_flag, pd.caecum_reason_flag)
+    caecum_data = (today_str, doctor, pd.mrn,
+                   caecum_flag, pd.caecum_reason_flag)
     update_csv(
         caecum_csv_file, caecum_data, today_str, pd.mrn, compare_1=0, compare_2=2
     )
@@ -1414,7 +1423,8 @@ def print_receipt(anaesthetist, episode):
     name = episode["name"]
     name = name.split()[-1]
     today_str = today.strftime("%Y-%m-%d")
-    printfile = epdata_path / "sedation" / "accounts" / f"{name}_{today_str}.docx"
+    printfile = epdata_path / "sedation" / \
+        "accounts" / f"{name}_{today_str}.docx"
     acc.save(printfile)
 
 
@@ -1813,6 +1823,9 @@ def runner(*args):
                 proc_data.ref = get_manual_data(
                     root, title="Manual Entry", prompt="Please enter the REF."
                 )
+            
+            if proc_data.insur_code not in {"send_bill", "bill_given", "va", "adf"} and len(proc_data.ref) != 1:
+                raise BillingException
 
             if proc_data.fund_number == "na":
                 proc_data.fund_number = get_manual_data(
@@ -1861,7 +1874,7 @@ def runner(*args):
         messagebox.showerror(message="Error in data. Try again.")
         btn_txt.set("Try Again")
         root.update_idletasks()
-        logging.error("Scraping error")
+        logging.error(f"Scraping error- {proc_data.anaesthetist} - {proc_data}")
         return
 
     except BillingException:
@@ -1971,7 +1984,8 @@ menu_admin.add_command(label="Add Staff", command=add_staff)
 menubar.add_cascade(menu=menu_accounts, label="Accounts")
 menu_accounts.add_command(label="receipts folder", command=open_receipt)
 menu_accounts.add_command(label="meditrust folder", command=open_sedation)
-menu_accounts.add_command(label="Start batches print", command=start_decbatches)
+menu_accounts.add_command(label="Start batches print",
+                          command=start_decbatches)
 menu_accounts.add_command(label="Meditrust Website", command=open_meditrust)
 
 
@@ -2074,10 +2088,12 @@ ttk.Label(midframe, text="     ").grid(column=1, row=2, sticky=W)
 con_label = ttk.Label(midframe, text="Consult")
 con_label.grid(column=1, row=2, sticky=W)
 
-con_button1 = ttk.Radiobutton(midframe, text="Yes", variable=con, value="Consult")
+con_button1 = ttk.Radiobutton(
+    midframe, text="Yes", variable=con, value="Consult")
 con_button1.grid(column=1, row=2)
 
-con_button2 = ttk.Radiobutton(midframe, text="No", variable=con, value="No Consult")
+con_button2 = ttk.Radiobutton(
+    midframe, text="No", variable=con, value="No Consult")
 con_button2.grid(column=1, row=2, sticky=E)
 
 path_box = ttk.Combobox(midframe, textvariable=po, width=20)
@@ -2101,12 +2117,14 @@ ttk.Label(midframe, text="     ").grid(column=1, row=3, sticky=E)
 
 # recalls
 pe_recall = ttk.Combobox(midframe, textvariable=per, width=20)
-pe_recall["values"] = ["None or unlisted", "1 year", "2 years", "3 years", "5 years", "10 years"]
+pe_recall["values"] = ["None or unlisted", "1 year",
+                       "2 years", "3 years", "5 years", "10 years"]
 pe_recall["state"] = "readonly"
 pe_recall.grid(column=0, row=4, sticky=W)
 
 col_recall = ttk.Combobox(midframe, textvariable=colr, width=20)
-col_recall["values"] = ["None or unlisted", "1 year", "2 years", "3 years", "5 years", "10 years"]
+col_recall["values"] = ["None or unlisted", "1 year",
+                        "2 years", "3 years", "5 years", "10 years"]
 col_recall["state"] = "readonly"
 col_recall.grid(column=1, row=4, sticky=W)
 
@@ -2114,7 +2132,8 @@ col_recall.grid(column=1, row=4, sticky=W)
 # failure to reach caecum label
 boldStyle = ttk.Style()
 boldStyle.configure("Bold.TLabel", size=20, weight="bold")
-fail_label = ttk.Label(midframe, textvariable=fail_text_label, style="Bold.TLabel")
+fail_label = ttk.Label(
+    midframe, textvariable=fail_text_label, style="Bold.TLabel")
 fail_label.grid(column=2, row=3, sticky=W)
 
 caecum_box = ttk.Combobox(midframe, textvariable=caecum, width=20)
@@ -2143,7 +2162,8 @@ btn.config(state="disabled")
 # orig_color = btn.cget("bg")
 
 space = "              " * 3
-ttk.Label(bottomframe, text=space).grid(column=2, row=3, sticky=E)  # place holder
+ttk.Label(bottomframe, text=space).grid(
+    column=2, row=3, sticky=E)  # place holder
 
 feedback = ttk.Label(bottomframe, text="Missing staff  data")
 feedback.grid(column=0, row=4, sticky=W)

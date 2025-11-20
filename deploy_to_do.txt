@@ -1,16 +1,3 @@
-
-2.  above close_out()
-
-send_recalls(proc_data)
-
-3. define send_recalls
-
-???  def send_recalls(proc_data):
-    if proc_data.pe_recall:
-        pass
-    if proc_data.col_recall:
-        pass
-
-3.
-
-write recall dates to episodes.csv
+insert write_excel function both function and the call it in runner
+if write excel working
+?refactor web_shelver to get rid of empty string checks 

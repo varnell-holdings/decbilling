@@ -1,5 +1,6 @@
 20-11-25
 - Purastat checkbox added
+
 19-11-25
 - patient id scrape checking move into its own function
 - repeated attempts to scrape id before raising scraping Exception

@@ -15,7 +15,7 @@ import shutil
 from tempfile import NamedTemporaryFile
 import threading
 import time
-from tkinter import ttk, StringVar, Tk, W, E, N, S
+from tkinter import ttk, StringVar, BooleanVar, Tk, W, E, N, S
 from tkinter import Spinbox, FALSE, Menu, Frame, messagebox
 
 import tkinter as tk
@@ -35,7 +35,6 @@ import pyperclip
 from awsenv import aws_access_key_id, aws_secret_access_key
 import boto3
 
-# import win32api
 
 import decbatches
 
@@ -333,6 +332,7 @@ class ProcedureData:
     state: str = ""
     postcode: str = ""
     full_address: str = ""
+    purastat: bool = False
 
     @classmethod
     def from_string_vars(
@@ -355,6 +355,7 @@ class ProcedureData:
             col_recall=colr.get(),
             op_time=ot.get(),
             fund=fu.get(),
+            purastat=pura.get()
         )
         form_data.process_inputs()
         return form_data
@@ -464,6 +465,8 @@ class ProcedureData:
         self.consult = CONSULT_DIC[self.consult]
         if self.clips:
             self.message += f"{self.clips} clips used. "
+        if self.purastat:
+            self.message += "Purastat used bill FY001 & FY002"
 
         self.pe_recall = RECALL_DIC[self.pe_recall]
         self.col_recall = RECALL_DIC[self.col_recall]
@@ -623,10 +626,8 @@ def colon_combo_click(event):
 
     if colon_proc != "Failure to reach caecum":
         caecum_box.grid_remove()
-        fail_text_label.set("")
     else:
         caecum_box.grid()
-        fail_text_label.set("Reason for Failure")
 
 
 def is_biller_endoscopist(event):
@@ -674,6 +675,10 @@ def update_spin():
     t = str(t)
     ot.set(t)
     root.after(60000, update_spin)
+
+
+def add_purastat(event):
+    pura.set(True)
 
 
 def button_enable(*args):
@@ -1550,6 +1555,7 @@ def postcode_to_state(sd):
     except Exception:
         return ""
 
+
 def id_scrape_check(proc_data):
     if "na" in {
         proc_data.title,
@@ -1576,7 +1582,6 @@ def id_scrape_check(proc_data):
     except Exception:
         return False
     return True
-
 
 
 def patient_id_scrape(sd):
@@ -1689,10 +1694,6 @@ def close_out(anaesthetist):
         )
 
 
-# def add_recall(proc, pd):
-#     print("recall", proc)
-
-
 def add_recall(proc, pd):
     date = today.strftime("%d/%m/%Y")
     doc = pd.endoscopist.split()[-1].lower()
@@ -1742,8 +1743,6 @@ def runner(*args):
 
         proc_data = patient_id_scrape(proc_data)
 
-
-
         # double check
         if (
             proc_data.mrn in double_set
@@ -1765,7 +1764,6 @@ def runner(*args):
         except ValueError:
             logging.error("?Corrupt last_colon_date database.", exc_info=True)
             raise BillingException
-
 
         proc_data = in_and_out_calculater(proc_data)
 
@@ -1824,7 +1822,7 @@ def runner(*args):
                 proc_data.ref = get_manual_data(
                     root, title="Manual Entry", prompt="Please enter the REF."
                 )
-            
+
             if proc_data.insur_code not in {"send_bill", "bill_given", "va", "adf"} and len(proc_data.ref) != 1:
                 raise BillingException
 
@@ -1875,7 +1873,8 @@ def runner(*args):
         messagebox.showerror(message="Error in data. Try again.")
         btn_txt.set("Try Again")
         root.update_idletasks()
-        logging.error(f"Scraping error- {proc_data.anaesthetist} - {proc_data}")
+        logging.error(
+            f"Scraping error- {proc_data.anaesthetist} - {proc_data}")
         return
 
     except BillingException:
@@ -1903,9 +1902,9 @@ def runner(*args):
     cl.set("0")
     caecum.set("")
     mes.set("")
+    pura.set(False)
     ot.set("-3")
     fu.set("")
-    fail_text_label.set("")
     caecum_box.grid_remove()
     ba_box.grid_remove()
     path_box.grid_remove()
@@ -1931,9 +1930,6 @@ def runner(*args):
     # end of runner
 
 
-# with concurrent.futures.ThreadPoolExecutor() as executor:
-#     print("starting download")
-#     future = executor.submit(download_and_process)
 
 thread = threading.Thread(target=download_and_process)
 thread.start()
@@ -2013,6 +2009,7 @@ cl = StringVar()
 con = StringVar()
 con.trace("w", button_enable)
 per = StringVar()
+pura = BooleanVar()
 per.trace("w", button_enable)
 colr = StringVar()
 colr.trace("w", button_enable)
@@ -2020,7 +2017,6 @@ mes = StringVar()
 ot = StringVar()
 fu = StringVar()
 fu.trace("w", button_enable)
-fail_text_label = StringVar()
 btn_txt = StringVar()
 
 topframe = Frame(mainframe, bg="green", pady=7)
@@ -2106,15 +2102,19 @@ lti = ttk.Label(midframe, text="Time")
 lti.grid(column=0, row=3, sticky=W)
 
 ti = Spinbox(midframe, from_=0, to=120, textvariable=ot, width=5)
-ti.grid(column=0, row=3)
-lti2 = ttk.Label(midframe, text="    ")
-lti2.grid(column=0, row=3, sticky=E)
+ti.grid(column=0, row=3, sticky=E)
+
 
 ttk.Label(midframe, text="Clips").grid(column=1, row=3, sticky=W)
 
 s_box = Spinbox(midframe, from_=0, to=30, textvariable=cl, width=5)
 s_box.grid(column=1, row=3)
 ttk.Label(midframe, text="     ").grid(column=1, row=3, sticky=E)
+
+# Purastat
+
+purabox = tk.Checkbutton(midframe, text="Purastat",
+                         variable=pura, command=add_purastat)
 
 # recalls
 pe_recall = ttk.Combobox(midframe, textvariable=per, width=20)
@@ -2129,13 +2129,6 @@ col_recall["values"] = ["None or unlisted", "1 year",
 col_recall["state"] = "readonly"
 col_recall.grid(column=1, row=4, sticky=W)
 
-
-# failure to reach caecum label
-boldStyle = ttk.Style()
-boldStyle.configure("Bold.TLabel", size=20, weight="bold")
-fail_label = ttk.Label(
-    midframe, textvariable=fail_text_label, style="Bold.TLabel")
-fail_label.grid(column=2, row=3, sticky=W)
 
 caecum_box = ttk.Combobox(midframe, textvariable=caecum, width=20)
 caecum_box["values"] = [
@@ -2188,12 +2181,13 @@ co.set("No Lower")
 po.set("Colon Pathology")
 ba.set("No Anal Procedure")
 caecum.set("")
+pura.set(False)
 cl.set("0")
 per.set("? Pe recall")
 colr.set("? Col recall")
+caecum.set("Reason for Failure")
 con.set("None")
 ot.set("0")
-fail_text_label.set("")
 path_box.grid_remove()
 con_label.grid_remove()
 con_button1.grid_remove()

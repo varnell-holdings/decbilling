@@ -466,7 +466,7 @@ class ProcedureData:
         if self.clips:
             self.message += f"{self.clips} clips used. "
         if self.purastat:
-            self.message += "Purastat used bill FY001 & FY002"
+            self.message += " Purastat - bill FY001 & FY002"
 
         self.pe_recall = RECALL_DIC[self.pe_recall]
         self.col_recall = RECALL_DIC[self.col_recall]
@@ -2108,13 +2108,15 @@ ti.grid(column=0, row=3, sticky=E)
 ttk.Label(midframe, text="Clips").grid(column=1, row=3, sticky=W)
 
 s_box = Spinbox(midframe, from_=0, to=30, textvariable=cl, width=5)
-s_box.grid(column=1, row=3)
-ttk.Label(midframe, text="     ").grid(column=1, row=3, sticky=E)
+s_box.grid(column=1, row=3, sticky=E)
+
+
 
 # Purastat
 
 purabox = tk.Checkbutton(midframe, text="Purastat",
-                         variable=pura, command=add_purastat)
+                         variable=pura, command=add_purastat, anchor=W)
+purabox.grid(column=2, row=3)
 
 # recalls
 pe_recall = ttk.Combobox(midframe, textvariable=per, width=20)

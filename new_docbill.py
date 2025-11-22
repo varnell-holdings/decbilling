@@ -1859,11 +1859,11 @@ def runner(*args):
 
         # alert secretaries of new patient
         to_watched()
-        send_name = proc_data.full_name
+        # send to ntfy
         try:
             requests.post(
                 "https://ntfy.sh/dec601billing",
-                data=f"{send_name} 😀".encode(encoding="utf-8"),
+                data=f"{proc_data.full_name} 😀".encode(encoding="utf-8"),
             )
         except Exception():
             pass
@@ -2204,3 +2204,4 @@ fund_box.grid_remove()
 update_spin()
 root.attributes("-topmost", True)
 root.mainloop()
+

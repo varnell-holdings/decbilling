@@ -70,3 +70,19 @@ def anaesthetic_scrape(sd):
             prompt="Please enter the Fund Number.",
         )
     return sd
+
+
+def double_check(proc_data):
+    if (
+        proc_data.mrn in double_set
+        and not (proc_data.upper and proc_data.colon)
+        and "cancelled" not in proc_data.message
+    ):
+        pya.alert(
+            text="Patient booked for Double. Choose either a procedure or cancelled for both.",
+            title="",
+            button="OK",
+        )
+        raise BillingException
+
+call -> double_check(proc_data)

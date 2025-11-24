@@ -1141,6 +1141,8 @@ def update_episodes_csv(pd):
         pd.last_name,
         pd.dob,
         pd.email,
+        pd.consult,
+        pd.polyp
     ]
 
     csv_address = epdata_path / "episodes.csv"
@@ -2204,4 +2206,3 @@ fund_box.grid_remove()
 update_spin()
 root.attributes("-topmost", True)
 root.mainloop()
-

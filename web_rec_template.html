@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>
+        Today's Procedures
+    </title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <script>
+$(document).ready(function(){
+    $("tr").click(function(){
+        $(this).addClass("blue");
+    });
+});
+</script>
+<style>
+.blue {color: blue;}
+.odd {background-color: azure;}
+.even {background-color: beige;}
+</style>
+</head>
+    <body>
+        <div class="w3-container">
+        <h3>DEC Patients for {{ today_date }}</h3>
+        {% set row_class = cycler('odd' ,'even') %}
+
+        <table class="w3-table">
+            <tr><th>Time Out</th><th>Doctors</th><th>Patient</th><th>Consult</th><th>Upper</th><th>Colon</th><th>Polyp</th><th>Message</th><th>Billed</th></tr>
+            {% for ep in today_data %}
+            <tr class="{{row_class.next()}}">
+                <td>{{ep["in_theatre"]}}</td>
+                <td>{{ep["doctors"]}}</td>
+                <td>{{ep["name"]}}</td>
+                <td>{{ep["consult"]}}</td>
+                <td>{{ep["upper"]}}</td>
+                <td>{{ep["colon"]}}</td>
+                <td>{{ep["polyp"]}}</td>
+                <td>{{ep["message"]}}</td>
+                <td>{{ep["billed"]}}</td>
+            </tr> {% endfor %}
+        </table>
+        </div>
+        <p>
+        <a href="file:///D:/Nobue/anaesthetic_roster.html" target="_blank">Link to Roster</a>
+        <p>
+        <a href="file:///D:/Nobue/today_long.html" target="_blank">Link to Full Data</a>
+
+        
+    </body>
+</html>

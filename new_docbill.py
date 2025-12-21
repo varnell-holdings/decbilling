@@ -49,6 +49,8 @@ class BillingException(Exception):
 class ScrapingException(Exception):
     pass
 
+class TechnicalException(Exception):
+    pass
 
 # globals
 overide_endoscopist = False
@@ -401,13 +403,16 @@ class ProcedureData:
         self.colon = COLON_DIC[self.colon]
 
         if self.banding == "Banding":
-            self.message += "Banding haemorrhoids 32135 & disposable DH011."
+            self.message += "Banding haemorrhoids 32135,"
+            if self.endoscopist.split()[-1].lower() == "gett":
+                self.message += " also bill HB001,"
         elif self.banding == "Banding + Pudendal":
-            self.message += "Banding haemorrhoids 32135 & disposable DH011.Also bill Pudendal Block."
+            self.message += "Banding haemorrhoids 32135.Also bill Pudendal Block."
+            if self.endoscopist.split()[-1].lower() == "gett":
+                self.message += " also bill HB001,"
         elif self.banding == "Anal dilatation":
             self.message += "Anal dilatation."
-        if self.endoscopist.lower()[-1] == "gett" and "Banding" in self.message:
-            self.message.replace("32135", "BH0001")
+        
 
         self.banding = BANDING_DIC[self.banding]
 
@@ -464,7 +469,11 @@ class ProcedureData:
 
         self.consult = CONSULT_DIC[self.consult]
         if self.clips:
-            self.message += f"{self.clips} clips used. "
+            if int(self.clips) == 1:
+                self.message += " 1 clip "
+            else:
+                self.message += f" {self.clips} clips "
+                
         if self.purastat:
             self.message += " Purastat - bill FY001 & FY002"
 
@@ -488,23 +497,6 @@ class ProcedureData:
             )
         if self.insur_code == "bb":
             self.message += "Sedation Bulk Bill"
-
-
-def double_check(pd, doubles_set):
-    if pd.mrn not in doubles_set:
-        return True
-    elif (pd.upper != "No Upper" or pd.upper == "Cancelled") and (
-        pd.colon != "No Lower" or pd.colon == "Cancelled"
-    ):
-        return True
-    else:
-        pmb.alert(
-            text="""Patient booked for double.
-                        Choose cancelled or a procedure in both lists.""",
-            title="",
-            button="OK",
-        )
-        return False
 
 
 # menu bar programs
@@ -927,34 +919,17 @@ def web_shelver(pd):
     e_surname = pd.endoscopist.split()[-1]
     sh_docs = e_surname + "/" + a_surname
 
-    if not pd.consult:
-        sh_consult = ""
-    else:
-        sh_consult = pd.consult
-    if not pd.upper:
-        sh_upper = ""
-    else:
-        sh_upper = pd.upper
-    if not pd.colon:
-        sh_colon = ""
-    else:
-        sh_colon = pd.colon
-    if not pd.banding:
-        sh_banding = ""
-    else:
-        sh_banding = pd.banding
-
     episode_dict = {
         "in_theatre": pd.in_theatre,
         "out_theatre": pd.out_theatre,
         "doctors": sh_docs,
         "name": pd.full_name,
         "asa": pd.asa,
-        "consult": sh_consult,
-        "upper": sh_upper,
-        "colon": sh_colon,
+        "consult": pd.consult,
+        "upper": pd.upper,
+        "colon": pd.colon,
         "polyp": pd.polyp,
-        "banding": sh_banding,
+        "banding": pd.banding,
         "nurse": pd.nurse,
         "varix_lot": pd.varix_lot,
         "message": pd.message,
@@ -969,7 +944,7 @@ def web_shelver(pd):
     except KeyError as e:
         pmb.alert("Try again. Program faulty.")
         logging.error(f"Trouble writing to web shelf: {e}")
-        raise BillingException
+        raise TechnicalException
 
     return today_path
 
@@ -1050,7 +1025,7 @@ def day_surgery_shelver(pd):
                   D:/JOHN TILLET/episode_data/dumper_data.db.bak"""
         )
         logging.error(f"Trouble writing to day surgery shelf: {e}")
-        raise BillingException
+        raise TechnicalException
 
 
 def update_csv(
@@ -1146,7 +1121,7 @@ def update_episodes_csv(pd):
     ]
 
     csv_address = epdata_path / "episodes.csv"
-    if not "test" in pd.message.lower():
+    if not ("test" in pd.message.lower() or pd.first_name.lower() == "file"):
         update_csv(
             csv_address,
             new_row,
@@ -1517,9 +1492,6 @@ def get_manual_data(
     Returns the entered data or None if cancelled.
     """
     dialog = PersistentEntryDialog(root, title, prompt)
-    # if not dialog:
-    #     raise BillingException
-    # else:
     return dialog.result
 
 
@@ -1529,9 +1501,13 @@ def scraper(email=False):
     pya.hotkey("ctrl", "c")
     result = pyperclip.paste()
     if email:
-        result = re.split(r"[\s,:/;\\]", result)[0]
-        if not is_email(result):
-            result = ""
+        bits = re.split(r"[\s,:/;\\ ]", result)
+        for bit in bits:
+            if is_email(bit):
+                result = bit
+                break
+            else:
+                result = ""
 
     return result
 
@@ -1559,20 +1535,15 @@ def postcode_to_state(sd):
 
 
 def id_scrape_check(proc_data):
-    if "na" in {
+    if "" in {
         proc_data.title,
         proc_data.first_name,
         proc_data.last_name,
         proc_data.dob,
         proc_data.mrn,
-        proc_data.email,
     }:
         return False
     if proc_data.first_name == proc_data.last_name:
-        # resp = pmb.confirm(text=f'Patient first name and second name are the same - {
-        #                    proc_data.first_name} ? error', title='', buttons=['Continue', 'Go Back'])
-        # if resp == "Go Back":
-        #     raise BillingException
         return False
     if proc_data.title == proc_data.first_name:
         return False
@@ -1617,7 +1588,8 @@ def patient_id_scrape(sd):
 
         if id_scrape_check(sd):
             break
-        if idex == 2:
+        if idex >= 3:
+            logging.error("Scraping error- index overrun")
             raise ScrapingException
 
     return sd
@@ -1673,6 +1645,96 @@ def scrape_fund_number(sd):
     # enable_mouse()
 
     return sd
+
+
+def anaesthetic_scrape(sd):
+    """Scrape address from blue chip.
+    Used if billing anaesthetist.
+    """
+    pya.keyDown("shift")
+    pya.press("tab", presses=8)
+    pya.keyUp("shift")
+    sd.street = scraper()
+    sd.street = sd.street.replace(",", "")
+
+    pya.press("tab")
+    pya.press("tab")
+    sd.suburb = scraper()
+
+    pya.moveTo(POST_CODE_POS, duration=0.1)
+    x1, y1 = POST_CODE_POS
+    pya.doubleClick()
+    sd.postcode = scraper()
+
+    sd.state = postcode_to_state(sd)
+
+    if "na" in {
+        sd.street,
+        sd.suburb,
+        sd.postcode,
+    }:
+        raise ScrapingException
+    sd.full_address = (
+        sd.street
+        + " "
+        + sd.suburb
+        + " "
+        + sd.state
+        + " "
+        + sd.postcode
+    )
+
+    if sd.insur_code in {"adf", "bill_given"}:
+        sd.mcn = ""
+    elif sd.insur_code in {"bb", "va"}:
+        sd.fund_number = ""
+        sd = scrape_mcn_and_ref(sd)
+    elif sd.insur_code in {"send_bill"}:
+        sd.mcn = ""
+        sd = scrape_fund_number(sd)
+    else:
+        sd = scrape_mcn_and_ref(sd)
+        sd = scrape_fund_number(sd)
+
+    if sd.mcn == "na":
+        sd.mcn = get_manual_data(
+            root, title="Manual Entry", prompt="Please enter the MCN."
+        )
+
+    if sd.ref == "na":
+        sd.ref = get_manual_data(
+            root, title="Manual Entry", prompt="Please enter the REF."
+        )
+
+    if (
+        sd.insur_code not in {"send_bill", "bill_given", "va", "adf"}
+        and len(sd.ref) != 1
+    ):
+        logging.error(
+            f"Anaesthetic Scraping error- {sd.anaesthetist} - {sd}")
+        raise ScrapingException
+
+    if sd.fund_number == "na":
+        sd.fund_number = get_manual_data(
+            root,
+            title="Manual Entry",
+            prompt="Please enter the Fund Number.",
+        )
+    return sd
+
+
+def double_check(proc_data):
+    if (
+        proc_data.mrn in double_set
+        and not (proc_data.upper and proc_data.colon)
+        and "cancelled" not in proc_data.message
+    ):
+        pya.alert(
+            text="Patient booked for Double. Choose either a procedure or cancelled for both.",
+            title="",
+            button="OK",
+        )
+        raise BillingException
 
 
 def close_out(anaesthetist):
@@ -1746,17 +1808,7 @@ def runner(*args):
         proc_data = patient_id_scrape(proc_data)
 
         # double check
-        if (
-            proc_data.mrn in double_set
-            and not (proc_data.upper and proc_data.colon)
-            and "cancelled" not in proc_data.message
-        ):
-            pya.alert(
-                text="Patient booked for Double. Choose either a procedure or cancelled for both.",
-                title="",
-                button="OK",
-            )
-            raise BillingException
+        double_check(proc_data)
 
         # Doctor check
 
@@ -1765,7 +1817,7 @@ def runner(*args):
             update_and_verify_last_colon(proc_data)
         except ValueError:
             logging.error("?Corrupt last_colon_date database.", exc_info=True)
-            raise BillingException
+            raise TechnicalException
 
         proc_data = in_and_out_calculater(proc_data)
 
@@ -1786,54 +1838,7 @@ def runner(*args):
 
         # anaesthetic billing
         if proc_data.asa and proc_data.anaesthetist in BILLING_ANAESTHETISTS:
-            proc_data = address_scrape(proc_data)
-            if "na" in {
-                proc_data.street,
-                proc_data.suburb,
-                proc_data.postcode,
-            }:
-                raise ScrapingException
-            proc_data.full_address = (
-                proc_data.street
-                + " "
-                + proc_data.suburb
-                + " "
-                + proc_data.state
-                + " "
-                + proc_data.postcode
-            )
-
-            if proc_data.insur_code in {"adf", "bill_given"}:
-                proc_data.mcn = ""
-            elif proc_data.insur_code in {"bb", "va"}:
-                proc_data.fund_number = ""
-                proc_data = scrape_mcn_and_ref(proc_data)
-            elif proc_data.insur_code in {"send_bill"}:
-                proc_data.mcn = ""
-                proc_data = scrape_fund_number(proc_data)
-            else:
-                proc_data = scrape_mcn_and_ref(proc_data)
-                proc_data = scrape_fund_number(proc_data)
-
-            if proc_data.mcn == "na":
-                proc_data.mcn = get_manual_data(
-                    root, title="Manual Entry", prompt="Please enter the MCN."
-                )
-
-            if proc_data.ref == "na":
-                proc_data.ref = get_manual_data(
-                    root, title="Manual Entry", prompt="Please enter the REF."
-                )
-
-            if proc_data.insur_code not in {"send_bill", "bill_given", "va", "adf"} and len(proc_data.ref) != 1:
-                raise BillingException
-
-            if proc_data.fund_number == "na":
-                proc_data.fund_number = get_manual_data(
-                    root,
-                    title="Manual Entry",
-                    prompt="Please enter the Fund Number.",
-                )
+            proc_data = anaesthetic_scrape(proc_data)
 
             # ? make patient ID database
 
@@ -1867,7 +1872,7 @@ def runner(*args):
                 "https://ntfy.sh/dec601billing",
                 data=f"{proc_data.full_name} 😀".encode(encoding="utf-8"),
             )
-        except Exception():
+        except Exception:
             pass
         pprint(proc_data)
 
@@ -1875,14 +1880,21 @@ def runner(*args):
         messagebox.showerror(message="Error in data. Try again.")
         btn_txt.set("Try Again")
         root.update_idletasks()
+        id_data = (proc_data.anaesthetist, proc_data.title, proc_data.first_name, proc_data.last_name, proc_data.full_name, proc_data.mrn, proc_data.dob)
         logging.error(
-            f"Scraping error- {proc_data.anaesthetist} - {proc_data}")
+            f"Scraping error- {id_data}")
         return
 
     except BillingException:
         btn_txt.set("Try Again")
         root.update_idletasks()
-        logging.error("Billing error")
+        # logging.error("Billing error")
+        return
+    
+    except TechnicalException:
+        btn_txt.set("Try Again")
+        root.update_idletasks()
+        logging.error("Technical error")
         return
 
     except Exception as e:
@@ -1930,7 +1942,6 @@ def runner(*args):
     btn.config(state="disabled")
     feedback["text"] = "Select Procedure"
     # end of runner
-
 
 
 thread = threading.Thread(target=download_and_process)
@@ -2111,7 +2122,6 @@ ttk.Label(midframe, text="Clips").grid(column=1, row=3, sticky=W)
 
 s_box = Spinbox(midframe, from_=0, to=30, textvariable=cl, width=5)
 s_box.grid(column=1, row=3, sticky=E)
-
 
 
 # Purastat

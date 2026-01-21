@@ -1,42 +1,50 @@
 # -*- coding: utf-8 -*-
-from configparser import ConfigParser
 import csv
-from dataclasses import dataclass
 import datetime
 import logging
 import os
-from pathlib import Path
 import pickle
-from pprint import pprint
 import random
 import re
 import shelve
 import shutil
-from tempfile import NamedTemporaryFile
 import threading
 import time
-from tkinter import ttk, StringVar, BooleanVar, Tk, W, E, N, S
-from tkinter import Spinbox, FALSE, Menu, Frame, messagebox
-
 import tkinter as tk
 import webbrowser
+from configparser import ConfigParser
+from dataclasses import dataclass
+from pathlib import Path
+from pprint import pprint
+from tempfile import NamedTemporaryFile
+from tkinter import (
+    FALSE,
+    BooleanVar,
+    E,
+    Frame,
+    Menu,
+    N,
+    S,
+    Spinbox,
+    StringVar,
+    Tk,
+    W,
+    messagebox,
+    ttk,
+)
 
-from dateutil.relativedelta import relativedelta
-from dateutil.parser import parse
-import docx
-from jinja2 import Environment, FileSystemLoader
-import pymsgbox as pmb
-
-import pyautogui as pya
-import requests
-from pyisemail import is_email
-import pyperclip
-
-from awsenv import aws_access_key_id, aws_secret_access_key
 import boto3
-
-
 import decbatches
+import docx
+import pyautogui as pya
+import pymsgbox as pmb
+import pyperclip
+import requests
+from awsenv import aws_access_key_id, aws_secret_access_key
+from dateutil.parser import parse
+from dateutil.relativedelta import relativedelta
+from jinja2 import Environment, FileSystemLoader
+from pyisemail import is_email
 
 pya.PAUSE = 0.2
 pya.FAILSAFE = False
@@ -49,8 +57,10 @@ class BillingException(Exception):
 class ScrapingException(Exception):
     pass
 
+
 class TechnicalException(Exception):
     pass
+
 
 # globals
 overide_endoscopist = False
@@ -112,6 +122,7 @@ if user == "John":
     DOB_POS = (750, 220)
     FUND_NO_POS = (770, 703)
     CLOSE_POS = (1020, 120)
+    ROOM = "room2"
 elif user == "John2":
     RED_BAR_POS = (160, 630)
     TITLE_POS = (200, 134)
@@ -120,6 +131,7 @@ elif user == "John2":
     DOB_POS = (600, 174)
     FUND_NO_POS = (580, 548)
     CLOSE_POS = (774, 96)
+    ROOM = "room1"
 
 BILLING_ANAESTHETISTS = ["Dr S Vuong", "Dr J Tillett"]
 
@@ -236,8 +248,7 @@ COLON_DIC = {
     "32230": "32230",
 }
 
-BANDING = ["No Anal Procedure", "Banding",
-           "Banding + Pudendal", "Anal dilatation"]
+BANDING = ["No Anal Procedure", "Banding", "Banding + Pudendal", "Anal dilatation"]
 
 BANDING_DIC = {
     "No Anal Procedure": "",
@@ -301,10 +312,14 @@ class ProcedureData:
     endoscopist: str
     nurse: str
     upper: str
+    upper_web: str
     colon: str
+    colon_web: str
     banding: str
+    banding_web: str
     asa: str
     polyp: str
+    polyp_web: str
     caecum_reason_flag: str
     consult: str
     message: str
@@ -345,10 +360,14 @@ class ProcedureData:
             endoscopist=end.get(),
             nurse=nur.get(),
             upper=up.get(),
+            upper_web=up.get(),
             colon=co.get(),
+            colon_web=co.get(),
             banding=ba.get(),
+            banding_web=ba.get(),
             asa=asc.get(),
             polyp=po.get(),
+            polyp_web=po.get(),
             caecum_reason_flag=caecum.get(),
             consult=con.get(),
             message=mes.get(),
@@ -357,7 +376,7 @@ class ProcedureData:
             col_recall=colr.get(),
             op_time=ot.get(),
             fund=fu.get(),
-            purastat=pura.get()
+            purastat=pura.get(),
         )
         form_data.process_inputs()
         return form_data
@@ -412,7 +431,6 @@ class ProcedureData:
                 self.message += " also bill HB001,"
         elif self.banding == "Anal dilatation":
             self.message += "Anal dilatation."
-        
 
         self.banding = BANDING_DIC[self.banding]
 
@@ -473,7 +491,7 @@ class ProcedureData:
                 self.message += " 1 clip "
             else:
                 self.message += f" {self.clips} clips "
-                
+
         if self.purastat:
             self.message += " Purastat - bill FY001 & FY002"
 
@@ -490,8 +508,7 @@ class ProcedureData:
             )
 
         if self.insur_code == "adf":
-            self.ref = pmb.prompt(text="Enter Episode Id",
-                                  title="Ep Id", default=None)
+            self.ref = pmb.prompt(text="Enter Episode Id", title="Ep Id", default=None)
             self.fund_number = pmb.prompt(
                 text="Enter Approval Number", title="Approval Number", default=None
             )
@@ -561,11 +578,9 @@ def start_decbatches():
     to fire up python for terminal programs"""
     user = os.getenv("USERNAME")
     if user == "John":
-        os.startfile(
-            "c:\\Users\\John\\Miniconda3\\bccode\\start_decbatches.cmd")
+        os.startfile("c:\\Users\\John\\Miniconda3\\bccode\\start_decbatches.cmd")
     elif user == "John2":
-        os.startfile(
-            "c:\\Users\\John2\\Miniconda3\\bccode\\start_decbatches.cmd")
+        os.startfile("c:\\Users\\John2\\Miniconda3\\bccode\\start_decbatches.cmd")
 
 
 def open_receipt():
@@ -996,6 +1011,84 @@ def make_long_web_secretary_from_shelf(today_path):
         f.write(a)
 
 
+def build_room_data_row(pd):
+    """Build a row of data for the room CSV."""
+    staff = pd.endoscopist.split()[-1] + "/" + pd.anaesthetist.split()[-1] + "/" + pd.nurse
+    row = [
+        today.strftime("%d-%m-%Y"),
+        pd.mrn,
+        pd.out_theatre,
+        staff,
+        pd.upper_web,
+        pd.colon_web,
+        pd.banding_web,
+        pd.polyp_web,
+        pd.message,
+    ]
+    return row
+
+
+def upload_room_data_to_aws(pd):
+    """Download room CSV from S3, update with new data, upload back."""
+    from io import BytesIO, StringIO
+
+    headers = ["date", "mrn", "out_theatre", "staff", "upper", "lower", "banding", "polyp", "message"]
+    today_str = today.strftime("%d-%m-%Y")
+    filename = f"{ROOM}.csv"
+
+    try:
+        requests.head("https://www.google.com", timeout=3)
+        s3 = boto3.resource(
+            "s3",
+            aws_access_key_id=aws_access_key_id,
+            aws_secret_access_key=aws_secret_access_key,
+            region_name="ap-southeast-2",
+            verify=True,
+        )
+
+        # try to download existing file to memory
+        rows = []
+        try:
+            buffer = BytesIO()
+            s3.Object("dec601", filename).download_fileobj(buffer)
+            buffer.seek(0)
+            content = buffer.read().decode("utf-8")
+            reader = csv.reader(StringIO(content))
+            next(reader)  # skip headers
+            for row in reader:
+                # keep only today's data and not matching mrn
+                if row[0] == today_str and row[1] != pd.mrn:
+                    rows.append(row)
+        except Exception:
+            # file doesn't exist yet, start fresh
+            pass
+
+        # add new row
+        new_row = build_room_data_row(pd)
+        rows.append(new_row)
+
+        # sort by out_theatre ascending
+        rows.sort(key=lambda x: x[2])
+
+        # write to memory and upload
+        output = StringIO()
+        writer = csv.writer(output)
+        writer.writerow(headers)
+        writer.writerows(rows)
+        s3.Object("dec601", filename).put(Body=output.getvalue().encode("utf-8"))
+
+    except requests.ConnectionError:
+        logging.error("No internet - failed to upload room data to S3")
+    except Exception as e:
+        logging.error(f"Error uploading room data to S3: {e}")
+
+
+def threaded_upload_room_data(pd):
+    """Run upload_room_data_to_aws in a background thread."""
+    thread = threading.Thread(target=upload_room_data_to_aws, args=(pd,))
+    thread.start()
+
+
 def day_surgery_shelver(pd):
     """Write episode  data to a shelf.
     Used by watcher.py to dump data in day surgery.
@@ -1117,7 +1210,7 @@ def update_episodes_csv(pd):
         pd.dob,
         pd.email,
         pd.consult,
-        pd.polyp
+        pd.polyp,
     ]
 
     csv_address = epdata_path / "episodes.csv"
@@ -1141,8 +1234,7 @@ def update_caecum_csv(pd):
         caecum_flag = "fail"
     else:
         caecum_flag = "success"
-    caecum_data = (today_str, doctor, pd.mrn,
-                   caecum_flag, pd.caecum_reason_flag)
+    caecum_data = (today_str, doctor, pd.mrn, caecum_flag, pd.caecum_reason_flag)
     update_csv(
         caecum_csv_file, caecum_data, today_str, pd.mrn, compare_1=0, compare_2=2
     )
@@ -1405,8 +1497,7 @@ def print_receipt(anaesthetist, episode):
     name = episode["name"]
     name = name.split()[-1]
     today_str = today.strftime("%Y-%m-%d")
-    printfile = epdata_path / "sedation" / \
-        "accounts" / f"{name}_{today_str}.docx"
+    printfile = epdata_path / "sedation" / "accounts" / f"{name}_{today_str}.docx"
     acc.save(printfile)
 
 
@@ -1674,15 +1765,7 @@ def anaesthetic_scrape(sd):
         sd.postcode,
     }:
         raise ScrapingException
-    sd.full_address = (
-        sd.street
-        + " "
-        + sd.suburb
-        + " "
-        + sd.state
-        + " "
-        + sd.postcode
-    )
+    sd.full_address = sd.street + " " + sd.suburb + " " + sd.state + " " + sd.postcode
 
     if sd.insur_code in {"adf", "bill_given"}:
         sd.mcn = ""
@@ -1710,8 +1793,7 @@ def anaesthetic_scrape(sd):
         sd.insur_code not in {"send_bill", "bill_given", "va", "adf"}
         and len(sd.ref) != 1
     ):
-        logging.error(
-            f"Anaesthetic Scraping error- {sd.anaesthetist} - {sd}")
+        logging.error(f"Anaesthetic Scraping error- {sd.anaesthetist} - {sd}")
         raise ScrapingException
 
     if sd.fund_number == "na":
@@ -1826,6 +1908,9 @@ def runner(*args):
         make_web_secretary_from_shelf(today_path)
         make_long_web_secretary_from_shelf(today_path)
 
+        # upload room data to S3 in background
+        threaded_upload_room_data(proc_data)
+
         # make Blue Chip day surgery module dumper
         day_surgery_shelver(proc_data)
 
@@ -1880,9 +1965,16 @@ def runner(*args):
         messagebox.showerror(message="Error in data. Try again.")
         btn_txt.set("Try Again")
         root.update_idletasks()
-        id_data = (proc_data.anaesthetist, proc_data.title, proc_data.first_name, proc_data.last_name, proc_data.full_name, proc_data.mrn, proc_data.dob)
-        logging.error(
-            f"Scraping error- {id_data}")
+        id_data = (
+            proc_data.anaesthetist,
+            proc_data.title,
+            proc_data.first_name,
+            proc_data.last_name,
+            proc_data.full_name,
+            proc_data.mrn,
+            proc_data.dob,
+        )
+        logging.error(f"Scraping error- {id_data}")
         return
 
     except BillingException:
@@ -1890,7 +1982,7 @@ def runner(*args):
         root.update_idletasks()
         # logging.error("Billing error")
         return
-    
+
     except TechnicalException:
         btn_txt.set("Try Again")
         root.update_idletasks()
@@ -1994,8 +2086,7 @@ menu_admin.add_command(label="Add Staff", command=add_staff)
 menubar.add_cascade(menu=menu_accounts, label="Accounts")
 menu_accounts.add_command(label="receipts folder", command=open_receipt)
 menu_accounts.add_command(label="meditrust folder", command=open_sedation)
-menu_accounts.add_command(label="Start batches print",
-                          command=start_decbatches)
+menu_accounts.add_command(label="Start batches print", command=start_decbatches)
 menu_accounts.add_command(label="Meditrust Website", command=open_meditrust)
 
 
@@ -2098,12 +2189,10 @@ ttk.Label(midframe, text="     ").grid(column=1, row=2, sticky=W)
 con_label = ttk.Label(midframe, text="Consult")
 con_label.grid(column=1, row=2, sticky=W)
 
-con_button1 = ttk.Radiobutton(
-    midframe, text="Yes", variable=con, value="Consult")
+con_button1 = ttk.Radiobutton(midframe, text="Yes", variable=con, value="Consult")
 con_button1.grid(column=1, row=2)
 
-con_button2 = ttk.Radiobutton(
-    midframe, text="No", variable=con, value="No Consult")
+con_button2 = ttk.Radiobutton(midframe, text="No", variable=con, value="No Consult")
 con_button2.grid(column=1, row=2, sticky=E)
 
 path_box = ttk.Combobox(midframe, textvariable=po, width=20)
@@ -2126,20 +2215,33 @@ s_box.grid(column=1, row=3, sticky=E)
 
 # Purastat
 
-purabox = tk.Checkbutton(midframe, text="Purastat",
-                         variable=pura, command=add_purastat, anchor=W)
+purabox = tk.Checkbutton(
+    midframe, text="Purastat", variable=pura, command=add_purastat, anchor=W
+)
 purabox.grid(column=2, row=3)
 
 # recalls
 pe_recall = ttk.Combobox(midframe, textvariable=per, width=20)
-pe_recall["values"] = ["None or unlisted", "1 year",
-                       "2 years", "3 years", "5 years", "10 years"]
+pe_recall["values"] = [
+    "None or unlisted",
+    "1 year",
+    "2 years",
+    "3 years",
+    "5 years",
+    "10 years",
+]
 pe_recall["state"] = "readonly"
 pe_recall.grid(column=0, row=4, sticky=W)
 
 col_recall = ttk.Combobox(midframe, textvariable=colr, width=20)
-col_recall["values"] = ["None or unlisted", "1 year",
-                        "2 years", "3 years", "5 years", "10 years"]
+col_recall["values"] = [
+    "None or unlisted",
+    "1 year",
+    "2 years",
+    "3 years",
+    "5 years",
+    "10 years",
+]
 col_recall["state"] = "readonly"
 col_recall.grid(column=1, row=4, sticky=W)
 
@@ -2170,8 +2272,7 @@ btn.config(state="disabled")
 # orig_color = btn.cget("bg")
 
 space = "              " * 3
-ttk.Label(bottomframe, text=space).grid(
-    column=2, row=3, sticky=E)  # place holder
+ttk.Label(bottomframe, text=space).grid(column=2, row=3, sticky=E)  # place holder
 
 feedback = ttk.Label(bottomframe, text="Missing staff  data")
 feedback.grid(column=0, row=4, sticky=W)

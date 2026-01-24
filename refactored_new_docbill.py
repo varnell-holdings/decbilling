@@ -188,7 +188,7 @@ UPPERS = [
     "No Upper",
     "Pe",
     "Pe with Bx",
-    "Oesophageal diatation",
+    "Oesophageal dilatation",
     "O Dil + PE",
     "Pe with APC",
     "Pe with polypectomy",
@@ -204,7 +204,7 @@ UPPER_DIC = {
     "Cancelled": "",
     "Pe": "30473-00",
     "Pe with Bx": "30473-01",
-    "Oesophageal diatation": "30475-00",
+    "Oesophageal dilatation": "30475-00",
     "O Dil + PE": "30475-00",
     "Pe with APC": "30478-20",
     "HALO": "30478-20",
@@ -592,7 +592,9 @@ def open_sedation():
     os.startfile(str(path))
 
 
-def make_combobox(parent, variable, values, col, row, width=None, bind_func=None, sticky=W):
+def make_combobox(
+    parent, variable, values, col, row, width=None, bind_func=None, sticky=W
+):
     """Create a readonly combobox and grid it."""
     if width:
         box = ttk.Combobox(parent, textvariable=variable, width=width)
@@ -814,7 +816,11 @@ def button_enable(*args):
     if doing_colon and is_dec_endo and col_rec == "? Col recall":
         return disable("Col recall?")
 
-    if is_billing_anas and fund in {"Fund", "++++ Other Funds ++++"} and asa != "No Sedation":
+    if (
+        is_billing_anas
+        and fund in {"Fund", "++++ Other Funds ++++"}
+        and asa != "No Sedation"
+    ):
         return disable("Fund!")
 
     # === Success paths ===
@@ -1023,18 +1029,58 @@ def make_long_web_secretary_from_shelf(today_path):
 def build_room_data_row(pd):
     """Build a row of data for the room CSV."""
     staff = (
-        pd.endoscopist.split()[-1] + "/" + pd.anaesthetist.split()[-1] + "/" + pd.nurse
+        pd.endoscopist.split()[-1]
+        + "/"
+        + pd.anaesthetist.split()[-1]
+        + "/"
+        + pd.nurse.split()[-1]
     )
+    if pd.upper_web in {"No Upper", "Cancelled"}:
+        upper = ""
+    else:
+        upper = pd.upper_web
+
+    if pd.colon_web in {"No Lower", "Cancelled"}:
+        lower = ""
+    elif pd.colon_web == "Non Rebatable" or pd.colon_web[0] == "3":
+        lower = "Long Colon"
+    elif pd.colon_web in {
+        "Planned Short Colon",
+        "Failure to reach caecum",
+    }:
+        lower = "Short Colon"
+    else:
+        lower = pd.colon_web
+
+    if pd.banding_web == "No Anal Procedure":
+        banding = ""
+    else:
+        banding = pd.banding_web
+
+    if pd.polyp_web == "No colon pathology":
+        polyp = ""
+    elif pd.polyp_web == "Biopsy":
+        lower = lower + " & Bx"
+    else:
+        polyp = "Polyp"
+
+    rebatable = ""
+    if pd.clips:
+        rebatable = f"{pd.clips} clips"
+    if pd.purastat:
+        rebatable += {" Purastat"}
+
     row = [
         today.strftime("%d-%m-%Y"),
         pd.mrn,
+        pd.full_name,
         pd.out_theatre,
         staff,
-        pd.upper_web,
-        pd.colon_web,
-        pd.banding_web,
-        pd.polyp_web,
-        pd.message,
+        upper,
+        lower,
+        banding,
+        polyp,
+        rebatable,
     ]
     return row
 
@@ -1046,13 +1092,14 @@ def upload_room_data_to_aws(pd):
     headers = [
         "date",
         "mrn",
+        "name",
         "out_theatre",
         "staff",
         "upper",
         "lower",
         "banding",
         "polyp",
-        "message",
+        "rebatable",
     ]
     today_str = today.strftime("%d-%m-%Y")
     filename = f"{ROOM}.csv"
@@ -2135,16 +2182,24 @@ bottomframe.columnconfigure(0, weight=1)
 bottomframe.rowconfigure(0, weight=1)
 
 # ===== Top frame - staff selection =====
-ana_box = make_combobox(topframe, an, ANAESTHETISTS, 0, 0, bind_func=is_biller_anaesthetist)
-end_box = make_combobox(topframe, end, ENDOSCOPISTS, 1, 0, bind_func=is_biller_endoscopist)
+ana_box = make_combobox(
+    topframe, an, ANAESTHETISTS, 0, 0, bind_func=is_biller_anaesthetist
+)
+end_box = make_combobox(
+    topframe, end, ENDOSCOPISTS, 1, 0, bind_func=is_biller_endoscopist
+)
 nur_box = make_combobox(topframe, nur, NURSES, 2, 0)
 
 
 # ===== Mid frame - procedure selection =====
 ttk.Label(midframe, text="              " * 3).grid(column=2, row=0, sticky=E)  # spacer
 
-up_box = make_combobox(midframe, up, UPPERS, 0, 1, width=20, bind_func=upper_combo_click)
-col_box = make_combobox(midframe, co, COLONS, 1, 1, width=20, bind_func=colon_combo_click)
+up_box = make_combobox(
+    midframe, up, UPPERS, 0, 1, width=20, bind_func=upper_combo_click
+)
+col_box = make_combobox(
+    midframe, co, COLONS, 1, 1, width=20, bind_func=colon_combo_click
+)
 ba_box = make_combobox(midframe, ba, BANDING, 2, 1, width=20)
 
 asa_box = make_combobox(midframe, asc, ASA, 0, 2, width=14, bind_func=asa_click)
@@ -2169,11 +2224,20 @@ ttk.Label(midframe, text="Clips").grid(column=1, row=3, sticky=W)
 s_box = Spinbox(midframe, from_=0, to=30, textvariable=cl, width=5)
 s_box.grid(column=1, row=3, sticky=E)
 
-purabox = tk.Checkbutton(midframe, text="Purastat", variable=pura, command=add_purastat, anchor=W)
+purabox = tk.Checkbutton(
+    midframe, text="Purastat", variable=pura, command=add_purastat, anchor=W
+)
 purabox.grid(column=2, row=3)
 
 # Recalls row
-recall_values = ["None or unlisted", "1 year", "2 years", "3 years", "5 years", "10 years"]
+recall_values = [
+    "None or unlisted",
+    "1 year",
+    "2 years",
+    "3 years",
+    "5 years",
+    "10 years",
+]
 pe_recall = make_combobox(midframe, per, recall_values, 0, 4, width=20)
 col_recall = make_combobox(midframe, colr, recall_values, 1, 4, width=20)
 
@@ -2194,7 +2258,9 @@ btn.grid(column=0, row=2, sticky=W)
 btn_txt.set("Missing data")
 btn.config(state="disabled")
 
-ttk.Label(bottomframe, text="              " * 3).grid(column=2, row=3, sticky=E)  # spacer
+ttk.Label(bottomframe, text="              " * 3).grid(
+    column=2, row=3, sticky=E
+)  # spacer
 
 feedback = ttk.Label(bottomframe, text="Missing staff data")
 feedback.grid(column=0, row=4, sticky=W)

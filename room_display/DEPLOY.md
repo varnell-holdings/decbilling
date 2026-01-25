@@ -138,10 +138,10 @@ sudo systemctl start roomdisplay
 
 ### 6. Configure nginx
 ```bash
-sudo nano /etc/nginx/sites-available/myapp
+sudo nano /etc/nginx/sites-available/yourappname
 ```
 
-Paste:
+Paste (replace `yourappname` and `yourdomain.com` with your values):
 ```
 server {
     listen 80;
@@ -157,10 +157,12 @@ server {
 
 Enable:
 ```bash
-sudo ln -s /etc/nginx/sites-available/myapp /etc/nginx/sites-enabled/
+sudo ln -s /etc/nginx/sites-available/yourappname /etc/nginx/sites-enabled/
 sudo nginx -t
 sudo systemctl restart nginx
 ```
+
+Note: On varnell.net, the config file is `/etc/nginx/sites-available/varnell`
 
 ### 7. Open firewall (if needed)
 ```bash
@@ -173,6 +175,8 @@ sudo ufw allow 443
 sudo apt install certbot python3-certbot-nginx
 sudo certbot --nginx -d yourdomain.com
 ```
+
+Certbot automatically updates your nginx config and restarts nginx. No manual changes needed.
 
 ---
 

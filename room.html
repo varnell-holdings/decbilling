@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ room_name }} - Procedures</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        h1 {
+            color: #333;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            background-color: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        .time-out-col {
+            width: 1%;
+            white-space: nowrap;
+        }
+        .narrow-col {
+            width: 1%;
+            white-space: nowrap;
+        }
+        th {
+            background-color: #4CAF50;
+            color: white;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        tr:hover {
+            background-color: #f1f1f1;
+        }
+        .no-data {
+            padding: 20px;
+            text-align: center;
+            color: #666;
+        }
+        .last-update {
+            color: #888;
+            font-size: 0.9em;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>{{ room_name }} - {{ current_date }}</h1>
+
+    {% if rows %}
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th class="time-out-col">Time Out</th>
+                <th>Staff</th>
+                <th>Upper</th>
+                <th>Lower</th>
+                <th>Polyp</th>
+                <th class="narrow-col">Banding</th>
+                <th class="narrow-col">Rebatable</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in rows %}
+            <tr>
+                <td>{{ row.get('name', '') }}</td>
+                <td class="time-out-col">{{ row.get('out_theatre', '') }}</td>
+                <td>{{ row.get('staff', '') }}</td>
+                <td>{{ row.get('upper', '') }}</td>
+                <td>{{ row.get('lower', '') }}</td>
+                <td>{{ row.get('polyp', '') }}</td>
+                <td class="narrow-col">{{ row.get('banding', '') }}</td>
+                <td class="narrow-col">{{ row.get('rebatable', '') }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="no-data">No procedures scheduled for today.</div>
+    {% endif %}
+
+    <p class="last-update">Last checked: <span id="last-check-time"></span></p>
+
+    <script>
+        // Get room name from URL (room1 or room2)
+        var roomName = window.location.pathname.replace('/', '');
+
+        // Store the current last_modified value
+        var currentLastModified = null;
+
+        // Update the last check time display
+        function updateCheckTime() {
+            var now = new Date();
+            document.getElementById('last-check-time').textContent = now.toLocaleTimeString();
+        }
+
+        // Poll for updates every 5 seconds
+        function checkForUpdates() {
+            fetch('/check_updates/' + roomName)
+                .then(function(response) {
+                    return response.json();
+                })
+                .then(function(data) {
+                    updateCheckTime();
+
+                    if (currentLastModified === null) {
+                        // First check, just store the value
+                        currentLastModified = data.last_modified;
+                    } else if (data.last_modified !== currentLastModified) {
+                        // Data changed, reload the page
+                        console.log('Data changed, reloading...');
+                        window.location.reload();
+                    }
+                })
+                .catch(function(error) {
+                    console.error('Error checking for updates:', error);
+                });
+        }
+
+        // Initial check and set up polling
+        updateCheckTime();
+        checkForUpdates();
+        setInterval(checkForUpdates, 30000);
+    </script>
+</body>
+</html>

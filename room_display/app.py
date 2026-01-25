@@ -1,8 +1,9 @@
-from flask import Flask, render_template, jsonify
+from flask import Flask, render_template, jsonify, send_from_directory
 import boto3
 import csv
 from io import StringIO
 from datetime import datetime
+from zoneinfo import ZoneInfo
 
 app = Flask(__name__)
 
@@ -62,7 +63,8 @@ def get_last_modified(room_name):
 
 def get_current_date():
     """Return today's date formatted nicely (e.g., 'Saturday, January 25, 2026')."""
-    return datetime.now().strftime('%A, %B %d, %Y')
+    aus_tz = ZoneInfo('Australia/Sydney')
+    return datetime.now(aus_tz).strftime('%A, %B %d, %Y')
 
 
 @app.route('/room1')
@@ -79,6 +81,12 @@ def room2():
     rows = get_csv_from_s3('room2')
     current_date = get_current_date()
     return render_template('room.html', room_name='Room 2', rows=rows, current_date=current_date)
+
+
+@app.route('/deccal.html')
+def deccal():
+    """Serve the deccal.html static file."""
+    return send_from_directory('static', 'deccal.html')
 
 
 @app.route('/check_updates/<room>')

@@ -131,7 +131,7 @@ elif user == "John2":
     DOB_POS = (600, 174)
     FUND_NO_POS = (580, 548)
     CLOSE_POS = (774, 96)
-    ROOM = "rcoom1"
+    ROOM = "room1"
 
 BILLING_ANAESTHETISTS = ["Dr S Vuong", "Dr J Tillett"]
 
@@ -1031,6 +1031,7 @@ def build_room_data_row(pd):
         polyp = ""
     elif pd.polyp_web == "Biopsy":
         lower = lower + " & Bx"
+        polyp = ""
     else:
         polyp = "Polyp"
 
@@ -1104,9 +1105,9 @@ def upload_room_data_to_aws(pd):
         # add new row
         new_row = build_room_data_row(pd)
         rows.append(new_row)
-
+        
         # sort by out_theatre ascending
-        rows.sort(key=lambda x: x[2])
+        rows.sort(key=lambda x: x[3], reverse=True)
 
         # write to memory and upload
         output = StringIO()

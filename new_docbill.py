@@ -1005,11 +1005,13 @@ def build_room_data_row(pd):
         + "/"
         + pd.nurse.split()[-1]
     )
+    
     if pd.upper_web in {"No Upper", "Cancelled"}:
         upper = ""
     else:
         upper = pd.upper_web
 
+    lower = ""
     if pd.colon_web in {"No Lower", "Cancelled"}:
         lower = ""
     elif pd.colon_web == "Non Rebatable" or pd.colon_web[0] == "3":
@@ -1021,23 +1023,27 @@ def build_room_data_row(pd):
         lower = "Short Colon"
     else:
         lower = pd.colon_web
-
+    
+    banding = ""
     if pd.banding_web == "No Anal Procedure":
         banding = ""
     else:
         banding = pd.banding_web
-
+    
+    polyp = ""
     if pd.polyp_web == "No colon pathology":
         polyp = ""
     elif pd.polyp_web == "Biopsy":
-        lower = lower + " & Bx"
         polyp = ""
-    else:
+    elif pd.polyp_web == "Polypectomy":
         polyp = "Polyp"
 
     rebatable = ""
     if pd.clips:
-        rebatable = f"{pd.clips} clips"
+        if pd.clips == 1:
+            rebatable = f"{pd.clips} clip"
+        else:
+            rebatable = f"{pd.clips} clips"
     if pd.purastat:
         rebatable += {" Purastat"}
 
@@ -1209,6 +1215,8 @@ def recall_date(years):
 
 
 def update_episodes_csv(pd):
+    if not pd.mrn.isdigit():
+        raise BillingException
     today_str_for_ds = today.strftime("%d-%m-%Y")
     an = pd.anaesthetist.split()[-1]
     en = pd.endoscopist.split()[-1]

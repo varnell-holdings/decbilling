@@ -66,7 +66,6 @@ class TechnicalException(Exception):
 overide_endoscopist = False
 finish_time = False
 biller_anaesthetist_flag = False
-double_set = set()
 sent_set = set()
 
 # ST = 10
@@ -115,27 +114,20 @@ FUNDS = [a.title() for a in FUNDS]
 user = os.getenv("USERNAME")
 
 if user == "John":
-    RED_BAR_POS = (280, 790)
-    TITLE_POS = (230, 170)
     MRN_POS = (740, 315)
     POST_CODE_POS = (610, 355)
-    DOB_POS = (750, 220)
     FUND_NO_POS = (770, 703)
     CLOSE_POS = (1020, 120)
     ROOM = "room2"
 elif user == "John2":
-    RED_BAR_POS = (160, 630)
-    TITLE_POS = (200, 134)
     MRN_POS = (600, 250)
     POST_CODE_POS = (490, 284)
-    DOB_POS = (600, 174)
     FUND_NO_POS = (580, 548)
     CLOSE_POS = (774, 96)
     ROOM = "room1"
 
 BILLING_ANAESTHETISTS = ["Dr S Vuong", "Dr J Tillett"]
 
-scr_width, scr_height = pya.size()
 
 BILLING_ENDOSOSCOPISTS = [
     "Dr A Wettstein",
@@ -1005,7 +997,8 @@ def build_room_data_row(pd):
         + "/"
         + pd.nurse.split()[-1]
     )
-    
+    rebatable = ""
+
     if pd.upper_web in {"No Upper", "Cancelled"}:
         upper = ""
     else:
@@ -1023,13 +1016,16 @@ def build_room_data_row(pd):
         lower = "Short Colon"
     else:
         lower = pd.colon_web
-    
+
     banding = ""
     if pd.banding_web == "No Anal Procedure":
         banding = ""
+    elif "Banding" in pd.banding_web and pd.endoscopist.split()[-1].lower() == "gett":
+        banding = pd.banding_web
+        rebatable += " Bander"
     else:
         banding = pd.banding_web
-    
+
     polyp = ""
     if pd.polyp_web == "No colon pathology":
         polyp = ""
@@ -1038,14 +1034,15 @@ def build_room_data_row(pd):
     elif pd.polyp_web == "Polypectomy":
         polyp = "Polyp"
 
-    rebatable = ""
     if pd.clips:
         if pd.clips == 1:
-            rebatable = f"{pd.clips} clip"
+            rebatable += f" {pd.clips} clip"
         else:
-            rebatable = f"{pd.clips} clips"
+            rebatable += f"{pd.clips} clips"
     if pd.purastat:
         rebatable += {" Purastat"}
+    if "varix" in pd.upper_web:
+        rebatable += " Varix bander"
 
     row = [
         today.strftime("%d-%m-%Y"),
@@ -1111,7 +1108,7 @@ def upload_room_data_to_aws(pd):
         # add new row
         new_row = build_room_data_row(pd)
         rows.append(new_row)
-        
+
         # sort by out_theatre ascending
         rows.sort(key=lambda x: x[3], reverse=True)
 
@@ -1566,91 +1563,6 @@ def handle_anaesthetic_billing(proc_data):
     return proc_data
 
 
-class PersistentEntryDialog(tk.Toplevel):
-    def __init__(self, parent, title, prompt):
-        super().__init__(parent)
-
-        # Make this window stay on top
-        self.transient(parent)
-        self.grab_set()
-
-        # Set window properties
-        self.title(title)
-        self.resizable(False, False)
-        self.protocol("WM_DELETE_WINDOW", self.cancel)
-
-        # Create and place widgets
-        tk.Label(self, text=prompt).pack(padx=10, pady=10)
-
-        # Use Entry widget for single-line input
-        self.entry = tk.Entry(self, width=40)
-        self.entry.pack(padx=10, pady=10)
-
-        # Button frame
-        button_frame = tk.Frame(self)
-        button_frame.pack(padx=10, pady=10)
-
-        # OK and Restart buttons
-        tk.Button(button_frame, text="OK", width=10, command=self.ok).pack(
-            side=tk.LEFT, padx=5
-        )
-        tk.Button(button_frame, text="Restart", width=10, command=self.cancel).pack(
-            side=tk.LEFT, padx=5
-        )
-
-        # Set focus to the entry
-        self.entry.focus_set()
-
-        # Center the window
-        self.center_window()
-
-        # Initialize result
-        self.result = None
-
-        # Wait for the window to be destroyed
-        self.wait_window(self)
-
-    def ok(self):
-        # Get the text from the entry
-        self.result = self.entry.get()
-        if not self.result:
-            self.result = ""
-        self.destroy()
-
-    def cancel(self):
-        # Set result to "" and destroy the window
-        self.result = ""
-        self.destroy()
-
-    def center_window(self):
-        # Update to ensure the window size is calculated
-        self.update_idletasks()
-
-        # Get the window size and screen dimensions
-        width = self.winfo_width()
-        height = self.winfo_height()
-        screen_width = self.winfo_screenwidth()
-        screen_height = self.winfo_screenheight()
-
-        # Calculate position
-        x = (screen_width - width) // 2
-        y = (screen_height - height) // 2
-
-        # Set the window position
-        self.geometry(f"{width}x{height}+{x}+{y}")
-
-
-def get_manual_data(
-    root, title="Manual Entry", prompt="Please enter the data manually:"
-):
-    """
-    Show a dialog to get manual data entry from the user.
-    Returns the entered data or None if cancelled.
-    """
-    dialog = PersistentEntryDialog(root, title, prompt)
-    return dialog.result
-
-
 def scraper(email=False):
     """Three goes at copying data. If fail return 'na'"""
     result = "na"
@@ -1716,9 +1628,10 @@ def id_scrape_check(proc_data):
 def patient_id_scrape(sd):
     """Scrape names, mrn, dob, email from blue chip."""
     for idex in range(3):
-        pya.moveTo(TITLE_POS)
+        pya.moveTo(100, 450)
+        pya.click()
+        pya.hotkey('alt', 't')
         pyperclip.copy("")
-        pya.doubleClick()
         sd.title = scraper()
 
         pya.press("tab")
@@ -1733,8 +1646,7 @@ def patient_id_scrape(sd):
         pya.doubleClick()
         sd.mrn = scraper()
 
-        pya.moveTo(DOB_POS)
-        pya.doubleClick()
+        pya.hotkey("alt", "b")
         sd.dob = scraper()
 
         pya.press("tab", presses=10)
@@ -1804,8 +1716,7 @@ def scrape_fund_number(sd):
 
 
 def anaesthetic_scrape(sd):
-    """Scrape address from blue chip.
-    Used if billing anaesthetist.
+    """Used if billing anaesthetist.
     """
     pya.keyDown("shift")
     pya.press("tab", presses=8)
@@ -1824,12 +1735,6 @@ def anaesthetic_scrape(sd):
 
     sd.state = postcode_to_state(sd)
 
-    if "na" in {
-        sd.street,
-        sd.suburb,
-        sd.postcode,
-    }:
-        raise ScrapingException
     sd.full_address = sd.street + " " + sd.suburb + " " + sd.state + " " + sd.postcode
 
     if sd.insur_code in {"adf", "bill_given"}:
@@ -1844,44 +1749,9 @@ def anaesthetic_scrape(sd):
         sd = scrape_mcn_and_ref(sd)
         sd = scrape_fund_number(sd)
 
-    if sd.mcn == "na":
-        sd.mcn = get_manual_data(
-            root, title="Manual Entry", prompt="Please enter the MCN."
-        )
-
-    if sd.ref == "na":
-        sd.ref = get_manual_data(
-            root, title="Manual Entry", prompt="Please enter the REF."
-        )
-
-    if (
-        sd.insur_code not in {"send_bill", "bill_given", "va", "adf"}
-        and len(sd.ref) != 1
-    ):
-        logging.error(f"Anaesthetic Scraping error- {sd.anaesthetist} - {sd}")
-        raise ScrapingException
-
-    if sd.fund_number == "na":
-        sd.fund_number = get_manual_data(
-            root,
-            title="Manual Entry",
-            prompt="Please enter the Fund Number.",
-        )
     return sd
 
 
-def double_check(proc_data):
-    if (
-        proc_data.mrn in double_set
-        and not (proc_data.upper and proc_data.colon)
-        and "cancelled" not in proc_data.message
-    ):
-        pya.alert(
-            text="Patient booked for Double. Choose either a procedure or cancelled for both.",
-            title="",
-            button="OK",
-        )
-        raise BillingException
 
 
 def close_out(anaesthetist):
@@ -1954,10 +1824,6 @@ def runner(*args):
 
         proc_data = patient_id_scrape(proc_data)
 
-        # double check
-        double_check(proc_data)
-
-        # Doctor check
 
         # Time since last colon check
         try:

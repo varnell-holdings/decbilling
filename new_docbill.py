@@ -307,6 +307,7 @@ class ProcedureData:
     postcode: str = ""
     full_address: str = ""
     purastat: bool = False
+    phone: str = ""
 
     @classmethod
     def from_string_vars(
@@ -1059,7 +1060,7 @@ def build_room_data_row(pd):
     return row
 
 
-def upload_room_data_to_aws(pd):
+def upload_room_data_to_aws(pd, startup):
     """Download room CSV from S3, update with new data, upload back."""
     from io import BytesIO, StringIO
 
@@ -1098,18 +1099,23 @@ def upload_room_data_to_aws(pd):
             reader = csv.reader(StringIO(content))
             next(reader)  # skip headers
             for row in reader:
-                # keep only today's data and not matching mrn
-                if row[0] == today_str and row[1] != pd.mrn:
-                    rows.append(row)
+                if not startup:
+                    # keep only today's data and not matching mrn
+                    if row[0] == today_str and row[1] != pd.mrn:
+                        rows.append(row)
+                else:
+                    if row[0] == today_str:
+                        rows.append(row)
+                    
         except Exception:
             # file doesn't exist yet, start fresh
             pass
 
-        # add new row
-        new_row = build_room_data_row(pd)
-        rows.append(new_row)
+        if not startup:
+            # add new row
+            new_row = build_room_data_row(pd)
+            rows.append(new_row)
 
-        # sort by out_theatre ascending
         rows.sort(key=lambda x: x[3], reverse=True)
 
         # write to memory and upload
@@ -1126,9 +1132,10 @@ def upload_room_data_to_aws(pd):
         logging.error(f"Error uploading room data to S3: {e}")
 
 
-def threaded_upload_room_data(pd):
+def threaded_upload_room_data(pd, startup):
     """Run upload_room_data_to_aws in a background thread."""
-    thread = threading.Thread(target=upload_room_data_to_aws, args=(pd,))
+    thread = threading.Thread(
+        target=upload_room_data_to_aws, args=(pd, startup,))
     thread.start()
 
 
@@ -1252,6 +1259,7 @@ def update_episodes_csv(pd):
         pd.email,
         pd.consult,
         pd.polyp,
+        pd.phone,
     ]
 
     csv_address = epdata_path / "episodes.csv"
@@ -1265,21 +1273,6 @@ def update_episodes_csv(pd):
             compare_2=1,
             headers=True,
         )
-
-
-def update_caecum_csv(pd):
-    """Write whether scope got to caecum. For QPS"""
-    today_str = today.strftime("%Y-%m-%d")
-    doctor = pd.endoscopist.split()[-1]
-    if pd.caecum_reason_flag != "success":
-        caecum_flag = "fail"
-    else:
-        caecum_flag = "success"
-    caecum_data = (today_str, doctor, pd.mrn,
-                   caecum_flag, pd.caecum_reason_flag)
-    update_csv(
-        caecum_csv_file, caecum_data, today_str, pd.mrn, compare_1=0, compare_2=2
-    )
 
 
 def update_medtitrust_csv(pd):
@@ -1648,8 +1641,22 @@ def patient_id_scrape(sd):
 
         pya.hotkey("alt", "b")
         sd.dob = scraper()
+        
+        pya.hotkey("alt", "e")
+        phone1 = scraper()
+        phone1 = phone1.replace("-", "")
 
-        pya.press("tab", presses=10)
+        pya.press("tab", presses=2)
+        phone2 = scraper()
+        phone2 = phone2.replace("-", "")
+        
+        if phone2 and phone2 != 'na':
+            sd.phone = phone2
+        else:
+            sd.phone = phone1
+        
+        
+        pya.press("tab", presses=2)
         sd.email = scraper(email=True)
 
         sd.full_name = sd.title + " " + sd.first_name + " " + sd.last_name
@@ -1752,8 +1759,6 @@ def anaesthetic_scrape(sd):
     return sd
 
 
-
-
 def close_out(anaesthetist):
     """Close patient file with mouse click and display billing details
     if a billing anaesthetist."""
@@ -1824,7 +1829,6 @@ def runner(*args):
 
         proc_data = patient_id_scrape(proc_data)
 
-
         # Time since last colon check
         try:
             update_and_verify_last_colon(proc_data)
@@ -1840,17 +1844,13 @@ def runner(*args):
         make_long_web_secretary_from_shelf(today_path)
 
         # upload room data to S3 in background
-        threaded_upload_room_data(proc_data)
+        threaded_upload_room_data(proc_data, startup=False)
 
         # make Blue Chip day surgery module dumper
         day_surgery_shelver(proc_data)
 
         # make episodes.csv
         update_episodes_csv(proc_data)
-
-        # make caecum.csv
-        if proc_data.caecum_reason_flag:
-            update_caecum_csv(proc_data)
 
         # anaesthetic billing
         proc_data = handle_anaesthetic_billing(proc_data)
@@ -1922,6 +1922,8 @@ def runner(*args):
     reset_form(proc_data.endoscopist)
 
 
+# download room data for web
+threaded_upload_room_data("", startup=True,)
 print("starting gui")
 root = Tk()
 root.title(today.strftime("%A  %d/%m/%Y"))
